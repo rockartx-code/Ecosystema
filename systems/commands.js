@@ -5,12 +5,19 @@
 // ── Helpers de búsqueda ───────────────────────────────────────
 function findNPC(q) {
   if(!q) return null;
-  const qn = q.toLowerCase().replace(/_/g,' ').trim();
-  return GS.npcEnNodo(Player.pos()).find(n => n.id===q || n.nombre.toLowerCase().includes(qn)) || null;
+  return pickTarget(q, GS.npcEnNodo(Player.pos()), {
+    name: n => n?.nombre,
+    id:   n => n?.id,
+    hash: n => n?.imprint?.hash || n?.hash,
+  }) || null;
 }
 function findNPCMundo(q) {
   if(!q) return null;
-  return GS.aliveNPCs().find(n => n.id===q || n.nombre.toLowerCase().includes(q.toLowerCase())) || null;
+  return pickTarget(q, GS.aliveNPCs(), {
+    name: n => n?.nombre,
+    id:   n => n?.id,
+    hash: n => n?.imprint?.hash || n?.hash,
+  }) || null;
 }
 function npcNoAqui(q) {
   const en = findNPCMundo(q);
@@ -40,10 +47,13 @@ function pickTarget(q, list, opts = {}) {
     const id   = String(opts.id?.(t) ?? t.id ?? '').toLowerCase();
     const hash = String(opts.hash?.(t) ?? t.hash ?? t.imprint?.hash ?? '').toLowerCase();
     const qh   = query.replace(/^#/, '');
+    const short = hash ? hash.slice(0, 6) : '';
     let score = 0;
     if(id && id === query) score = 1000;
     else if(hash && hash === qh) score = 900;
+    else if(short && short === qh) score = 875;
     else if(name === query) score = 850;
+    else if(id && id.startsWith(query)) score = 760;
     else if(name.startsWith(query)) score = 700;
     else if(name.includes(query)) score = 600 - Math.max(0, name.indexOf(query));
     return { t, score };

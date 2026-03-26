@@ -177,9 +177,17 @@ function _anclaCompatible(creature) {
 // ── Comandos ──────────────────────────────────────────────────────
 function cmdCapturar(args) {
   const target = args.join(' ').trim();
+  const q      = target.toLowerCase();
   const n      = World.node(Player.pos());
   const cre    = target
-    ? n?.creatures?.find(c=>c.nombre.toLowerCase().includes(target))
+    ? n?.creatures?.find(c => {
+        const nombre = String(c?.nombre || '').toLowerCase();
+        const arc    = String(c?.arquetipo || '').toLowerCase();
+        const id     = String(c?.id || '').toLowerCase();
+        const hash   = String(c?.imprint?.hash || c?.hash || '').toLowerCase();
+        const short  = hash ? hash.slice(0, 6) : '';
+        return nombre.includes(q) || arc.includes(q) || id.includes(q) || hash === q || short === q;
+      })
     : n?.creatures?.[0];
   if(!cre) { Out.line('No hay criatura para capturar.','t-dim'); return; }
 
