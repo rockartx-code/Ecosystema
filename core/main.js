@@ -21,6 +21,16 @@
 //
 // REGLA: CTX nunca expone document, window, ni ningún objeto DOM.
 // Para output usar CTX.Out.*   Para leer estado usar CTX.Player, etc.
+const RCompat = {
+  w:   (text, color='t-out', bold=false)=>Out.line(text, color, bold),
+  sp:  ()=>Out.sp(),
+  sep: (ch='─', len=46)=>Out.sep(ch, len),
+  tw:  (text, color='t-out', delay=18)=>Out.tw(text, color, delay),
+  echo:(raw)=>Out.echo(raw),
+  clr: ()=>Out.clear(),
+  upd: ()=>refreshStatus(),
+};
+
 const CTX = {
   // Core
   U, EventBus, ModuleLoader, PluginLoader, CommandRegistry, D,
@@ -30,11 +40,11 @@ const CTX = {
   Player, World, GS, Clock,
 
   // Sistemas de combate
-  CombatResolution, battleLog, _sonEnemigos,
+  CombatResolution, Combat: CombatResolution, battleLog, _sonEnemigos,
 
   // I/O — el motor y los plugins usan Out.* para escribir output.
   // Nunca usan R.*, document.*, ni console.log para output visible.
-  Out,
+  Out, R: RCompat,
   In,
   refreshStatus,
 
@@ -66,6 +76,9 @@ function _registerCoreSystems() {
 
   // ── Plugin: Magias ────────────────────────────────────────────
   PluginLoader.register(pluginMagias);
+  if(typeof pluginIABatalla !== 'undefined') PluginLoader.register(pluginIABatalla);
+  if(typeof pluginFacciones !== 'undefined') PluginLoader.register(pluginFacciones);
+  if(typeof pluginBosses !== 'undefined')    PluginLoader.register(pluginBosses);
 
   // ── Plugin: Supervivencia (hambre, heridas fuera de combate) ──
   // Antes era Player.hungerTick() inline en cmdIr.
@@ -186,6 +199,7 @@ function _registerJSONPlugins() {
 // No toca el DOM directamente — usa Out.boot() para el boot screen
 // y Renderer.setHeader() para la cabecera (único punto de contacto UI).
 async function bootSeq() {
+  if(typeof RunMem !== 'undefined') RunMem.load?.();
 
   Out.boot('b1', '▸ Cargando módulo base...', 'pending');
   ModuleLoader.fromElement('module-base');
@@ -241,6 +255,8 @@ async function init() {
   Player.create();
   const { startId } = World.gen(U.uid()+U.uid(), { ecos: CTX.RunMem?.ecos?.() || [] });
   Player.setPos(startId);
+  World.visit(startId);
+  if(typeof XP !== 'undefined') XP.init?.();
   Clock.tick(0);
 
   D.itemsInicio.forEach(bp => {
@@ -256,3 +272,13 @@ async function init() {
   refreshStatus();
   save();
 }
+
+// ── Arranque automático (equivalente a singlefile) ─────────────
+// Ejecuta boot + init una sola vez cuando el documento está listo.
+(async () => {
+  if(window.__ecoBooted) return;
+  window.__ecoBooted = true;
+  await bootSeq();
+  await init();
+  document.getElementById('inp')?.focus();
+})();
