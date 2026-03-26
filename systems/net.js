@@ -195,8 +195,16 @@ const Net = (() => {
 
     switch(verb) {
       case 'atacar': {
-        const target = arg
-          ? battle.cola.find(c=>c.vivo&&c.tipo!=='player'&&c.name.toLowerCase().includes(arg.toLowerCase()))
+        const query = String(arg || '').toLowerCase().replace(/_/g,' ').trim();
+        const qHash = query.replace(/^#/, '');
+        const target = query
+          ? battle.cola.find(c => {
+              if(!c?.vivo || c.tipo === 'player') return false;
+              const name = String(c.name || '').toLowerCase();
+              const id   = String(c.id || '').toLowerCase();
+              const hash = String(c.imprint?.hash || c.hash || '').toLowerCase();
+              return id === query || hash === qHash || name.includes(query);
+            })
           : battle.cola.find(c=>c.vivo&&c.tipo!=='player');
         if(!target) { Out.line('Sin objetivo.','t-dim'); return; }
 

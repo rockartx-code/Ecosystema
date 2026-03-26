@@ -414,7 +414,6 @@ function cmdUsar(q) { const item=Player.findItem(q); if(!item){Out.line(`No tien
 function cmdAtacar(q) {
   const n = World.node(Player.pos()); if(!n){return;}
   const qn = (q||'').toLowerCase().replace(/_/g,' ').trim();
-  const qh = qn.replace(/^#/, '');
   const npc = findNPC(qn);
   if(npc) {
     const stats = NPCEngine.combatStats(npc);
@@ -425,17 +424,30 @@ function cmdAtacar(q) {
     ]);
     return;
   }
-  const enemy = qn ? n.enemies?.find(e => {
-    const id = String(e?.id || '').toLowerCase();
-    const hash = String(e?.imprint?.hash || e?.hash || '').toLowerCase();
-    const name = String(e?.nombre || '').toLowerCase();
-    return id === qn || hash === qh || name.includes(qn);
-  }) : n.enemies?.[0];
-  if(!enemy) { Out.line(q?`No hay "${q}" aquí.`:'No hay enemigos aquí.', 't-dim'); return; }
+  const enemy = pickTarget(qn, n.enemies || [], {
+    name: e => e?.nombre,
+    id:   e => e?.id,
+    hash: e => e?.imprint?.hash || e?.hash,
+  }) || n.enemies?.[0];
+  if(enemy) {
+    const p = Player.get();
+    Net.startBattle(n.id, [
+      { tipo:'player', id:p.id, name:p.name, hp:p.hp, maxHp:p.maxHp, atk:Player.getAtk(), def:Player.getDef(), nodeId:n.id, playerId:p.id, vivo:true },
+      { tipo:'enemy', id:enemy.id, name:enemy.nombre, hp:enemy.hp_current||enemy.hp, maxHp:enemy.hp, atk:enemy.atk, def:enemy.def||0, nodeId:n.id, tags:enemy.tags||[], vivo:true, imprint:enemy.imprint||null, hash:enemy.hash||null },
+    ]);
+    return;
+  }
+
+  const creature = pickTarget(qn, n.creatures || [], {
+    name: c => c?.nombre,
+    id:   c => c?.id,
+    hash: c => c?.imprint?.hash || c?.hash,
+  }) || n.creatures?.[0];
+  if(!creature) { Out.line(q?`No hay "${q}" aquí.`:'No hay enemigos o criaturas aquí.', 't-dim'); return; }
   const p = Player.get();
   Net.startBattle(n.id, [
     { tipo:'player', id:p.id, name:p.name, hp:p.hp, maxHp:p.maxHp, atk:Player.getAtk(), def:Player.getDef(), nodeId:n.id, playerId:p.id, vivo:true },
-    { tipo:'enemy', id:enemy.id, name:enemy.nombre, hp:enemy.hp_current||enemy.hp, maxHp:enemy.hp, atk:enemy.atk, def:enemy.def||0, nodeId:n.id, tags:enemy.tags||[], vivo:true },
+    { tipo:'creature', id:creature.id, name:creature.nombre, hp:creature.hp_current||creature.hp, maxHp:creature.maxHp||creature.hp, atk:creature.atk||4, def:creature.def||0, nodeId:n.id, tags:creature.tags||[], vivo:true, _cre_ref:creature, imprint:creature.imprint||null, hash:creature.hash||null },
   ]);
 }
 
@@ -482,7 +494,11 @@ function cmdCompañeros() {
 
 function cmdCapturar(q) {
   const n = World.node(Player.pos()); if(!n) return;
-  const creature = q ? n.creatures?.find(c=>c.nombre.toLowerCase().includes(q.toLowerCase())||c.arquetipo.toLowerCase().includes(q.toLowerCase())) : n.creatures?.[0];
+  const creature = pickTarget(q, n.creatures || [], {
+    name: c => `${c?.nombre||''} ${c?.arquetipo||''}`.trim(),
+    id:   c => c?.id,
+    hash: c => c?.imprint?.hash || c?.hash,
+  }) || n.creatures?.[0];
   if(!creature) { Out.line(q?`No hay criatura "${q}" aquí.`:'No hay criaturas aquí.','t-dim'); return; }
   const p = Player.get();
   const comps = p.ext?.compañeros || p.compañeros || [];
@@ -493,20 +509,13 @@ function cmdCapturar(q) {
   Out.line(`Voluntad: ${creature.voluntad||50}  HP: ${creature.hp}/${creature.maxHp}`, 't-dim');
   const anclasDef = D.creatures[creature.arquetipo]?.anclas || [];
   const ancla     = p.inventory.find(i=>anclasDef.includes(i.blueprint)&&(i.categoria==='ancla'||D.mat(i.blueprint)?.categoria==='ancla'));
-  if(!ancla && anclasDef.length) { Out.line(`Necesitas un ancla compatible: ${anclasDef.join(', ')}`,'t-dim'); return; }
-  const voluntad  = creature.voluntad || 50;
-  const resistBase= voluntad / 100;
-  const resist    = ancla ? resistBase * 0.4 : resistBase;
-  if(Math.random() < resist) { Out.line(`${creature.nombre} resiste el vínculo.`,'t-dim'); Out.line('Debilítala más (< 30% HP) o usa un ancla mejor.','t-dim'); return; }
-  if(ancla) { Player.rmItem(ancla.id); Out.line(`Ancla consumida: ${ancla.nombre}`, 't-dim'); }
-  creature.estado = 'vinculada';
-  World.rmCreature(Player.pos(), creature.id);
-  if(p.ext?.compañeros) p.ext.compañeros.push(creature);
-  else if(p.compañeros) p.compañeros.push(creature);
-  if(typeof XP!=='undefined') XP.ganar('criaturas', 40, `captura: ${creature.nombre}`);
-  Out.line(`✦ ${creature.nombre} ha sido vinculada.`, 't-cri', true);
-  Out.line(`Tags: ${creature.tags?.join(', ')||'—'}  Afinidad: ${creature.afinidad||0}`, 't-dim');
-  refreshStatus(); save();
+  if(!ancla && anclasDef.length) Out.line(`Necesitas un ancla compatible: ${anclasDef.join(', ')}`,'t-dim');
+  Out.line('Debilítala a < 30% HP y usa "vincular [ancla]".', 't-dim');
+  const battleCreature = { ...creature, hp_current: creature.hp_current || creature.hp || creature.maxHp };
+  Net.startBattle(n.id, [
+    { tipo:'player', id:p.id, name:p.name, hp:p.hp, maxHp:p.maxHp, atk:Player.getAtk(), def:Player.getDef(), nodeId:n.id, playerId:p.id, vivo:true },
+    { tipo:'creature', id:battleCreature.id, name:battleCreature.nombre, hp:battleCreature.hp_current, maxHp:battleCreature.maxHp||battleCreature.hp, atk:battleCreature.atk||4, def:battleCreature.def||0, nodeId:n.id, tags:battleCreature.tags||[], vivo:true, _cre_ref:creature, imprint:battleCreature.imprint||null, hash:battleCreature.hash||null },
+  ]);
 }
 
 function cmdLiberar(q) { const comps=Player.get().ext?.compañeros||Player.get().compañeros||[]; const c=comps.find(x=>x.nombre.toLowerCase().includes((q||'').toLowerCase())); if(!c){Out.line('Compañero no encontrado.','t-dim');return;} if(Player.get().ext?.compañeros)Player.get().ext.compañeros=Player.get().ext.compañeros.filter(x=>x!==c); else if(Player.get().compañeros)Player.get().compañeros=Player.get().compañeros.filter(x=>x!==c); c.estado='libre'; const n=World.node(Player.pos()); if(n){n.creatures=n.creatures||[];n.creatures.push(c);} Out.line(`${c.nombre} vuelve a ser libre.`,'t-cri'); refreshStatus();save(); }
