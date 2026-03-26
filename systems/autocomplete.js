@@ -18,6 +18,12 @@ const AC = (() => {
     try { return fn(); } catch(_) { return fallback; }
   }
 
+  function _shortHash(obj) {
+    const raw = String(obj?.imprint?.hash || obj?.hash || obj?.id || '').trim();
+    if(!raw) return '';
+    return raw.slice(0, 6).toUpperCase();
+  }
+
   function getVerbs() {
     const base = [
       { v:'ir', h:'norte/sur/este/oeste' }, { v:'n', h:'ir norte' }, { v:'s', h:'ir sur' },
@@ -71,8 +77,8 @@ const AC = (() => {
 
   function getNPCsAqui() {
     return _safe(() => GS.npcEnNodo(Player.pos()), []).map(n => ({
-      label: n.nombre,
-      value: n.nombre.toLowerCase().replace(/\s+/g, '_'),
+      label: `${n.nombre}${_shortHash(n) ? ' #' + _shortHash(n) : ''}`,
+      value: n.id || n.nombre,
       hint: `[${n.arq_vis}]${(n.misiones_ofrecidas || []).length ? ' ◈' : ''}${n.desesperacion > 75 ? ' ⚠' : ''}`,
       color: n.estado === 'sometido' ? 't-mem' : 't-npc',
       group: 'npc',
@@ -158,23 +164,30 @@ const AC = (() => {
   }
 
   function getCriaturasNodo() {
-    return ((World.node(Player.pos())?.creatures) || []).map(c => ({
-      label: c.nombre,
-      value: c.nombre.split('-')[0].toLowerCase(),
-      hint: `[${c.arquetipo}] HP:${c.hp}`,
-      color: 't-cri',
-      group: 'criatura',
-    }));
+    return ((World.node(Player.pos())?.creatures) || []).map(c => {
+      const hash = _shortHash(c);
+      return {
+        label: `${c.nombre}${hash ? ' #' + hash : ''}`,
+        value: c.id || c.nombre,
+        hint: `[${c.arquetipo}]${hash ? ' #' + hash : ''} HP:${c.hp}`,
+        color: 't-cri',
+        group: 'criatura',
+      };
+    });
   }
 
   function getEnemigosNodo() {
-    return ((World.node(Player.pos())?.enemies) || []).map(e => ({
-      label: e.nombre,
-      value: e.nombre.toLowerCase().replace(/\s+/g, '_'),
-      hint: `HP:${e.hp_current || e.hp} ATK:${e.atk}`,
-      color: 't-pel',
-      group: 'enemigo',
-    }));
+    const enemies = (World.node(Player.pos())?.enemies) || [];
+    return enemies.map(e => {
+      const hash = _shortHash(e);
+      return {
+        label: `${e.nombre}${hash ? ' #' + hash : ''}`,
+        value: e.id || e.nombre,
+        hint: `${hash ? '#' + hash + '  ' : ''}HP:${e.hp_current || e.hp} ATK:${e.atk}`,
+        color: 't-pel',
+        group: 'enemigo',
+      };
+    });
   }
 
   function getMatRecarga() {
@@ -215,7 +228,7 @@ const AC = (() => {
       case 'preguntar':
         if(nargs <= 1 || (!endsSpace && nargs === 1)) return { list: getNPCsAqui() };
         return { list: ['deseo', 'miedo', 'secreto', 'pasado', 'anterior', 'vínculo'].map(t => ({ label: t, value: t, hint: 'tema', color: 't-dim', group: 'tema' })) };
-      case 'atacar': return { list: [...getNPCsAqui(), ...getEnemigosNodo()] };
+      case 'atacar': return { list: [...getNPCsAqui(), ...getEnemigosNodo(), ...getCriaturasNodo()] };
       case 'capturar': return { list: getCriaturasNodo() };
       case 'recoger': case 'tomar': return { list: getSuelo() };
       case 'soltar': case 'drop': return { list: getInventario() };

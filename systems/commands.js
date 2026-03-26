@@ -23,6 +23,37 @@ function findMision(q) {
   return GS.mision(q) || GS.allMisiones().find(m=>m.id?.toLowerCase()===ql) || GS.allMisiones().find(m=>m.id?.toLowerCase().includes(ql)) || GS.activas().find(m=>m.titulo?.toLowerCase().includes(ql)) || null;
 }
 
+function targetHash(o) {
+  const raw = String(o?.imprint?.hash || o?.hash || o?.id || '').trim();
+  return raw ? raw.slice(0, 6).toUpperCase() : '';
+}
+function normTarget(q) {
+  return String(q||'').toLowerCase().replace(/_/g,' ').trim();
+}
+function pickTarget(q, list, opts = {}) {
+  const query = normTarget(q);
+  if(!list?.length) return null;
+  if(!query) return list[0] || null;
+
+  const scored = list.map(t => {
+    const name = String(opts.name?.(t) ?? t.nombre ?? t.name ?? '').toLowerCase();
+    const id   = String(opts.id?.(t) ?? t.id ?? '').toLowerCase();
+    const hash = String(opts.hash?.(t) ?? t.hash ?? t.imprint?.hash ?? '').toLowerCase();
+    const qh   = query.replace(/^#/, '');
+    let score = 0;
+    if(id && id === query) score = 1000;
+    else if(hash && hash === qh) score = 900;
+    else if(name === query) score = 850;
+    else if(name.startsWith(query)) score = 700;
+    else if(name.includes(query)) score = 600 - Math.max(0, name.indexOf(query));
+    return { t, score };
+  }).filter(x => x.score > 0);
+
+  if(!scored.length) return null;
+  scored.sort((a,b) => b.score - a.score);
+  return scored[0].t;
+}
+
 // ── Dispatch principal ────────────────────────────────────────
 async function dispatch(cmd) {
   const { verb, args } = cmd;
@@ -237,15 +268,15 @@ function cmdMirar() {
 
   const lootNames = (n.loot||[]).filter(l => typeof l === 'string');
   if(lootNames.length)   Out.line(`Objetos: ${lootNames.join(', ')}`, 't-cra');
-  if(n.enemies?.length)  Out.line(`Entidades: ${n.enemies.map(e=>`${e.nombre}(HP:${e.hp_current||e.hp})`).join(', ')}`, 't-pel');
-  if(n.creatures?.length) Out.line(`Criaturas: ${n.creatures.map(c=>`${c.nombre}[${c.arquetipo}]`).join(', ')}`, 't-cri');
+  if(n.enemies?.length)  Out.line(`Entidades: ${n.enemies.map(e=>`${e.nombre}#${targetHash(e)||'—'}(HP:${e.hp_current||e.hp})`).join(', ')}`, 't-pel');
+  if(n.creatures?.length) Out.line(`Criaturas: ${n.creatures.map(c=>`${c.nombre}#${targetHash(c)||'—'}[${c.arquetipo}]`).join(', ')}`, 't-cri');
 
   const npcs = GS.npcEnNodo(Player.pos());
   if(npcs.length) {
     Out.sp();
     npcs.forEach(npc => {
       const tag = npc.estado !== 'vivo' ? ` [${npc.estado.toUpperCase()}]` : '';
-      Out.line(`▷ ${npc.nombre}  [${npc.arq_vis}]${tag}${npc.misiones_ofrecidas?.length?' ◈':''}`, 't-npc');
+      Out.line(`▷ ${npc.nombre}  #${targetHash(npc)||'—'}  [${npc.arq_vis}]${tag}${npc.misiones_ofrecidas?.length?' ◈':''}`, 't-npc');
       if(npc.desesperacion > 75) Out.line(`  Algo en ${npc.nombre} está al límite.`, 't-dim');
       if(npc.arq_ocu_expuesto)   Out.line(`  [${npc.arq_ocu.toUpperCase()}]`, 't-twi');
     });
@@ -323,7 +354,7 @@ function cmdPreguntar(tQ, tema) {
 
 function cmdObservar(target) { const npc=findNPC(target); if(!npc){npcNoAqui(target);return;} Out.sp(); Out.line(`— OBSERVACIÓN: ${npc.nombre} —`,'t-acc'); NPCEngine.observar(npc).forEach((o,i)=>Out.line(o,i===0?'t-npc':npc.arq_ocu_expuesto&&i>3?'t-twi':'t-dim')); Out.sp(); }
 function cmdTraicionar(target) { const npc=findNPC(target); if(!npc){npcNoAqui(target);return;} Out.sp(); Out.sep('═'); Out.line(`TRAICIÓN — ${npc.nombre}`,'t-twi',true); npc.lealtad=0; npc.desesperacion=U.clamp(npc.desesperacion+30,0,100); if((D.npcs?.arquetipos_hostiles||[]).includes(npc.arq_ocu)||npc.desesperacion>80){npc.estado='hostil';Out.line(`${npc.nombre}: "Lo recordaré."`, 't-npc');GS.allMisiones().filter(m=>m.npc_id===npc.id&&!m.completada).forEach(m=>m.fallida=true);}else Out.line(`${npc.nombre} no dice nada. Eso es peor.`,'t-npc'); if(typeof FactionSystem!=='undefined') FactionSystem.onTraicion(npc); Out.sep('═'); Out.sp(); save(); }
-function cmdNPCs() { Out.sp(); Out.line('— PERSONAS DEL MUNDO —','t-acc'); const todos=Object.values(GS.npcs); if(!todos.length){Out.line('Nadie encontrado.','t-dim');return;} const vivos=todos.filter(n=>['vivo','sometido','hostil'].includes(n.estado)); vivos.forEach(npc=>{const aqui=npc.nodeId===Player.pos(); Out.line(`  ${npc.nombre}  [${npc.arq_vis}]${npc.estado!=='vivo'?' ['+npc.estado.toUpperCase()+']':''}  ${aqui?'← AQUÍ':World.node(npc.nodeId)?.name||'?'}  Leal:${npc.lealtad}`,aqui?'t-npc':'t-dim');if(npc.arq_ocu_expuesto)Out.line(`       Real: ${npc.arq_ocu.toUpperCase()}`,'t-twi');}); const perdidos=todos.filter(n=>!['vivo','sometido','hostil'].includes(n.estado)); if(perdidos.length){Out.sp();Out.line('Perdidos:','t-pel');perdidos.forEach(n=>Out.line(`  ✝ ${n.nombre} [${n.arq_vis}] ${n.estado.toUpperCase()}`,'t-pel'));} Out.sp(); }
+function cmdNPCs() { Out.sp(); Out.line('— PERSONAS DEL MUNDO —','t-acc'); const todos=Object.values(GS.npcs); if(!todos.length){Out.line('Nadie encontrado.','t-dim');return;} const vivos=todos.filter(n=>['vivo','sometido','hostil'].includes(n.estado)); vivos.forEach(npc=>{const aqui=npc.nodeId===Player.pos(); Out.line(`  ${npc.nombre}  #${targetHash(npc)||'—'}  [${npc.arq_vis}]${npc.estado!=='vivo'?' ['+npc.estado.toUpperCase()+']':''}  ${aqui?'← AQUÍ':World.node(npc.nodeId)?.name||'?'}  Leal:${npc.lealtad}`,aqui?'t-npc':'t-dim');if(npc.arq_ocu_expuesto)Out.line(`       Real: ${npc.arq_ocu.toUpperCase()}`,'t-twi');}); const perdidos=todos.filter(n=>!['vivo','sometido','hostil'].includes(n.estado)); if(perdidos.length){Out.sp();Out.line('Perdidos:','t-pel');perdidos.forEach(n=>Out.line(`  ✝ ${n.nombre} #${targetHash(n)||'—'} [${n.arq_vis}] ${n.estado.toUpperCase()}`,'t-pel'));} Out.sp(); }
 
 // ── MISIONES ──────────────────────────────────────────────────
 function cmdMisiones() { Out.sp(); Out.line('— MISIONES —','t-acc'); const act=GS.activas(); const ok=GS.allMisiones().filter(m=>m.completada); const fail=GS.allMisiones().filter(m=>m.fallida); if(act.length){Out.line('ACTIVAS:','t-mis');act.forEach(m=>{Out.line(`  ◈ ${m.id}  "${m.titulo}"  [${m.tipo}]${m.aceptada?' ✓':''}${m.es_imposible?' [IMP]':''}${m.es_trampa?' [?]':''}`,'t-mis');Out.line(`    ${m.desc}`,'t-dim');Out.line(`    → ${m.consecuencia_fallo}`,'t-dim');});} if(ok.length) Out.line(`Completadas: ${ok.map(m=>'"'+m.titulo+'"').join(', ')}`,'t-cra'); if(fail.length) Out.line(`Fallidas: ${fail.map(m=>'"'+m.titulo+'"').join(', ')}`,'t-pel'); if(!act.length&&!ok.length) Out.line('Sin misiones. Habla con los NPCs.','t-dim'); Out.sp(); }
@@ -382,7 +413,13 @@ function cmdUsar(q) { const item=Player.findItem(q); if(!item){Out.line(`No tien
 
 function cmdAtacar(q) {
   const n = World.node(Player.pos()); if(!n){return;}
-  const npc = findNPC(q);
+  const qn = normTarget(q);
+
+  const npc = pickTarget(qn, GS.npcEnNodo(Player.pos()), {
+    name: n => n?.nombre,
+    id:   n => n?.id,
+    hash: n => n?.imprint?.hash || n?.hash,
+  });
   if(npc) {
     const stats = NPCEngine.combatStats(npc);
     const p = Player.get();
@@ -392,14 +429,38 @@ function cmdAtacar(q) {
     ]);
     return;
   }
-  const enemy = q ? n.enemies?.find(e=>e.nombre.toLowerCase().includes(q.toLowerCase())) : n.enemies?.[0];
-  if(!enemy) { Out.line(q?`No hay "${q}" aquí.`:'No hay enemigos aquí.', 't-dim'); return; }
-  const p = Player.get();
-  Net.startBattle(n.id, [
-    { tipo:'player', id:p.id, name:p.name, hp:p.hp, maxHp:p.maxHp, atk:Player.getAtk(), def:Player.getDef(), nodeId:n.id, playerId:p.id, vivo:true },
-    { tipo:'enemy', id:enemy.id, name:enemy.nombre, hp:enemy.hp_current||enemy.hp, maxHp:enemy.hp, atk:enemy.atk, def:enemy.def||0, nodeId:n.id, tags:enemy.tags||[], vivo:true },
-  ]);
+
+  const enemy = pickTarget(qn, n.enemies || [], {
+    name: e => e?.nombre,
+    id:   e => e?.id,
+    hash: e => e?.imprint?.hash || e?.hash,
+  });
+  if(enemy) {
+    const p = Player.get();
+    Net.startBattle(n.id, [
+      { tipo:'player', id:p.id, name:p.name, hp:p.hp, maxHp:p.maxHp, atk:Player.getAtk(), def:Player.getDef(), nodeId:n.id, playerId:p.id, vivo:true },
+      { tipo:'enemy', id:enemy.id, name:enemy.nombre, hp:enemy.hp_current||enemy.hp, maxHp:enemy.hp, atk:enemy.atk, def:enemy.def||0, nodeId:n.id, tags:enemy.tags||[], vivo:true },
+    ]);
+    return;
+  }
+
+  const creature = pickTarget(qn, n.creatures || [], {
+    name: c => `${c?.nombre || ''} ${c?.arquetipo || ''}`,
+    id:   c => c?.id,
+    hash: c => c?.imprint?.hash || c?.hash,
+  });
+  if(creature) {
+    const p = Player.get();
+    Net.startBattle(n.id, [
+      { tipo:'player', id:p.id, name:p.name, hp:p.hp, maxHp:p.maxHp, atk:Player.getAtk(), def:Player.getDef(), nodeId:n.id, playerId:p.id, vivo:true },
+      { tipo:'enemy', id:creature.id, name:`${creature.nombre} [${creature.arquetipo}]`, hp:creature.hp, maxHp:creature.maxHp||creature.hp, atk:creature.atk||4, def:creature.def||0, nodeId:n.id, tags:creature.tags||[], vivo:true, creature_ref:creature },
+    ]);
+    return;
+  }
+
+  Out.line(q?`No hay "${q}" aquí.`:'No hay enemigos aquí.', 't-dim');
 }
+
 
 function cmdExaminar(q) {
   if(!q) { cmdEstado(); return; }
