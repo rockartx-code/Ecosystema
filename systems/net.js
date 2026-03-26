@@ -134,6 +134,17 @@ const Net = (() => {
     broadcast({ type:'PLAYER_ACTION', playerId:Player.get().id, playerName:Player.get().name, verb, args });
   }
 
+
+  function _setCombatActive(value) {
+    if(typeof Combat !== 'undefined') {
+      Combat.active = value;
+      return;
+    }
+    if(typeof CombatResolution !== 'undefined') {
+      CombatResolution.active = value;
+    }
+  }
+
   // ── Batallas por turnos ───────────────────────────────────────
   function startBattle(nodeId, combatants) {
     const id   = U.uid();
@@ -164,7 +175,7 @@ const Net = (() => {
     if(typeof Tactics !== 'undefined') Tactics.initBattle(battle);
     battles[id]  = battle;
     myBattleId   = id;
-    Combat.active= true;
+    _setCombatActive(true);
 
     Out.sp();
     Out.line('⚔ BATALLA INICIADA', 't-pel', true);
@@ -376,7 +387,7 @@ const Net = (() => {
 
     if(battle.estado === 'fin') {
       if(myBattleId === battle.id) myBattleId = null;
-      Combat.active = false;
+      _setCombatActive(false);
       save();
     }
   }

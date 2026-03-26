@@ -62,6 +62,15 @@ const CTX = {
   findMision: (q)=>findMision(q),
 };
 
+
+// Compatibilidad global: algunos sistemas legacy referencian `Combat.active`.
+if(typeof globalThis.Combat === 'undefined') {
+  globalThis.Combat = CombatResolution;
+}
+if(typeof globalThis.Combat.active === 'undefined') {
+  globalThis.Combat.active = false;
+}
+
 // ── Registro de plugins internos de dominio ───────────────────────
 // Estos son los sistemas que antes eran monolíticos y ahora viven
 // como plugins registrados. Cada uno recibe CTX en sus handlers.
