@@ -320,6 +320,13 @@ function _ataqueFisico(actor, target, battle) {
     const base    = Math.max(1, (actor.atk||4) + U.rand(0,3) - (target.poise_roto?0:(target.defendiendo?Math.ceil((target.def||0)/2):target.def||0)));
     const multReac= reac ? reac.mult*(Tactics.CLIMAS_NODO[typeof World!=='undefined'?World.node(battle.nodeId)?.tipo||'hub':'hub']?.mult_reac||1) : 1;
     dmg = Math.max(1, Math.floor(base*multReac*(target.poise_roto?1.5:1)));
+    const beforeApply = EventBus.emit('combat:before_damage_apply', {
+      battle, actor, target, dmg,
+      source: 'enemy_attack',
+      cancelled: false,
+    });
+    if(beforeApply?.cancelled) return;
+    dmg = beforeApply?.dmg ?? dmg;
 
     target.hp = Math.max(0, target.hp - dmg);
     let log = `${actor.name} → ${target.name} [${elemento}] −${dmg}HP`;
@@ -338,6 +345,14 @@ function _ataqueFisico(actor, target, battle) {
     const critMult = target.poise_roto ? 1.5 : 1.0;
     const defBase  = target.poise_roto ? 0 : (target.defendiendo?Math.ceil((target.def||0)/2):target.def||0);
     dmg = Math.max(1, Math.floor(((actor.atk||4)+U.rand(-1,3))*critMult - defBase));
+    const beforeApply = EventBus.emit('combat:before_damage_apply', {
+      battle, actor, target, dmg,
+      source: 'enemy_attack',
+      cancelled: false,
+    });
+    if(beforeApply?.cancelled) return;
+    dmg = beforeApply?.dmg ?? dmg;
+
     target.hp = Math.max(0, target.hp - dmg);
     const critTag = critMult>1 ? ' ⚡CRÍTICO' : '';
     battleLog(battle, `${actor.name} → ${target.name}  −${dmg}HP${critTag}  (${target.hp}/${target.maxHp})`, 't-pel');
@@ -369,6 +384,12 @@ function _ataqueFisico(actor, target, battle) {
   }
 
   if(target.hp<=0) { target.vivo=false; battleLog(battle,`${target.name} cae.`,'t-cor'); }
+
+  EventBus.emit('combat:after_damage_apply', {
+    battle, actor, target, dmg,
+    source: 'enemy_attack',
+    targetDied: target.hp <= 0,
+  });
 }
 
 // ── Inferir elemento del actor por tags/nombre ────────────────────
