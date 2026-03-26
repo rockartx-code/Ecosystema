@@ -117,7 +117,10 @@ const MusicEngine = (() => {
     tempo: 120,
     echo: 0.25,
     midiMode: false,
+    zoneTheme: 'MAIN_THEME',
+    inBattle: false,
   };
+  let hooksBound = false;
 
   function log(text, color = 't-dim', bold = false) {
     if(typeof Out !== 'undefined' && Out.line) Out.line(text, color, bold);
@@ -265,6 +268,103 @@ const MusicEngine = (() => {
     return true;
   }
 
+  function setThemeAuto(themeKey, reason = '') {
+    if(!setTheme(themeKey)) return false;
+    if(state.isPlaying) {
+      state.currentStep = 0;
+      if(audioCtx) state.nextNoteTime = audioCtx.currentTime + 0.04;
+    }
+    if(reason) log(`♪ ${themeKey} ← ${reason}`, 't-dim');
+    return true;
+  }
+
+  function _zoneThemeFor(nodeType) {
+    switch((nodeType || '').toLowerCase()) {
+      case 'hub':     return 'HUB_SAFE_HAVEN';
+      case 'templo':  return 'TEMPLO_ANTIGUO';
+      case 'umbral':  return 'UMBRAL_MISTERIO';
+      case 'caverna': return 'CAVERNA_ECOS';
+      case 'vacío':
+      case 'vacio':   return 'VACIO_ETÉREO';
+      case 'abismo':  return 'ABISMO_OSCURO';
+      case 'pantano': return 'PANTANO_TÓXICO';
+      case 'grieta':  return 'GRIETA_TEMPORAL';
+      case 'bosque':  return 'BOSQUE_VITAL';
+      default:        return 'YERMO_DESOLADO';
+    }
+  }
+
+  function _updateBattleThemeFromState(battle) {
+    if(!battle?.cola) return;
+    const vivos = battle.cola.filter(c => c?.vivo && !c?.huyó);
+    const players = vivos.filter(c => c.tipo === 'player');
+    const enemies = vivos.filter(c => c.tipo !== 'player');
+    const playerHp = players.reduce((acc, p) => acc + Math.max(0, p.hp || 0), 0);
+    const playerMax = players.reduce((acc, p) => acc + Math.max(1, p.maxHp || p.hp || 1), 0);
+    const enemyHp = enemies.reduce((acc, e) => acc + Math.max(0, e.hp || 0), 0);
+    const enemyMax = enemies.reduce((acc, e) => acc + Math.max(1, e.maxHp || e.hp || 1), 0);
+    const playerRatio = playerMax ? (playerHp / playerMax) : 1;
+    const enemyRatio = enemyMax ? (enemyHp / enemyMax) : 1;
+
+    if(playerRatio <= 0.18) { setThemeAuto('CRITICAL_HP', 'HP crítico'); return; }
+    if(playerRatio >= 0.65 && enemyRatio <= 0.35) { setThemeAuto('BOSS_WINNING', 'ventaja táctica'); return; }
+    if(enemyRatio >= 0.65 && playerRatio <= 0.4) { setThemeAuto('BOSS_LOSING', 'presión enemiga'); return; }
+    setThemeAuto('BATTLE_NORMAL', 'combate activo');
+  }
+
+  function bindEventHooks() {
+    if(hooksBound || typeof EventBus === 'undefined' || !EventBus.on) return;
+    hooksBound = true;
+
+    EventBus.on('world:node_enter', ({ node }) => {
+      if(state.inBattle) return;
+      const zoneTrack = _zoneThemeFor(node?.tipo);
+      state.zoneTheme = zoneTrack;
+      setThemeAuto(zoneTrack, `zona ${node?.tipo || 'desconocida'}`);
+      if(state.enabled && !state.isPlaying) start();
+    }, 'music-engine', { priority: 30 });
+
+    EventBus.on('combat:start', ({ battle }) => {
+      state.inBattle = true;
+      _updateBattleThemeFromState(battle);
+      if(state.enabled && !state.isPlaying) start();
+    }, 'music-engine', { priority: 30 });
+
+    EventBus.on('combat:after_damage_apply', ({ battle }) => {
+      if(!state.inBattle) return;
+      _updateBattleThemeFromState(battle);
+    }, 'music-engine', { priority: 45 });
+
+    EventBus.on('combat:enemy_used_magia', () => {
+      if(state.inBattle) setThemeAuto('BOSS_LOSING', 'magia enemiga');
+    }, 'music-engine', { priority: 40 });
+
+    EventBus.on('combat:enemy_defeat', () => {
+      if(state.inBattle) setThemeAuto('BOSS_WINNING', 'enemigo derrotado');
+    }, 'music-engine', { priority: 40 });
+
+    EventBus.on('combat:post_resolve', ({ battle }) => {
+      if(battle?.estado !== 'fin') return;
+      state.inBattle = false;
+      const playerAlive = battle.cola?.some(c => c.tipo === 'player' && c.vivo && !c.huyó);
+      setThemeAuto(playerAlive ? 'FANFARE_VICTORY' : 'FANFARE_DEFEAT', 'fin de batalla');
+      setTimeout(() => {
+        if(state.inBattle) return;
+        setThemeAuto(state.zoneTheme || 'MAIN_THEME', 'retorno a exploración');
+      }, 2400);
+    }, 'music-engine', { priority: 40 });
+
+    EventBus.on('player:item_add', ({ item }) => {
+      const bp = String(item?.blueprint || '').toLowerCase();
+      if(bp.includes('legend') || bp.includes('legendario')) {
+        setThemeAuto('ITEM_LEGENDARY', 'descubrimiento legendario');
+        setTimeout(() => {
+          if(!state.inBattle) setThemeAuto(state.zoneTheme || 'MAIN_THEME', 'exploración');
+        }, 1700);
+      }
+    }, 'music-engine', { priority: 35 });
+  }
+
   function cmd(args = []) {
     const sub = (args[0] || 'estado').toLowerCase();
 
@@ -337,7 +437,10 @@ const MusicEngine = (() => {
     stop,
     play: start,
     setTheme,
+    bindEventHooks,
     state: () => ({ ...state }),
     getAudioContext: () => ensureAudio(),
   };
 })();
+
+MusicEngine.bindEventHooks?.();

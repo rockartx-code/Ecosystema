@@ -10,6 +10,7 @@ const SFXEngine = (() => {
     enabled: true,
     volume: 0.8,
   };
+  let hooksBound = false;
 
   const SFX_LIST = [
     'accept','fail','move','talk','trade','map',
@@ -284,11 +285,54 @@ const SFXEngine = (() => {
     log('Comandos: sfx estado|on|off|vol <0-1>|test|<nombre_sfx>', 't-dim');
   }
 
+  function bindEventHooks() {
+    if(hooksBound || typeof EventBus === 'undefined' || !EventBus.on) return;
+    hooksBound = true;
+
+    const cmdSfxMap = {
+      ir: 'move', go: 'move', n: 'move', s: 'move', e: 'move', o: 'move',
+      hablar: 'talk', preguntar: 'talk',
+      comerciar: 'trade', confirmar_trade: 'accept', rechazar_trade: 'fail',
+      atacar: 'attack', atk: 'attack',
+      magia: 'cast', lanzar: 'cast', lanzar_b: 'cast',
+      habilidad: 'skill', hab_b: 'skill',
+      huir: 'flee', h: 'flee',
+      forjar: 'forge', conjurar: 'enchant', encarnar: 'enchant',
+      capturar: 'catch', entrenar: 'train', criar: 'upgrade',
+      asignar: 'upgrade',
+    };
+
+    EventBus.on('command:after', ({ verb }) => {
+      const sfx = cmdSfxMap[String(verb || '').toLowerCase()];
+      if(sfx) play(sfx);
+    }, 'sfx-engine', { priority: 70 });
+
+    EventBus.on('combat:start', () => play('attack'), 'sfx-engine', { priority: 50 });
+    EventBus.on('combat:after_damage_apply', ({ target }) => {
+      if(target?.tipo === 'player') play('hurt');
+      else play('damage');
+    }, 'sfx-engine', { priority: 50 });
+    EventBus.on('combat:enemy_used_magia', () => play('cast'), 'sfx-engine', { priority: 50 });
+    EventBus.on('combat:enemy_used_habilidad', () => play('skill'), 'sfx-engine', { priority: 50 });
+    EventBus.on('combat:enemy_defeat', () => play('execute'), 'sfx-engine', { priority: 50 });
+    EventBus.on('player:die', () => play('fail'), 'sfx-engine', { priority: 50 });
+    EventBus.on('player:item_add', ({ item }) => {
+      const bp = String(item?.blueprint || '').toLowerCase();
+      if(bp.includes('ancla') || bp.includes('legend')) play('upgrade');
+    }, 'sfx-engine', { priority: 60 });
+    EventBus.on('player:stat_change', ({ stat, delta }) => {
+      if(stat === 'hp' && delta < 0) play('hurt');
+    }, 'sfx-engine', { priority: 80 });
+  }
+
   return {
     cmd,
     play,
     sfx: play,
+    bindEventHooks,
     list: () => [...SFX_LIST],
     state: () => ({ ...state }),
   };
 })();
+
+SFXEngine.bindEventHooks?.();
