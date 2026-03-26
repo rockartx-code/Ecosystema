@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>ULTIMATE 90s GAME AUDIO ENGINE — Anthology</title>
+<style>
+  :root {
+    --bg: #050608; --card: #0d1117; --accent: #00f2ff; --gold: #f4b41a;
+    --border: #21262d; --text: #c9d1d9; --led-red: #ff4444; --victory: #3fb950;
+  }
+  body {
+    margin: 0; font-family: 'Courier New', monospace; background: var(--bg); color: var(--text);
+    background-image: linear-gradient(rgba(0,0,0,0.3) 50%, transparent 50%); background-size: 100% 4px;
+    overflow-x: hidden;
+  }
+  .container { max-width: 1000px; margin: 20px auto; padding: 25px; border: 2px solid var(--border); background: var(--card); border-radius: 12px; box-shadow: 0 0 40px rgba(0,0,0,0.6); }
+  .header { border-bottom: 3px double var(--border); margin-bottom: 25px; padding-bottom: 10px; text-align: center; }
+  .header h1 { margin: 0; color: var(--gold); letter-spacing: 5px; font-size: 22px; text-shadow: 3px 3px #000; }
+  
+  .grid { display: grid; grid-template-columns: 420px 1fr; gap: 25px; }
+  .panel { background: #000; border: 1px solid var(--border); padding: 20px; position: relative; box-shadow: inset 0 0 15px rgba(0,242,255,0.05); }
+  .panel::before { content: "INTERNAL ROM ACCESS"; position: absolute; top: -10px; left: 10px; background: #000; padding: 0 8px; font-size: 10px; color: var(--accent); font-weight: bold; }
+
+  label { display: block; font-size: 10px; color: var(--accent); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1px; }
+  select, input, button { 
+    width: 100%; background: #0d1117; border: 1px solid var(--border); color: #fff; 
+    padding: 12px; font-family: inherit; margin-bottom: 15px; font-size: 13px; outline: none;
+  }
+  
+  optgroup { background: #000; color: var(--gold); font-style: normal; }
+  button { cursor: pointer; border: 2px solid #30363d; font-weight: bold; text-transform: uppercase; color: var(--gold); transition: 0.1s; }
+  button:hover { background: var(--gold); color: #000; }
+  button.active { background: var(--led-red); color: white; border-color: #fff; animation: alert-flash 0.6s infinite; }
+
+  @keyframes alert-flash { 50% { opacity: 0.7; } }
+
+  canvas { width: 100%; height: 140px; background: #050608; border: 1px solid #21262d; margin-top: 5px; image-rendering: pixelated; }
+  
+  .status-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 20px; }
+  .led-item { display: flex; align-items: center; gap: 8px; font-size: 10px; color: #8b949e; text-transform: uppercase; }
+  .led { width: 10px; height: 10px; border-radius: 2px; background: #161b22; border: 1px solid #333; }
+  .led.on { background: #3fb950; box-shadow: 0 0 10px #3fb950; }
+  .led.red.on { background: #ff4444; box-shadow: 0 0 10px #ff4444; }
+  
+  .description { font-size: 12px; color: #8b949e; min-height: 60px; border-top: 1px solid var(--border); padding-top: 15px; margin-top: 15px; font-style: italic; line-height: 1.5; }
+  .badge { display: inline-block; padding: 2px 10px; font-size: 10px; background: #21262d; border-radius: 20px; margin-bottom: 8px; color: var(--gold); border: 1px solid #333; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <h1>PRO-PCM AUDIO WORKSTATION // MASTER ANTHOLOGY</h1>
+  </div>
+
+  <div class="grid">
+    <div class="panel">
+      <label>Select Track / Sound Data</label>
+      <select id="themeSelect">
+        <optgroup label="--- TEMA PRINCIPAL ---">
+            <option value="MAIN_THEME">LEITMOTIV: APERTURA HEROICA</option>
+        </optgroup>
+        <optgroup label="--- COMBATE DINÁMICO ---">
+            <option value="BATTLE_NORMAL">BATALLA: ENCUENTRO ESTÁNDAR</option>
+            <option value="BOSS_WINNING">JEFE: MOMENTO DE VICTORIA</option>
+            <option value="BOSS_LOSING">JEFE: MOMENTO DE TENSIÓN</option>
+            <option value="CRITICAL_HP">CRÍTICO: HP MENOR AL 10%</option>
+        </optgroup>
+        <optgroup label="--- EXPLORACIÓN DEL MUNDO ---">
+            <option value="HUB_SAFE_HAVEN">ZONA: HUB / PUEBLO</option>
+            <option value="TEMPLO_ANTIGUO">ZONA: TEMPLO ANTIGUO</option>
+            <option value="UMBRAL_MISTERIO">ZONA: EL UMBRAL</option>
+            <option value="CAVERNA_ECOS">ZONA: CAVERNAS</option>
+            <option value="VACIO_ETÉREO">ZONA: EL VACÍO</option>
+            <option value="ABISMO_OSCURO">ZONA: ABISMO</option>
+            <option value="PANTANO_TÓXICO">ZONA: PANTANO TÓXICO</option>
+            <option value="GRIETA_TEMPORAL">ZONA: GRIETA TEMPORAL</option>
+            <option value="YERMO_DESOLADO">ZONA: YERMO</option>
+            <option value="BOSQUE_VITAL">ZONA: BOSQUE</option>
+        </optgroup>
+        <optgroup label="--- FANFARRIAS Y EVENTOS ---">
+            <option value="FANFARE_VICTORY">LOGRO: VICTORIA</option>
+            <option value="FANFARE_DEFEAT">LOGRO: DERROTA</option>
+            <option value="ITEM_LEGENDARY">SÍNTESIS: ÍTEM LEGENDARIO</option>
+            <option value="ESCAPE_FRANTIC">SISTEMA: ESCAPE DE BATALLA</option>
+        </optgroup>
+      </select>
+
+      <label>Master Tempo (BPM)</label>
+      <input type="range" id="tempo" min="50" max="230" value="120">
+      
+      <label>Software Delay Intensity</label>
+      <input type="range" id="echo" min="0" max="0.6" step="0.05" value="0.25">
+
+      <button id="playBtn">INITIALIZE PCM STREAM</button>
+      <button id="stopBtn">HALT ALL CHANNELS</button>
+    </div>
+
+    <div class="panel">
+      <div id="statusPill" class="badge">STATUS: WAITING</div>
+      <canvas id="viz"></canvas>
+      
+      <div class="description" id="desc">Select a track to load the waveform metadata into memory.</div>
+      
+      <div class="status-bar">
+        <div class="led-item"><div id="led-cpu" class="led red"></div> CPU</div>
+        <div class="led-item"><div id="led-psg" class="led"></div> PSG</div>
+        <div class="led-item"><div id="led-echo" class="led"></div> ECHO</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/** 
+ * COMPENDIO TOTAL DE MELODÍAS (19 TRACKS)
+ * Formato: NotaOctava,Duración (en corcheas)
+ */
+const THEMES = {
+  // --- SISTEMA Y COMBATE ---
+  "MAIN_THEME": {
+    bpm: 135, desc: "Leitmotiv Heroico: La esencia de la aventura. Marcha triunfal en Do Menor.",
+    lead: "C4,1|Eb4,1|G4,1|C5,1|Bb4,1|G4,1|F4,1|Eb4,1|C4,1|R,1|G4,1|R,1|C5,2",
+    bass: "C2,2|G1,2|Ab1,2|F1,2|C2,2|G1,2|Ab1,2|Bb1,2", drums: "K,1|H,1|S,1|H,1|K,1|K,1|S,1|H,1"
+  },
+  "BATTLE_NORMAL": {
+    bpm: 155, desc: "Combate Normal: Versión rítmica y agresiva del Leitmotiv para encuentros aleatorios.",
+    lead: "C4,1|Eb4,1|G4,1|C5,1|Bb4,1|G4,1|F4,1|Eb4,1|D4,1|C4,1|G3,1|C4,1|Eb4,1|F4,1|G4,1|R,1",
+    bass: "C2,1|C2,1|G1,1|G1,1|Ab1,1|Ab1,1|F1,1|F1,1", drums: "K,1|H,1|S,1|H,1|K,1|H,1|S,1|H,1"
+  },
+  "BOSS_WINNING": {
+    bpm: 165, desc: "Ventaja de Jefe: El Leitmotiv transmuta a Do Mayor. Sensación de triunfo inminente.",
+    lead: "C4,1|E4,1|G4,1|C5,1|B4,1|G4,1|A4,1|G4,1|C5,1|D5,1|E5,1|G5,1|C6,4",
+    bass: "C2,1|G2,1|C2,1|G2,1|F2,1|A2,1|G2,1|B2,1", drums: "K,0.5|K,0.5|S,1|K,1|S,1"
+  },
+  "BOSS_LOSING": {
+    bpm: 140, desc: "Peligro de Jefe: El Leitmotiv se rompe con tritonos y escalas disminuidas.",
+    lead: "C4,1|Eb4,1|Gb4,1|C5,1|Bb4,1|Gb4,1|F4,1|Eb4,1|Gb3,4|F3,4|C3,4|R,4",
+    bass: "C1,4|Gb0,4|F1,4|Db1,4", drums: "K,2|S,2|K,2|S,2"
+  },
+  "CRITICAL_HP": {
+    bpm: 210, desc: "Estado Crítico: Alarma rítmica síncrona con el Leitmotiv acelerado. <10% HP.",
+    lead: "C6,0.5|R,0.5|C6,0.5|R,0.5|C4,0.5|Eb4,0.5|G4,0.5|C5,0.5|C6,0.5|R,0.5|C6,0.5|R,0.5|G4,0.5|F4,0.5|Eb4,0.5|D4,0.5",
+    bass: "C2,0.5|C2,0.5|Gb1,0.5|Gb1,0.5", drums: "K,0.5|S,0.5|H,0.5|H,0.5"
+  },
+
+  // --- MUNDO ---
+  "HUB_SAFE_HAVEN": {
+    bpm: 110, desc: "Pueblo / Hub: Tranquilidad y seguridad. Melodía armónica en Do Mayor.",
+    lead: "C4,1|E4,1|G4,1|C5,1|B4,1|G4,1|A4,1|G4,1|F4,1|E4,1|D4,1|C4,1|G3,1|A3,1|B3,1|C4,1",
+    bass: "C2,4|G1,4|A1,4|F1,4", drums: "K,1|H,1|S,1|H,1"
+  },
+  "TEMPLO_ANTIGUO": {
+    bpm: 90, desc: "Templo: Escala frigia/menor armónica. Atmósfera de antigüedad mística.",
+    lead: "A3,2|C4,2|E4,2|G#4,2|A4,4|E4,4|F4,4|D4,4",
+    bass: "A1,8|E1,8|F1,8|D1,8", drums: "H,2|H,2|S,2|H,2"
+  },
+  "UMBRAL_MISTERIO": {
+    bpm: 100, desc: "Umbral: Zona de misterio. Melodía suspendida que no resuelve.",
+    lead: "E4,3|G4,1|A4,3|B4,1|C5,2|B4,2|G4,4",
+    bass: "E1,4|A1,4|C2,4|G1,4", drums: "K,2|R,2|S,2|R,2"
+  },
+  "CAVERNA_ECOS": {
+    bpm: 80, desc: "Caverna: Minimalismo y goteo rítmico. Aprovecha el delay del motor.",
+    lead: "C5,0.5|R,1.5|Eb5,0.5|R,1.5|G5,0.5|R,1.5|C6,0.5|R,1.5",
+    bass: "C2,1|R,3|Eb1,1|R,3", drums: "H,0.5|R,3.5"
+  },
+  "VACIO_ETÉREO": {
+    bpm: 60, desc: "El Vacío: Disonancia larga y etérea. Sin percusión definida.",
+    lead: "C4,4|Gb3,4|F3,4|Db3,4",
+    bass: "C1,8|Gb0,8", drums: "R,1"
+  },
+  "ABISMO_OSCURO": {
+    bpm: 75, desc: "Abismo: Bajos pesados y opresión. Escala cromática descendente.",
+    lead: "C3,1|B2,1|Bb2,1|A2,1|Ab2,1|G2,1|Gb2,1|F2,1",
+    bass: "C1,2|C1,2|Db1,2|Db1,2", drums: "K,1|R,1"
+  },
+  "PANTANO_TÓXICO": {
+    bpm: 105, desc: "Pantano: Sonidos 'fangosos' usando intervalos de segunda menor.",
+    lead: "F#3,1|G3,1|F#3,1|D3,1|F#3,1|G3,1|Bb3,1|A3,1",
+    bass: "F#1,2|G1,2|Bb1,2|A1,2", drums: "K,1|S,1|R,1|S,1"
+  },
+  "GRIETA_TEMPORAL": {
+    bpm: 160, desc: "Grieta: Inestabilidad temporal. Arpegios de gran velocidad.",
+    lead: "C4,0.5|E4,0.5|G4,0.5|C5,0.5|Eb4,0.5|G4,0.5|Bb4,0.5|Eb5,0.5",
+    bass: "C2,1|Eb2,1|G2,1|Bb2,1", drums: "H,0.5|H,0.5|S,0.5|H,0.5"
+  },
+  "YERMO_DESOLADO": {
+    bpm: 95, desc: "Yermo: Melodía solitaria que evoca el viento y el vacío.",
+    lead: "G3,4|R,2|D4,2|C4,6|R,2",
+    bass: "G1,8|C1,8", drums: "H,4|R,4"
+  },
+  "BOSQUE_VITAL": {
+    bpm: 135, desc: "Bosque: Naturaleza vibrante. Ritmo sincopado y bajo saltarín.",
+    lead: "F4,1|A4,1|C5,1|A4,1|G4,1|Bb4,1|D5,1|Bb4,1",
+    bass: "F2,2|G2,2|A2,2|Bb2,2", drums: "K,1|H,1|S,1|H,1"
+  },
+
+  // --- FANFARRIAS ---
+  "FANFARE_VICTORY": {
+    bpm: 150, desc: "Victoria: Fanfarria clásica de triunfo. Brillo en metales (Square wave).",
+    lead: "C4,0.5|E4,0.5|G4,0.5|C5,1.5|F4,0.5|A4,0.5|C5,0.5|F5,1.5|C6,4|R,8",
+    bass: "C2,3|F2,3|G2,3|C3,4|R,8", drums: "K,1|S,1|K,0.5|K,0.5|S,1|R,8"
+  },
+  "FANFARE_DEFEAT": {
+    bpm: 90, desc: "Derrota: Cierre lúgubre. Armonía descendente.",
+    lead: "C4,1|Eb4,1|Gb4,1|F4,2|Eb4,1|Db4,1|C4,4|R,8",
+    bass: "C2,4|Ab1,4|Gb1,4|F1,4|C1,4|R,8", drums: "K,4|R,12"
+  },
+  "ITEM_LEGENDARY": {
+    bpm: 160, desc: "Ítem Legendario: Arpegio ascendente cristalino (0.25 ticks).",
+    lead: "C5,0.25|E5,0.25|G5,0.25|B5,0.25|C6,0.25|E6,0.25|G6,0.25|B6,0.25|C7,4|R,8",
+    bass: "C3,4|G3,4|C4,4|R,8", drums: "H,0.5|H,0.5|H,0.5|H,0.5|R,8"
+  },
+  "ESCAPE_FRANTIC": {
+    bpm: 195, desc: "Escapada: Huida rápida del combate. Escala cromática ascendente.",
+    lead: "C4,0.5|Db4,0.5|D4,0.5|Eb4,0.5|E4,0.5|F4,0.5|Gb4,0.5|G4,0.5|R,8",
+    bass: "C2,0.5|Db2,0.5|D2,0.5|Eb2,0.5|R,8", drums: "H,0.25|H,0.25|H,0.25|H,0.25|R,8"
+  }
+};
+
+let audioCtx, masterGain, echoNode;
+let isPlaying = false;
+let nextNoteTime = 0;
+let currentStep = 0;
+let schedulerTimer;
+
+const FREQS = { "C": 261.63, "C#": 277.18, "D": 293.66, "Eb": 311.13, "E": 329.63, "F": 349.23, "F#": 369.99, "G": 392.00, "Ab": 415.30, "A": 440.00, "Bb": 466.16, "B": 493.88 };
+
+function initAudio() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  
+  const compressor = audioCtx.createDynamicsCompressor();
+  compressor.threshold.value = -12;
+  compressor.connect(audioCtx.destination);
+
+  echoNode = audioCtx.createDelay();
+  const echoFeedback = audioCtx.createGain();
+  echoFeedback.gain.value = 0.4;
+  echoNode.connect(echoFeedback);
+  echoFeedback.connect(echoNode);
+  
+  masterGain = audioCtx.createGain();
+  masterGain.gain.value = 0.5;
+  masterGain.connect(compressor);
+  echoNode.connect(masterGain);
+}
+
+function getFreq(noteStr) {
+  if (!noteStr || noteStr === "R") return 0;
+  const note = noteStr.substring(0, noteStr.length - 1);
+  const oct = parseInt(noteStr.substring(noteStr.length - 1)) - 4;
+  return (FREQS[note] || 261.63) * Math.pow(2, oct);
+}
+
+function playOsc(freq, time, dur, type, vol, vibrato = false) {
+  if (freq === 0) return;
+  const osc = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, time);
+
+  if (vibrato) {
+    const lfo = audioCtx.createOscillator();
+    const lfoG = audioCtx.createGain();
+    lfo.frequency.value = 6;
+    lfoG.gain.value = freq * 0.015;
+    lfo.connect(lfoG);
+    lfoG.connect(osc.frequency);
+    lfo.start(time);
+    lfo.stop(time + dur);
+  }
+
+  g.gain.setValueAtTime(0, time);
+  g.gain.linearRampToValueAtTime(vol, time + 0.02);
+  g.gain.linearRampToValueAtTime(0, time + dur - 0.02);
+
+  osc.connect(g);
+  g.connect(masterGain);
+  if (vibrato || dur > 0.4) g.connect(echoNode);
+
+  osc.start(time);
+  osc.stop(time + dur);
+}
+
+function playNoise(type, time, vol) {
+  const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.1, audioCtx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+
+  const src = audioCtx.createBufferSource();
+  src.buffer = buf;
+  const filt = audioCtx.createBiquadFilter();
+  filt.type = (type === 'H') ? 'highpass' : 'lowpass';
+  filt.frequency.value = (type === 'H') ? 7000 : (type === 'S' ? 2000 : 150);
+
+  const g = audioCtx.createGain();
+  g.gain.setValueAtTime(vol, time);
+  g.gain.exponentialRampToValueAtTime(0.001, time + 0.08);
+
+  src.connect(filt); filt.connect(g); g.connect(masterGain);
+  src.start(time);
+}
+
+function scheduler() {
+  if (!isPlaying) return;
+
+  const theme = THEMES[document.getElementById("themeSelect").value];
+  const bpm = parseInt(document.getElementById("tempo").value);
+  const stepDur = 60 / bpm / 2;
+  const echoVal = parseFloat(document.getElementById("echo").value);
+  echoNode.delayTime.setTargetAtTime(echoVal, audioCtx.currentTime, 0.1);
+
+  while (nextNoteTime < audioCtx.currentTime + 0.1) {
+    const leadArr = theme.lead.split('|');
+    const bassArr = theme.bass.split('|');
+    const drumArr = theme.drums.split('|');
+
+    // CANAL 1: LEAD
+    const lData = leadArr[currentStep % leadArr.length].split(',');
+    playOsc(getFreq(lData[0]), nextNoteTime, parseFloat(lData[1]) * stepDur, 'square', 0.12, true);
+
+    // CANAL 2: BASS (Sync cada 2 pasos)
+    if (currentStep % 2 === 0) {
+        const bIdx = (currentStep / 2) % bassArr.length;
+        const bData = bassArr[bIdx].split(',');
+        playOsc(getFreq(bData[0]), nextNoteTime, parseFloat(bData[1]) * stepDur, 'triangle', 0.25);
+    }
+
+    // CANAL 3: NOISE DRUMS
+    const dData = drumArr[currentStep % drumArr.length].split(',');
+    if (dData[0] !== 'R') playNoise(dData[0], nextNoteTime, 0.1);
+
+    nextNoteTime += stepDur;
+    currentStep++;
+  }
+  schedulerTimer = setTimeout(scheduler, 25);
+  drawVisuals();
+}
+
+const themeSelect = document.getElementById("themeSelect");
+const descBox = document.getElementById("desc");
+const tempoInput = document.getElementById("tempo");
+
+themeSelect.addEventListener("change", () => {
+  const t = THEMES[themeSelect.value];
+  descBox.textContent = t.desc;
+  tempoInput.value = t.bpm;
+  document.getElementById("statusPill").textContent = "MODE: " + themeSelect.value;
+});
+
+document.getElementById("playBtn").addEventListener("click", async () => {
+  await initAudio();
+  if (audioCtx.state === 'suspended') await audioCtx.resume();
+  if (isPlaying) return;
+  
+  isPlaying = true;
+  currentStep = 0;
+  nextNoteTime = audioCtx.currentTime + 0.05;
+  document.getElementById("playBtn").classList.add("active");
+  document.querySelectorAll(".led").forEach(l => l.classList.add("on"));
+  scheduler();
+});
+
+document.getElementById("stopBtn").addEventListener("click", () => {
+  isPlaying = false;
+  clearTimeout(schedulerTimer);
+  document.getElementById("playBtn").classList.remove("active");
+  document.querySelectorAll(".led").forEach(l => l.classList.remove("on"));
+});
+
+const canvas = document.getElementById("viz");
+const vCtx = canvas.getContext("2d");
+function drawVisuals() {
+  vCtx.fillStyle = "rgba(5, 6, 8, 0.25)";
+  vCtx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  const stepW = canvas.width / 16;
+  const x = (currentStep % 16) * stepW;
+  vCtx.fillStyle = (themeSelect.value === 'CRITICAL_HP') ? "#ff4444" : "#f4b41a";
+  vCtx.fillRect(x, 0, 4, canvas.height);
+
+  // CPU LED Pulse
+  document.getElementById("led-cpu").classList.toggle("on", currentStep % 2 === 0);
+}
+
+themeSelect.dispatchEvent(new Event("change"));
+</script>
+</body>
+</html>

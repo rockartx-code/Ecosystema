@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>90s Game Engine — Ultimate BGM & SFX Studio</title>
+<style>
+  :root {
+    --bg: #050608; --card: #0d1117; --accent: #00f2ff; --gold: #f4b41a;
+    --border: #21262d; --text: #c9d1d9; --led-red: #ff4444; --magic: #a371ff;
+  }
+  body {
+    margin: 0; font-family: 'Courier New', monospace; background: var(--bg); color: var(--text);
+    background-image: linear-gradient(rgba(0,0,0,0.3) 50%, transparent 50%); background-size: 100% 4px;
+  }
+  .container { max-width: 1100px; margin: 20px auto; padding: 25px; border: 2px solid var(--border); background: var(--card); border-radius: 12px; box-shadow: 0 0 50px rgba(0,0,0,0.8); }
+  .header { border-bottom: 3px double var(--border); margin-bottom: 25px; padding-bottom: 10px; text-align: center; }
+  .header h1 { margin: 0; color: var(--gold); letter-spacing: 5px; font-size: 22px; text-shadow: 3px 3px #000; }
+  
+  .grid { display: grid; grid-template-columns: 350px 1fr; gap: 20px; }
+  .panel { background: #000; border: 1px solid var(--border); padding: 20px; position: relative; }
+  .panel::before { content: attr(data-label); position: absolute; top: -10px; left: 10px; background: #000; padding: 0 8px; font-size: 10px; color: var(--accent); font-weight: bold; }
+
+  label { display: block; font-size: 10px; color: var(--accent); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
+  select, input, button { 
+    width: 100%; background: #0d1117; border: 1px solid var(--border); color: #fff; 
+    padding: 10px; font-family: inherit; margin-bottom: 12px; font-size: 12px;
+  }
+  
+  button { cursor: pointer; border: 2px solid #30363d; font-weight: bold; text-transform: uppercase; }
+  button:hover { background: var(--gold); color: #000; }
+  button.active { background: var(--led-red); color: white; border-color: #fff; }
+
+  /* SFX Soundboard */
+  .sfx-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .sfx-btn { background: #161b22; font-size: 9px; padding: 10px 4px; border-color: #30363d; color: #8b949e; transition: 0.1s; border-radius: 4px; }
+  .sfx-btn:active { background: var(--gold); color: #000; transform: scale(0.95); }
+  .sfx-btn.combat { border-left: 3px solid var(--led-red); }
+  .sfx-btn.magic { border-left: 3px solid var(--magic); }
+  .sfx-btn.ui { border-left: 3px solid var(--gold); }
+
+  canvas { width: 100%; height: 110px; background: #050608; border: 1px solid #21262d; image-rendering: pixelated; }
+  .description { font-size: 11px; color: #8b949e; min-height: 45px; border-top: 1px solid var(--border); padding-top: 10px; margin-top: 10px; font-style: italic; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <h1>MASTER CHIP RAM // BGM & SFX EXPANSION</h1>
+  </div>
+
+  <div class="grid">
+    <!-- Panel de Música -->
+    <div class="panel" data-label="BGM ENGINE">
+      <label>Location Track</label>
+      <select id="themeSelect">
+        <optgroup label="--- SISTEMA ---">
+            <option value="MAIN_THEME">TEMA PRINCIPAL</option>
+        </optgroup>
+        <optgroup label="--- COMBATE ---">
+            <option value="BATTLE_NORMAL">BATALLA ESTÁNDAR</option>
+            <option value="BOSS_WINNING">JEFE: VENTAJA</option>
+            <option value="BOSS_LOSING">JEFE: PELIGRO</option>
+            <option value="CRITICAL_HP">CRÍTICO: BAJO HP</option>
+        </optgroup>
+        <optgroup label="--- MUNDO ---">
+            <option value="HUB_SAFE_HAVEN">HUB / PUEBLO</option>
+            <option value="TEMPLO_ANTIGUO">TEMPLO</option>
+            <option value="CAVERNA_ECOS">CAVERNA</option>
+            <option value="BOSQUE_VITAL">BOSQUE</option>
+        </optgroup>
+      </select>
+      <button id="playBtn">BOOT MUSIC</button>
+      <button id="stopBtn">HALT BGM</button>
+      <canvas id="viz"></canvas>
+      <div class="description" id="desc">System Ready...</div>
+    </div>
+
+    <!-- Panel de SFX -->
+    <div class="panel" data-label="SFX COMMAND CENTER">
+        <label>Interfaz & Navegación</label>
+        <div class="sfx-grid">
+            <button class="sfx-btn ui" onclick="sfx('accept')">ACEPTAR</button>
+            <button class="sfx-btn ui" onclick="sfx('fail')">FALLAR</button>
+            <button class="sfx-btn ui" onclick="sfx('move')">MOVERSE</button>
+            <button class="sfx-btn ui" onclick="sfx('talk')">HABLAR</button>
+            <button class="sfx-btn ui" onclick="sfx('trade')">COMERCIAR</button>
+            <button class="sfx-btn ui" onclick="sfx('map')">ABRIR MAPA</button>
+        </div>
+
+        <label style="margin-top:15px">Combate & Estado</label>
+        <div class="sfx-grid">
+            <button class="sfx-btn combat" onclick="sfx('attack')">ATACAR</button>
+            <button class="sfx-btn combat" onclick="sfx('damage')">DAÑO RECIBIDO</button>
+            <button class="sfx-btn combat" onclick="sfx('hurt')">HERIDO</button>
+            <button class="sfx-btn combat" onclick="sfx('poison')">ENVENENADO</button>
+            <button class="sfx-btn combat" onclick="sfx('burn')">QUEMADO</button>
+            <button class="sfx-btn combat" onclick="sfx('flee')">HUIR</button>
+        </div>
+
+        <label style="margin-top:15px">Magia & Progresión</label>
+        <div class="sfx-grid">
+            <button class="sfx-btn magic" onclick="sfx('cast')">LANZAR MAGIA</button>
+            <button class="sfx-btn magic" onclick="sfx('skill')">HABILIDAD</button>
+            <button class="sfx-btn magic" onclick="sfx('upgrade')">MEJORA</button>
+            <button class="sfx-btn magic" onclick="sfx('levelup')">LEVEL UP</button>
+            <button class="sfx-btn magic" onclick="sfx('forge')">FORJAR</button>
+            <button class="sfx-btn magic" onclick="sfx('enchant')">ENCANTAR</button>
+            <button class="sfx-btn magic" onclick="sfx('train')">ENTRENAR</button>
+            <button class="sfx-btn magic" onclick="sfx('catch')">ATRAPAR</button>
+            <button class="sfx-btn magic" onclick="sfx('execute')">EJECUTAR</button>
+        </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/** 
+ * AUDIO ENGINE CORE
+ */
+let audioCtx, masterGain, sfxGain;
+let isPlaying = false;
+let nextNoteTime = 0;
+let currentStep = 0;
+let schedulerTimer;
+
+const FREQS = { "C": 261.63, "C#": 277.18, "D": 293.66, "Eb": 311.13, "E": 329.63, "F": 349.23, "F#": 369.99, "G": 392.00, "Ab": 415.30, "A": 440.00, "Bb": 466.16, "B": 493.88 };
+
+function initAudio() {
+    if (audioCtx) return;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = 0.4;
+    masterGain.connect(audioCtx.destination);
+    sfxGain = audioCtx.createGain();
+    sfxGain.gain.value = 0.8; // SFX ligeramente más alto para impacto
+    sfxGain.connect(audioCtx.destination);
+}
+
+/**
+ * GENERADOR DE EFECTOS (SFX SYNTH)
+ */
+function sfx(type) {
+    initAudio();
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.connect(g);
+    g.connect(sfxGain);
+
+    switch(type) {
+        case 'accept':
+            osc.type = 'square'; osc.frequency.setValueAtTime(880, t);
+            osc.frequency.exponentialRampToValueAtTime(1320, t + 0.1);
+            g.gain.setValueAtTime(0.2, t); g.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
+            osc.start(t); osc.stop(t + 0.2);
+            break;
+
+        case 'fail':
+            osc.type = 'sawtooth'; osc.frequency.setValueAtTime(110, t);
+            osc.frequency.linearRampToValueAtTime(55, t + 0.3);
+            g.gain.setValueAtTime(0.3, t); g.gain.linearRampToValueAtTime(0.01, t + 0.3);
+            osc.start(t); osc.stop(t + 0.3);
+            break;
+
+        case 'move':
+            osc.type = 'triangle'; osc.frequency.setValueAtTime(440, t);
+            osc.frequency.exponentialRampToValueAtTime(110, t + 0.05);
+            g.gain.setValueAtTime(0.2, t); g.gain.exponentialRampToValueAtTime(0.01, t + 0.05);
+            osc.start(t); osc.stop(t + 0.05);
+            break;
+
+        case 'map': // Papel desplegándose (Ruido filtrado)
+            playNoise('L', t, 0.3, 0.3, 500); // Low pass noise
+            break;
+
+        case 'talk': // Beep rítmico
+            [0, 0.08, 0.16].forEach(delay => {
+                const o = audioCtx.createOscillator(); const gn = audioCtx.createGain();
+                o.frequency.value = 600 + (Math.random()*200); o.connect(gn); gn.connect(sfxGain);
+                gn.gain.setValueAtTime(0.1, t + delay); gn.gain.exponentialRampToValueAtTime(0.01, t + delay + 0.05);
+                o.start(t + delay); o.stop(t + delay + 0.06);
+            });
+            break;
+
+        case 'attack':
+            playNoise('H', t, 0.4, 0.1, 8000); // High pass (Slash)
+            break;
+
+        case 'damage':
+            playNoise('L', t, 0.6, 0.2, 1000); 
+            osc.frequency.setValueAtTime(100, t); osc.frequency.linearRampToValueAtTime(40, t + 0.2);
+            g.gain.setValueAtTime(0.4, t); g.gain.linearRampToValueAtTime(0, t + 0.2);
+            osc.start(t); osc.stop(t + 0.2);
+            break;
+
+        case 'hurt': // Grito bajo o golpe sordo
+            osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, t);
+            osc.frequency.exponentialRampToValueAtTime(40, t + 0.25);
+            g.gain.setValueAtTime(0.4, t); g.gain.exponentialRampToValueAtTime(0.01, t + 0.25);
+            osc.start(t); osc.stop(t + 0.25);
+            playNoise('L', t, 0.3, 0.2, 500);
+            break;
+
+        case 'cast': // Magia: Whoosh + Rising Pitch
+            playNoise('H', t, 0.3, 0.5, 4000);
+            osc.type = 'sine'; osc.frequency.setValueAtTime(440, t);
+            osc.frequency.exponentialRampToValueAtTime(1760, t + 0.5);
+            g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.3, t + 0.2);
+            g.gain.linearRampToValueAtTime(0, t + 0.5);
+            osc.start(t); osc.stop(t + 0.5);
+            break;
+
+        case 'skill': // Power hit
+            osc.type = 'square'; osc.frequency.setValueAtTime(200, t);
+            osc.frequency.exponentialRampToValueAtTime(800, t + 0.1);
+            g.gain.setValueAtTime(0.4, t); g.gain.linearRampToValueAtTime(0, t + 0.3);
+            osc.start(t); osc.stop(t + 0.3);
+            playNoise('S', t, 0.5, 0.1, 2000);
+            break;
+
+        case 'levelup': // Clásico Fanfare de 4 notas
+            [523, 659, 783, 1046].forEach((f, i) => {
+                const o = audioCtx.createOscillator(); const gn = audioCtx.createGain();
+                o.type = 'square'; o.frequency.value = f; o.connect(gn); gn.connect(sfxGain);
+                gn.gain.setValueAtTime(0, t + i*0.12); gn.gain.linearRampToValueAtTime(0.2, t + i*0.12 + 0.05);
+                gn.gain.linearRampToValueAtTime(0, t + i*0.12 + 0.2);
+                o.start(t + i*0.12); o.stop(t + i*0.12 + 0.25);
+            });
+            break;
+
+        case 'upgrade': // Rising glimmer
+            for(let i=0; i<8; i++) {
+                const o = audioCtx.createOscillator(); const gn = audioCtx.createGain();
+                o.type = 'sine'; o.frequency.value = 800 + (i * 200);
+                o.connect(gn); gn.connect(sfxGain);
+                gn.gain.setValueAtTime(0, t + i*0.04);
+                gn.gain.linearRampToValueAtTime(0.15, t + i*0.04 + 0.02);
+                gn.gain.linearRampToValueAtTime(0, t + i*0.04 + 0.1);
+                o.start(t + i*0.04); o.stop(t + i*0.04 + 0.1);
+            }
+            break;
+
+        case 'enchant': // Magical sparkle (Vibrato alto)
+            osc.type = 'sine'; osc.frequency.setValueAtTime(1500, t);
+            const lfo = audioCtx.createOscillator(); const lfoG = audioCtx.createGain();
+            lfo.frequency.value = 25; lfoG.gain.value = 200;
+            lfo.connect(lfoG); lfoG.connect(osc.frequency);
+            g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.3, t + 0.1);
+            g.gain.linearRampToValueAtTime(0, t + 0.6);
+            lfo.start(t); osc.start(t); lfo.stop(t + 0.6); osc.stop(t + 0.6);
+            break;
+
+        case 'catch': // Thump + Click (Captura)
+            playNoise('L', t, 0.5, 0.1, 300);
+            const o2 = audioCtx.createOscillator(); const gn2 = audioCtx.createGain();
+            o2.type = 'square'; o2.frequency.setValueAtTime(1200, t + 0.15);
+            o2.connect(gn2); gn2.connect(sfxGain);
+            gn2.gain.setValueAtTime(0.2, t + 0.15); gn2.gain.exponentialRampToValueAtTime(0.01, t + 0.25);
+            o2.start(t + 0.15); o2.stop(t + 0.25);
+            break;
+
+        case 'train': // Golpe rítmico doble
+            [0, 0.15].forEach(d => {
+                playNoise('L', t+d, 0.4, 0.1, 1500);
+                playOsc(200, t+d, 0.1, 'triangle', 0.3, false, true);
+            });
+            break;
+
+        case 'forge': // Clang metálico
+            osc.type = 'square'; osc.frequency.setValueAtTime(2000, t);
+            osc.frequency.exponentialRampToValueAtTime(400, t + 0.15);
+            g.gain.setValueAtTime(0.3, t); g.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
+            osc.start(t); osc.stop(t + 0.2);
+            break;
+
+        case 'flee':
+            osc.frequency.setValueAtTime(300, t); osc.frequency.exponentialRampToValueAtTime(1800, t + 0.4);
+            g.gain.setValueAtTime(0.2, t); g.gain.linearRampToValueAtTime(0, t + 0.4);
+            osc.start(t); osc.stop(t + 0.4);
+            break;
+    }
+}
+
+/**
+ * MOTOR BGM (IGUAL AL ANTERIOR)
+ */
+const THEMES = {
+    "MAIN_THEME": { bpm: 135, lead: "C4,1|Eb4,1|G4,1|C5,1|Bb4,1|G4,1|F4,1|Eb4,1|C4,1|R,1|G4,1|R,1|C5,2", bass: "C2,2|G1,2|Ab1,2|F1,2", drums: "K,1|H,1|S,1|H,1" },
+    "BATTLE_NORMAL": { bpm: 155, lead: "C4,1|Eb4,1|G4,1|C5,1|Bb4,1|G4,1|F4,1|Eb4,1|D4,1|C4,1|G3,1|C4,1", bass: "C2,1|C2,1|G1,1|G1,1", drums: "K,1|H,1|S,1|H,1" },
+    "BOSS_WINNING": { bpm: 165, lead: "C4,1|E4,1|G4,1|C5,1|B4,1|G4,1|A4,1|G4,1|C5,1|D5,1|E5,1|G5,1|C6,4", bass: "C2,1|G2,1|F2,1|A2,1", drums: "K,0.5|K,0.5|S,1|K,1" },
+    "CRITICAL_HP": { bpm: 210, lead: "C6,0.5|R,0.5|C6,0.5|R,0.5|C4,0.5|Eb4,0.5|G4,0.5|C5,0.5", bass: "C2,0.5|Gb1,0.5", drums: "K,0.5|S,0.5" },
+    "HUB_SAFE_HAVEN": { bpm: 110, lead: "C4,1|E4,1|G4,1|C5,1|B4,1|G4,1|A4,1|G4,1|F4,1|E4,1|D4,1|C4,1", bass: "C2,4|G1,4|A1,4|F1,4", drums: "K,1|H,1|S,1|H,1" },
+    "BOSQUE_VITAL": { bpm: 135, lead: "F4,1|A4,1|C5,1|A4,1|G4,1|Bb4,1|D5,1|Bb4,1", bass: "F2,2|G2,2|A2,2|Bb2,2", drums: "K,1|H,1|S,1|H,1" }
+};
+
+function playOsc(freq, time, dur, type, vol, vibrato = false, isSFX = false) {
+    if (freq === 0) return;
+    const osc = audioCtx.createOscillator(); const g = audioCtx.createGain();
+    osc.type = type; osc.frequency.setValueAtTime(freq, time);
+    g.gain.setValueAtTime(0, time); g.gain.linearRampToValueAtTime(vol, time + 0.02);
+    g.gain.linearRampToValueAtTime(0, time + dur - 0.02);
+    osc.connect(g); g.connect(isSFX ? sfxGain : masterGain);
+    osc.start(time); osc.stop(time + dur);
+}
+
+function playNoise(type, time, vol, dur, freq = 1500) {
+    const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * dur, audioCtx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+    const src = audioCtx.createBufferSource(); src.buffer = buf;
+    const filt = audioCtx.createBiquadFilter();
+    filt.type = (type === 'H') ? 'highpass' : (type === 'L' ? 'lowpass' : 'bandpass');
+    filt.frequency.value = freq;
+    const g = audioCtx.createGain();
+    g.gain.setValueAtTime(vol, time); g.gain.exponentialRampToValueAtTime(0.001, time + dur);
+    src.connect(filt); filt.connect(g); g.connect(sfxGain);
+    src.start(time);
+}
+
+function scheduler() {
+    if (!isPlaying) return;
+    const theme = THEMES[document.getElementById("themeSelect").value];
+    const stepDur = 60 / theme.bpm / 2;
+    while (nextNoteTime < audioCtx.currentTime + 0.1) {
+        const leadArr = theme.lead.split('|');
+        const bassArr = theme.bass.split('|');
+        const lData = leadArr[currentStep % leadArr.length].split(',');
+        playOsc(getFreq(lData[0]), nextNoteTime, parseFloat(lData[1]) * stepDur, 'square', 0.12, true);
+        if (currentStep % 2 === 0) {
+            const bData = bassArr[(currentStep / 2) % bassArr.length].split(',');
+            playOsc(getFreq(bData[0]), nextNoteTime, parseFloat(bData[1]) * stepDur, 'triangle', 0.25);
+        }
+        nextNoteTime += stepDur; currentStep++;
+    }
+    schedulerTimer = setTimeout(scheduler, 25);
+    drawVisuals();
+}
+
+const canvas = document.getElementById("viz");
+const vCtx = canvas.getContext("2d");
+function drawVisuals() {
+  vCtx.fillStyle = "rgba(5, 6, 8, 0.3)"; vCtx.fillRect(0, 0, canvas.width, canvas.height);
+  const x = (currentStep % 16) * (canvas.width / 16);
+  vCtx.fillStyle = "#00f2ff"; vCtx.fillRect(x, 0, 3, canvas.height);
+}
+
+document.getElementById("playBtn").onclick = async () => {
+    initAudio(); if (audioCtx.state === 'suspended') await audioCtx.resume();
+    if (isPlaying) return; isPlaying = true; currentStep = 0; nextNoteTime = audioCtx.currentTime + 0.05;
+    scheduler();
+};
+document.getElementById("stopBtn").onclick = () => { isPlaying = false; clearTimeout(schedulerTimer); };
+function getFreq(n) { return (n==='R')?0:FREQS[n.substring(0,n.length-1)]*Math.pow(2,parseInt(n.substring(n.length-1))-4); }
+</script>
+</body>
+</html>
