@@ -1,5 +1,6 @@
 // ════════════════════════════════════════════════════════════════
 // SFX ENGINE — síntesis procedural por evento (vanilla JS + WebAudio)
+// Integrado con técnicas de samples/sample_sfx.html
 // ════════════════════════════════════════════════════════════════
 
 const SFXEngine = (() => {
@@ -12,6 +13,7 @@ const SFXEngine = (() => {
     lastTs: {},
     cooldownMs: 65,
   };
+
   const EVENT_PRESETS = {
     'command:after': 'accept',
     'command:unknown': 'fail',
@@ -23,16 +25,18 @@ const SFXEngine = (() => {
     'combat:after_attack': 'skill',
     'combat:player_hit': 'damage',
     'combat:start': 'battle_start',
-    'combat:enemy_defeat': 'victory',
+    'combat:enemy_defeat': 'levelup',
     'player:die': 'defeat',
     'combat:resolve_magia': 'cast',
     'combat:resolve_habilidad': 'skill',
     'player:item_add': 'upgrade',
-    'player:equip': 'upgrade',
+    'player:equip': 'enchant',
     'forge:after': 'forge',
     'creature:capture_try': 'catch',
     'arc:complete': 'victory',
     'memory:run_end': 'defeat',
+    'narrative:mission_complete': 'levelup',
+    'narrative:mission_fail': 'fail',
   };
 
   const EVENT_CATALOG = [
@@ -104,7 +108,7 @@ const SFXEngine = (() => {
     const group = _groupOf(eventName);
 
     const semis = [0, 3, 5, 7, 10, 12, 14, 17];
-    const baseMidi = 40 + (h % 18); // E2..F#3
+    const baseMidi = 40 + (h % 18);
     const oscType = GROUP_COLORS[group] || GROUP_COLORS.misc;
 
     const len = 2 + ((h >> 5) % 3);
@@ -131,20 +135,24 @@ const SFXEngine = (() => {
     return 440 * Math.pow(2, (midi - 69) / 12);
   }
 
-  function _noise(ctx, type = 'L', freq = 800, at = 0, dur = 0.16, vol = 0.4) {
+  function _noise(ctx, type = 'L', at = 0, dur = 0.16, vol = 0.4, freq = 800) {
     const frames = Math.floor(ctx.sampleRate * dur);
     const buf = ctx.createBuffer(1, frames, ctx.sampleRate);
     const arr = buf.getChannelData(0);
     for(let i=0; i<frames; i += 1) arr[i] = (Math.random() * 2 - 1) * 0.9;
+
     const src = ctx.createBufferSource();
     src.buffer = buf;
+
     const biq = ctx.createBiquadFilter();
-    const env = ctx.createGain();
-    biq.type = type === 'H' ? 'highpass' : type === 'B' ? 'bandpass' : 'lowpass';
+    biq.type = type === 'H' ? 'highpass' : type === 'S' ? 'bandpass' : 'lowpass';
     biq.frequency.value = freq;
+
+    const env = ctx.createGain();
     env.gain.setValueAtTime(0.0001, at);
-    env.gain.linearRampToValueAtTime(vol, at + 0.01);
+    env.gain.linearRampToValueAtTime(vol, at + 0.008);
     env.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+
     src.connect(biq);
     biq.connect(env);
     env.connect(st.gain);
@@ -152,15 +160,29 @@ const SFXEngine = (() => {
     src.stop(at + dur + 0.01);
   }
 
-  function _tone(ctx, { type = 'square', from = 440, to = null, at = 0, dur = 0.16, vol = 0.25 }) {
+  function _tone(ctx, { type = 'square', from = 440, to = null, at = 0, dur = 0.16, vol = 0.25, vibrato = false }) {
     const osc = ctx.createOscillator();
     const env = ctx.createGain();
+
     osc.type = type;
     osc.frequency.setValueAtTime(from, at);
     if(to) osc.frequency.exponentialRampToValueAtTime(Math.max(20, to), at + dur);
+
+    if(vibrato) {
+      const lfo = ctx.createOscillator();
+      const lfoGain = ctx.createGain();
+      lfo.frequency.value = 24;
+      lfoGain.gain.value = Math.max(20, from * 0.15);
+      lfo.connect(lfoGain);
+      lfoGain.connect(osc.frequency);
+      lfo.start(at);
+      lfo.stop(at + dur);
+    }
+
     env.gain.setValueAtTime(0.0001, at);
     env.gain.linearRampToValueAtTime(vol, at + 0.012);
     env.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+
     osc.connect(env);
     env.connect(st.gain);
     osc.start(at);
@@ -175,52 +197,86 @@ const SFXEngine = (() => {
 
     switch(name) {
       case 'accept':
-        _tone(ctx, { type:'square', from:880, to:1320, at:t, dur:0.18, vol:0.22 });
+        _tone(ctx, { type:'square', from:880, to:1320, at:t, dur:0.2, vol:0.22 });
         return true;
       case 'fail':
-        _tone(ctx, { type:'sawtooth', from:120, to:55, at:t, dur:0.28, vol:0.26 });
+        _tone(ctx, { type:'sawtooth', from:110, to:55, at:t, dur:0.3, vol:0.26 });
         return true;
       case 'move':
-        _tone(ctx, { type:'triangle', from:460, to:120, at:t, dur:0.06, vol:0.18 });
+        _tone(ctx, { type:'triangle', from:440, to:110, at:t, dur:0.06, vol:0.18 });
+        return true;
+      case 'map':
+        _noise(ctx, 'L', t, 0.3, 0.25, 500);
         return true;
       case 'talk':
-        [0, 0.08, 0.16].forEach((d, i) => _tone(ctx, { type:'square', from:620 + i * 70, to:510 + i * 30, at:t + d, dur:0.06, vol:0.12 }));
+        [0, 0.08, 0.16].forEach((d, i) => _tone(ctx, { type:'square', from:620 + i * 70, to:510 + i * 35, at:t + d, dur:0.06, vol:0.12 }));
+        return true;
+      case 'trade':
+        [660, 830, 1040].forEach((f, i) => _tone(ctx, { type:'triangle', from:f, at:t + i * 0.06, dur:0.09, vol:0.12 }));
         return true;
       case 'attack':
-        _noise(ctx, 'H', 6000, t, 0.09, 0.28);
+        _noise(ctx, 'H', t, 0.1, 0.3, 8000);
         return true;
       case 'damage':
-        _noise(ctx, 'L', 900, t, 0.16, 0.32);
-        _tone(ctx, { type:'sawtooth', from:130, to:45, at:t, dur:0.2, vol:0.24 });
+        _noise(ctx, 'L', t, 0.2, 0.32, 1000);
+        _tone(ctx, { type:'sawtooth', from:100, to:40, at:t, dur:0.2, vol:0.24 });
+        return true;
+      case 'hurt':
+        _tone(ctx, { type:'sawtooth', from:150, to:40, at:t, dur:0.25, vol:0.25 });
+        _noise(ctx, 'L', t, 0.2, 0.2, 500);
+        return true;
+      case 'poison':
+        _tone(ctx, { type:'triangle', from:430, to:210, at:t, dur:0.36, vol:0.18, vibrato:true });
+        return true;
+      case 'burn':
+        _noise(ctx, 'H', t, 0.22, 0.25, 4200);
+        _tone(ctx, { type:'square', from:240, to:90, at:t, dur:0.18, vol:0.18 });
         return true;
       case 'cast':
-        _noise(ctx, 'H', 3800, t, 0.3, 0.2);
-        _tone(ctx, { type:'sine', from:420, to:1680, at:t, dur:0.42, vol:0.2 });
+        _noise(ctx, 'H', t, 0.5, 0.2, 4000);
+        _tone(ctx, { type:'sine', from:440, to:1760, at:t, dur:0.5, vol:0.2 });
         return true;
       case 'skill':
-        _tone(ctx, { type:'square', from:220, to:860, at:t, dur:0.14, vol:0.28 });
-        _noise(ctx, 'B', 2300, t, 0.12, 0.22);
+        _tone(ctx, { type:'square', from:200, to:800, at:t, dur:0.3, vol:0.28 });
+        _noise(ctx, 'S', t, 0.12, 0.22, 2000);
         return true;
       case 'upgrade':
-        for(let i=0; i<7; i += 1) _tone(ctx, { type:'sine', from:700 + i * 170, at:t + i * 0.04, dur:0.09, vol:0.12 });
+        for(let i=0; i<8; i += 1) _tone(ctx, { type:'sine', from:800 + i * 200, at:t + i * 0.04, dur:0.1, vol:0.12 });
         return true;
+      case 'levelup':
       case 'victory':
         [523, 659, 783, 1046].forEach((f, i) => _tone(ctx, { type:'square', from:f, at:t + i * 0.12, dur:0.2, vol:0.18 }));
         return true;
       case 'defeat':
         _tone(ctx, { type:'triangle', from:220, to:73, at:t, dur:0.45, vol:0.24 });
         return true;
+      case 'enchant':
+        _tone(ctx, { type:'sine', from:1500, at:t, dur:0.6, vol:0.22, vibrato:true });
+        return true;
       case 'forge':
-        [440, 554, 659, 880].forEach((f, i) => _tone(ctx, { type:'sine', from:f, at:t + i * 0.07, dur:0.15, vol:0.14 }));
+        _tone(ctx, { type:'square', from:2000, to:400, at:t, dur:0.2, vol:0.22 });
         return true;
       case 'catch':
-        _noise(ctx, 'L', 300, t, 0.1, 0.3);
+        _noise(ctx, 'L', t, 0.1, 0.3, 300);
         _tone(ctx, { type:'square', from:1200, to:900, at:t + 0.14, dur:0.12, vol:0.2 });
+        return true;
+      case 'train':
+        [0, 0.15].forEach(d => {
+          _noise(ctx, 'L', t + d, 0.1, 0.25, 1500);
+          _tone(ctx, { type:'triangle', from:200, at:t + d, dur:0.1, vol:0.18 });
+        });
+        return true;
+      case 'flee':
+        _tone(ctx, { type:'sawtooth', from:300, to:1800, at:t, dur:0.4, vol:0.2 });
         return true;
       case 'battle_start':
         _tone(ctx, { type:'square', from:220, at:t, dur:0.14, vol:0.21 });
         _tone(ctx, { type:'square', from:277, at:t + 0.11, dur:0.14, vol:0.21 });
         _tone(ctx, { type:'square', from:330, at:t + 0.22, dur:0.14, vol:0.21 });
+        return true;
+      case 'execute':
+        _noise(ctx, 'H', t, 0.08, 0.35, 8500);
+        _tone(ctx, { type:'square', from:880, to:110, at:t, dur:0.16, vol:0.2 });
         return true;
       default:
         return false;
@@ -316,14 +372,18 @@ const SFXEngine = (() => {
     }
 
     if(sub === 'test') {
-      const ev = String(args[1] || 'combat:start');
-      _playPattern(_eventToPattern(ev));
-      Out.line(`SFX test: ${ev}`, 't-mag');
+      const arg = String(args[1] || 'combat:start');
+      if(_playPreset(arg)) {
+        Out.line(`SFX test preset: ${arg}`, 't-mag');
+        return;
+      }
+      _playPattern(_eventToPattern(arg));
+      Out.line(`SFX test evento: ${arg}`, 't-mag');
       return;
     }
 
     Out.line(`SFX: ${st.enabled ? 'ON' : 'OFF'} · eventos ${EVENT_CATALOG.length} · vol ${(st.volume * 100).toFixed(1)}%`, 't-eco');
-    Out.line('Usa: sfx on | sfx off | sfx vol 5 | sfx test combat:start', 't-dim');
+    Out.line('Usa: sfx on | sfx off | sfx vol 5 | sfx test combat:start | sfx test levelup', 't-dim');
   }
 
   return { init, cmd, events: () => [...EVENT_CATALOG] };
