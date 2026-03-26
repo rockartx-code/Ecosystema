@@ -36,7 +36,21 @@
     },
     "atmósferas":["El aire tiene un peso extraño.","Algo resuena aquí sin fuente visible.","El silencio se comporta de forma irregular.","Una luz sin origen ilumina débilmente.","Las sombras se mueven más despacio.","Hay olor a tierra húmeda y metal quemado.","El suelo vibra en una frecuencia apenas perceptible.","El eco de tus pasos llega antes de que camines.","Cristales de resonancia crecen en las paredes.","La temperatura cae hacia el centro del nodo.","Una marca en la pared que reconoce tu presencia.","Una sensación de haber estado aquí antes sin haberlo hecho.","El tiempo fluye de forma discontinua aquí."],
     "loot_por_tipo":{"caverna":["hierro_roto","hueso_antiguo","cristal_grieta","ancla_resonante"],"ruina":["fragmento_origen","tejido_antiguo","hierro_roto","ancla_antigua"],"bosque":["fibra_oscura","raiz_antigua","hongo_bifurco","ancla_resonante"],"grieta":["cristal_grieta","vacío_cristalizado","polvo_echo","ancla_inestable"],"hub":["carne_seca","eco_condensado","extracto_raiz"],"vacío":["cristal_vacio","fibra_oscura","ancla_inestable"],"umbral":["fragmento_verdad","piedra_eco","ancla_antigua","ancla_inestable"],"abismo":["mineral_oscuro","susurro_corrupto","vacío_cristalizado","ancla_corrupta"]},
-    "criaturas_por_tipo":{"caverna":["eco_encarnado","corrupto_menor"],"ruina":["guardián_dormido","antiguo_menor"],"bosque":["resonante_bestia","eco_encarnado"],"grieta":["bifurcado","fragmento_vivo"],"hub":["fragmento_vivo"],"abismo":["antiguo_menor","vacío_animado"],"vacío":["vacío_animado","bifurcado"],"umbral":["bifurcado","antiguo_menor"]}
+    "criaturas_por_tipo":{"caverna":["eco_encarnado","corrupto_menor"],"ruina":["guardián_dormido","antiguo_menor"],"bosque":["resonante_bestia","eco_encarnado"],"grieta":["bifurcado","fragmento_vivo"],"hub":["fragmento_vivo"],"abismo":["antiguo_menor","vacío_animado"],"vacío":["vacío_animado","bifurcado"],"umbral":["bifurcado","antiguo_menor"]},
+    "musica_8bit":{"bpm":152,"volume":0.05,"pulse":"square"},
+    "melodias_8bit_por_tipo":{
+      "hub":[{"n":"C5","d":1},{"n":"E5","d":1},{"n":"G5","d":1},{"n":"E5","d":1},{"n":"D5","d":1},{"n":"F5","d":1},{"n":"A5","d":1},{"n":"R","d":1}],
+      "bosque":[{"n":"E5","d":1},{"n":"G5","d":1},{"n":"B5","d":1},{"n":"G5","d":1},{"n":"D5","d":1},{"n":"E5","d":1},{"n":"A5","d":1},{"n":"R","d":1}],
+      "caverna":[{"n":"A3","d":2},{"n":"E4","d":1},{"n":"G4","d":1},{"n":"E4","d":2},{"n":"D4","d":1},{"n":"C4","d":1},{"n":"A3","d":2},{"n":"R","d":1}],
+      "ruina":[{"n":"D5","d":1},{"n":"A4","d":1},{"n":"F5","d":1},{"n":"D5","d":1},{"n":"C5","d":1},{"n":"G4","d":1},{"n":"E5","d":2},{"n":"R","d":1}],
+      "grieta":[{"n":"C6","d":1},{"n":"B5","d":1},{"n":"G5","d":1},{"n":"D#5","d":1},{"n":"C6","d":1},{"n":"A5","d":1},{"n":"F5","d":1},{"n":"R","d":1}],
+      "vacío":[{"n":"C4","d":2},{"n":"G3","d":1},{"n":"D4","d":1},{"n":"A3","d":2},{"n":"F3","d":1},{"n":"C4","d":1},{"n":"G3","d":2},{"n":"R","d":1}],
+      "umbral":[{"n":"F4","d":1},{"n":"A4","d":1},{"n":"C5","d":1},{"n":"E5","d":1},{"n":"D5","d":1},{"n":"C5","d":1},{"n":"A4","d":1},{"n":"R","d":1}],
+      "abismo":[{"n":"E3","d":2},{"n":"G3","d":1},{"n":"Bb3","d":1},{"n":"C4","d":2},{"n":"G3","d":1},{"n":"F3","d":1},{"n":"E3","d":2},{"n":"R","d":1}],
+      "pantano":[{"n":"D4","d":1},{"n":"F4","d":1},{"n":"Ab4","d":1},{"n":"F4","d":1},{"n":"D4","d":1},{"n":"C4","d":1},{"n":"A3","d":2},{"n":"R","d":1}],
+      "yermo":[{"n":"A4","d":1},{"n":"E4","d":1},{"n":"C5","d":1},{"n":"E4","d":1},{"n":"A4","d":1},{"n":"G4","d":1},{"n":"D4","d":2},{"n":"R","d":1}],
+      "templo":[{"n":"G5","d":1},{"n":"B5","d":1},{"n":"D6","d":1},{"n":"B5","d":1},{"n":"A5","d":1},{"n":"G5","d":1},{"n":"E5","d":2},{"n":"R","d":1}]
+    }
   },
   "fases":[
     {"id":"ALBA",       "color":"t-mem", "bonus_tags":["resonante"]},
@@ -271,6 +285,7 @@
 <script src="systems/item-system.js"></script>
 <script src="systems/xp.js"></script>
 <script src="systems/world-ai.js"></script>
+<script src="systems/music-engine.js"></script>
 <script src="systems/net.js"></script>
 <script src="systems/save-load.js"></script>
 <script src="systems/commands.js"></script>
