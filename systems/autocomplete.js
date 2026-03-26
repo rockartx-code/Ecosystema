@@ -77,9 +77,9 @@ const AC = (() => {
 
   function getNPCsAqui() {
     return _safe(() => GS.npcEnNodo(Player.pos()), []).map(n => ({
-      label: `${n.nombre}${_shortHash(n) ? ' #' + _shortHash(n) : ''}`,
+      label: n.nombre,
       value: n.id || n.nombre,
-      hint: `[${n.arq_vis}]${(n.misiones_ofrecidas || []).length ? ' ◈' : ''}${n.desesperacion > 75 ? ' ⚠' : ''}`,
+      hint: `[${n.arq_vis}] #${_shortHash(n) || '—'}${(n.misiones_ofrecidas || []).length ? ' ◈' : ''}${n.desesperacion > 75 ? ' ⚠' : ''}`,
       color: n.estado === 'sometido' ? 't-mem' : 't-npc',
       group: 'npc',
     }));
@@ -178,10 +178,17 @@ const AC = (() => {
 
   function getEnemigosNodo() {
     const enemies = (World.node(Player.pos())?.enemies) || [];
+    const counts = enemies.reduce((acc, e) => {
+      const k = (e?.nombre || '').toLowerCase();
+      acc[k] = (acc[k] || 0) + 1;
+      return acc;
+    }, {});
+
     return enemies.map(e => {
+      const repeated = counts[(e?.nombre || '').toLowerCase()] > 1;
       const hash = _shortHash(e);
       return {
-        label: `${e.nombre}${hash ? ' #' + hash : ''}`,
+        label: repeated && hash ? `${e.nombre} #${hash}` : e.nombre,
         value: e.id || e.nombre,
         hint: `${hash ? '#' + hash + '  ' : ''}HP:${e.hp_current || e.hp} ATK:${e.atk}`,
         color: 't-pel',

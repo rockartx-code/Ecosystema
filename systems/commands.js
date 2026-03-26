@@ -413,13 +413,9 @@ function cmdUsar(q) { const item=Player.findItem(q); if(!item){Out.line(`No tien
 
 function cmdAtacar(q) {
   const n = World.node(Player.pos()); if(!n){return;}
-  const qn = normTarget(q);
-
-  const npc = pickTarget(qn, GS.npcEnNodo(Player.pos()), {
-    name: n => n?.nombre,
-    id:   n => n?.id,
-    hash: n => n?.imprint?.hash || n?.hash,
-  });
+  const qn = (q||'').toLowerCase().replace(/_/g,' ').trim();
+  const qh = qn.replace(/^#/, '');
+  const npc = findNPC(qn);
   if(npc) {
     const stats = NPCEngine.combatStats(npc);
     const p = Player.get();
@@ -429,36 +425,18 @@ function cmdAtacar(q) {
     ]);
     return;
   }
-
-  const enemy = pickTarget(qn, n.enemies || [], {
-    name: e => e?.nombre,
-    id:   e => e?.id,
-    hash: e => e?.imprint?.hash || e?.hash,
-  });
-  if(enemy) {
-    const p = Player.get();
-    Net.startBattle(n.id, [
-      { tipo:'player', id:p.id, name:p.name, hp:p.hp, maxHp:p.maxHp, atk:Player.getAtk(), def:Player.getDef(), nodeId:n.id, playerId:p.id, vivo:true },
-      { tipo:'enemy', id:enemy.id, name:enemy.nombre, hp:enemy.hp_current||enemy.hp, maxHp:enemy.hp, atk:enemy.atk, def:enemy.def||0, nodeId:n.id, tags:enemy.tags||[], vivo:true },
-    ]);
-    return;
-  }
-
-  const creature = pickTarget(qn, n.creatures || [], {
-    name: c => `${c?.nombre || ''} ${c?.arquetipo || ''}`,
-    id:   c => c?.id,
-    hash: c => c?.imprint?.hash || c?.hash,
-  });
-  if(creature) {
-    const p = Player.get();
-    Net.startBattle(n.id, [
-      { tipo:'player', id:p.id, name:p.name, hp:p.hp, maxHp:p.maxHp, atk:Player.getAtk(), def:Player.getDef(), nodeId:n.id, playerId:p.id, vivo:true },
-      { tipo:'enemy', id:creature.id, name:`${creature.nombre} [${creature.arquetipo}]`, hp:creature.hp, maxHp:creature.maxHp||creature.hp, atk:creature.atk||4, def:creature.def||0, nodeId:n.id, tags:creature.tags||[], vivo:true, creature_ref:creature },
-    ]);
-    return;
-  }
-
-  Out.line(q?`No hay "${q}" aquí.`:'No hay enemigos aquí.', 't-dim');
+  const enemy = qn ? n.enemies?.find(e => {
+    const id = String(e?.id || '').toLowerCase();
+    const hash = String(e?.imprint?.hash || e?.hash || '').toLowerCase();
+    const name = String(e?.nombre || '').toLowerCase();
+    return id === qn || hash === qh || name.includes(qn);
+  }) : n.enemies?.[0];
+  if(!enemy) { Out.line(q?`No hay "${q}" aquí.`:'No hay enemigos aquí.', 't-dim'); return; }
+  const p = Player.get();
+  Net.startBattle(n.id, [
+    { tipo:'player', id:p.id, name:p.name, hp:p.hp, maxHp:p.maxHp, atk:Player.getAtk(), def:Player.getDef(), nodeId:n.id, playerId:p.id, vivo:true },
+    { tipo:'enemy', id:enemy.id, name:enemy.nombre, hp:enemy.hp_current||enemy.hp, maxHp:enemy.hp, atk:enemy.atk, def:enemy.def||0, nodeId:n.id, tags:enemy.tags||[], vivo:true },
+  ]);
 }
 
 
