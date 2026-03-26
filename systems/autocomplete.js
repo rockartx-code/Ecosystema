@@ -164,13 +164,16 @@ const AC = (() => {
   }
 
   function getCriaturasNodo() {
-    return ((World.node(Player.pos())?.creatures) || []).map(c => ({
-      label: c.nombre,
-      value: c.nombre.split('-')[0].toLowerCase(),
-      hint: `[${c.arquetipo}] HP:${c.hp}`,
-      color: 't-cri',
-      group: 'criatura',
-    }));
+    return ((World.node(Player.pos())?.creatures) || []).map(c => {
+      const hash = _shortHash(c);
+      return {
+        label: `${c.nombre}${hash ? ' #' + hash : ''}`,
+        value: c.id || c.nombre,
+        hint: `[${c.arquetipo}]${hash ? ' #' + hash : ''} HP:${c.hp}`,
+        color: 't-cri',
+        group: 'criatura',
+      };
+    });
   }
 
   function getEnemigosNodo() {
@@ -232,7 +235,7 @@ const AC = (() => {
       case 'preguntar':
         if(nargs <= 1 || (!endsSpace && nargs === 1)) return { list: getNPCsAqui() };
         return { list: ['deseo', 'miedo', 'secreto', 'pasado', 'anterior', 'vínculo'].map(t => ({ label: t, value: t, hint: 'tema', color: 't-dim', group: 'tema' })) };
-      case 'atacar': return { list: [...getNPCsAqui(), ...getEnemigosNodo()] };
+      case 'atacar': return { list: [...getNPCsAqui(), ...getEnemigosNodo(), ...getCriaturasNodo()] };
       case 'capturar': return { list: getCriaturasNodo() };
       case 'recoger': case 'tomar': return { list: getSuelo() };
       case 'soltar': case 'drop': return { list: getInventario() };
