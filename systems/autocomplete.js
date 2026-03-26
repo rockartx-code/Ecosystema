@@ -85,9 +85,23 @@ const AC = (() => {
     }));
   }
 
+  function _normToken(v) {
+    return String(v || '')
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .toLowerCase()
+      .replace(/\s+/g, '_')
+      .trim();
+  }
+
   function getMaterialesInv(yaEscritos) {
-    const used = new Set(yaEscritos || []);
-    return getInventario(i => i.tipo === 'material' && !used.has(i.blueprint)).map(i => ({ ...i, value: i.label, color: 't-cra' }));
+    const used = new Set((yaEscritos || []).map(_normToken));
+    return getInventario(i => i.tipo === 'material' && !used.has(_normToken(i.blueprint)) && !used.has(_normToken(i.nombre || i.blueprint)))
+      .map(i => ({
+        ...i,
+        value: i.blueprint || _normToken(i.label),
+        color: 't-cra',
+      }));
   }
 
   const TAGS_ENCARNAR = ['tendón', 'nervio', 'hueso', 'sangre', 'tejido', 'médula'];
