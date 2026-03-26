@@ -67,6 +67,7 @@ const AC = (() => {
     return (p.inventory || [])
       .filter(i => !filtro || filtro(i))
       .map(i => ({
+        blueprint: i.blueprint,
         label: i.nombre || i.blueprint,
         value: (i.nombre || i.blueprint).toLowerCase().replace(/\s+/g, '_'),
         hint: `[${i.tipo}]${i.imprint ? ' #' + i.imprint.hash.slice(0, 4) : ''}`,
