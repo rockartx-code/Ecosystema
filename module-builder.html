@@ -949,7 +949,7 @@ function addChip(wrapId, text, colorClass='') {
   const chip = document.createElement('span');
   chip.className = 'chip' + (colorClass ? ' ' + colorClass : '');
   chip.dataset.val = text;
-  chip.innerHTML = `${text}<button class="chip-del" onclick="this.parentElement.remove();${currentTab==='modulo'?'liveGenModulo()':'liveGenPlugin()}">×</button>`;
+  chip.innerHTML = `${text}<button class="chip-del" onclick="this.parentElement.remove();${currentTab==='modulo'?'liveGenModulo()':'liveGenPlugin()'}">×</button>`;
   wrap.insertBefore(chip, inp);
 }
 
