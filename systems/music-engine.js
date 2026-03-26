@@ -26,6 +26,22 @@ const MusicEngine = (() => {
 
   const SEMI = { C:0, 'C#':1, DB:1, D:2, 'D#':3, EB:3, E:4, F:5, 'F#':6, GB:6, G:7, 'G#':8, AB:8, A:9, 'A#':10, BB:10, B:11 };
 
+  const TRACK_DEFAULTS = {
+    bpm: 120,
+    lead: 'R,1',
+    bass: 'R,1',
+    drums: 'R,1',
+    leadWave: 'square',
+    bassWave: 'triangle',
+    leadVol: 0.12,
+    bassVol: 0.22,
+    drumVol: 0.09,
+    leadEcho: true,
+    bassEcho: false,
+    drumDur: 0.12,
+    leadMidiVelocity: 84,
+  };
+
   const FALLBACK_THEMES = {
     hub: {
       bpm: 110,
@@ -45,11 +61,23 @@ const MusicEngine = (() => {
       bass: 'C2,1|R,3|Eb1,1|R,3',
       drums: 'H,0.5|R,3.5',
     },
+    umbral: {
+      bpm: 100,
+      lead: 'E4,3|G4,1|A4,3|B4,1|C5,2|B4,2|G4,4',
+      bass: 'E1,4|A1,4|C2,4|G1,4',
+      drums: 'K,2|R,2|S,2|R,2',
+    },
     vacío: {
       bpm: 60,
       lead: 'C4,4|Gb3,4|F3,4|Db3,4',
       bass: 'C1,8|Gb0,8',
       drums: 'R,1',
+    },
+    pantano: {
+      bpm: 105,
+      lead: 'F#3,1|G3,1|F#3,1|D3,1|F#3,1|G3,1|Bb3,1|A3,1',
+      bass: 'F#1,2|G1,2|Bb1,2|A1,2',
+      drums: 'K,1|S,1|R,1|S,1',
     },
     abismo: {
       bpm: 75,
@@ -119,6 +147,30 @@ const MusicEngine = (() => {
     },
   };
 
+  const THEME_ALIAS = {
+    main_theme: 'hub',
+    battle_normal: 'battle',
+    boss_winning: 'battle_boss',
+    boss_losing: 'battle_boss_lowhp',
+    critical_hp: 'battle_lowhp',
+    hub_safe_haven: 'hub',
+    templo_antiguo: 'templo',
+    umbral_misterio: 'umbral',
+    caverna_ecos: 'caverna',
+    vacio_etereo: 'vacío',
+    vacio_etéreo: 'vacío',
+    abismo_oscuro: 'abismo',
+    pantano_toxico: 'pantano',
+    pantano_tóxico: 'pantano',
+    grieta_temporal: 'grieta',
+    yermo_desolado: 'yermo',
+    bosque_vital: 'bosque',
+    fanfare_victory: 'battle_win',
+    fanfare_defeat: 'battle_lose',
+    item_legendary: 'battle_trickster',
+    escape_frantic: 'battle_trickster',
+  };
+
   function _cfg() {
     const world = D.world || {};
     return {
@@ -128,6 +180,7 @@ const MusicEngine = (() => {
       echoMix: world.musica_8bit?.echo_mix ?? 0.25,
       echoTime: world.musica_8bit?.echo_time ?? 0.14,
       melodies: world.melodias_8bit_por_tipo || {},
+      tracks: world.musica_8bit_tracks || {},
     };
   }
 
@@ -213,17 +266,39 @@ const MusicEngine = (() => {
   function _normalizeCustomTrack(raw) {
     if(Array.isArray(raw)) {
       const lead = raw.map(ev => `${ev?.n || 'R'},${ev?.d || 1}`).join('|');
-      return { bpm: _cfg().bpm, lead, bass: 'R,1', drums: 'R,1' };
-    }
-    if(raw && typeof raw === 'object' && raw.lead) {
       return {
+        ...TRACK_DEFAULTS,
+        bpm: _cfg().bpm,
+        lead,
+        bass: 'R,1',
+        drums: 'R,1',
+      };
+    }
+    if(raw && typeof raw === 'object') {
+      const hasCore = raw.lead || raw.bass || raw.drums;
+      if(!hasCore) return null;
+      return {
+        ...TRACK_DEFAULTS,
         bpm: Number(raw.bpm) || _cfg().bpm,
-        lead: String(raw.lead),
+        lead: String(raw.lead || 'R,1'),
         bass: String(raw.bass || 'R,1'),
         drums: String(raw.drums || 'R,1'),
+        leadWave: String(raw.leadWave || raw.pulse || TRACK_DEFAULTS.leadWave),
+        bassWave: String(raw.bassWave || TRACK_DEFAULTS.bassWave),
+        leadVol: Number(raw.leadVol ?? raw.volLead ?? TRACK_DEFAULTS.leadVol),
+        bassVol: Number(raw.bassVol ?? raw.volBass ?? TRACK_DEFAULTS.bassVol),
+        drumVol: Number(raw.drumVol ?? raw.volDrums ?? TRACK_DEFAULTS.drumVol),
+        leadEcho: raw.leadEcho ?? TRACK_DEFAULTS.leadEcho,
+        bassEcho: raw.bassEcho ?? TRACK_DEFAULTS.bassEcho,
+        drumDur: Number(raw.drumDur ?? TRACK_DEFAULTS.drumDur),
+        leadMidiVelocity: Number(raw.leadMidiVelocity ?? TRACK_DEFAULTS.leadMidiVelocity),
       };
     }
     return null;
+  }
+
+  function _withDefaults(track) {
+    return { ...TRACK_DEFAULTS, ...(track || {}) };
   }
 
   function _playOsc({ freq, at, dur, type, vol, useEcho = false }) {
@@ -287,9 +362,16 @@ const MusicEngine = (() => {
   function _getTrack(key) {
     const cfg = _cfg();
     const k = String(key || 'hub').toLowerCase();
-    const custom = _normalizeCustomTrack(cfg.melodies[k] || cfg.melodies[key]);
+    const canonical = THEME_ALIAS[k] || k;
+
+    const custom = _normalizeCustomTrack(
+      cfg.tracks[k] || cfg.tracks[canonical] || cfg.tracks[key]
+      || cfg.melodies[k] || cfg.melodies[canonical] || cfg.melodies[key]
+    );
     if(custom) return custom;
-    return FALLBACK_THEMES[k] || FALLBACK_THEMES[key] || FALLBACK_THEMES.hub;
+
+    const base = FALLBACK_THEMES[canonical] || FALLBACK_THEMES[k] || FALLBACK_THEMES[key] || FALLBACK_THEMES.hub;
+    return _withDefaults(base);
   }
 
   function _pickBattleThemeKey() {
@@ -334,9 +416,9 @@ const MusicEngine = (() => {
         freq: lMidi == null ? 0 : _midiToFreq(lMidi),
         at: cursor,
         dur: lDur,
-        type: _cfg().pulse,
-        vol: 0.12,
-        useEcho: lDur > 0.35,
+        type: st.track.leadWave || _cfg().pulse,
+        vol: Math.max(0, Number(st.track.leadVol ?? TRACK_DEFAULTS.leadVol)),
+        useEcho: st.track.leadEcho !== false && lDur > 0.2,
       });
 
       if(idx % 2 === 0 && bass.length) {
@@ -347,19 +429,26 @@ const MusicEngine = (() => {
           freq: bMidi == null ? 0 : _midiToFreq(bMidi),
           at: cursor,
           dur: bDur,
-          type: 'triangle',
-          vol: 0.22,
-          useEcho: false,
+          type: st.track.bassWave || TRACK_DEFAULTS.bassWave,
+          vol: Math.max(0, Number(st.track.bassVol ?? TRACK_DEFAULTS.bassVol)),
+          useEcho: !!st.track.bassEcho,
         });
       }
 
       if(drums.length) {
         const d = drums[idx % drums.length];
-        if(d.n !== 'R') _playNoise({ token: d.n, at: cursor, dur: 0.08 + stepDur * 0.25, vol: 0.09 });
+        if(d.n !== 'R') {
+          _playNoise({
+            token: d.n,
+            at: cursor,
+            dur: Math.max(0.04, Number(st.track.drumDur || TRACK_DEFAULTS.drumDur)),
+            vol: Math.max(0, Number(st.track.drumVol ?? TRACK_DEFAULTS.drumVol)),
+          });
+        }
       }
 
       if(st.midiEnabled && st.midiOut && lMidi != null) {
-        st.midiOut.send([0x90, lMidi, 84]);
+        st.midiOut.send([0x90, lMidi, Math.max(1, Math.min(127, Number(st.track.leadMidiVelocity || 84)))]);
         if(st.midiNoteOffTimer) clearTimeout(st.midiNoteOffTimer);
         st.midiNoteOffTimer = setTimeout(() => st.midiOut?.send([0x80, lMidi, 0]), Math.max(50, lDur * 900));
       }

@@ -14,6 +14,15 @@ const SFXEngine = (() => {
     cooldownMs: 65,
   };
 
+  function _cfg() {
+    const world = D.world || {};
+    return {
+      volume: world.sfx_8bit?.volume ?? st.volume,
+      cooldownMs: world.sfx_8bit?.cooldown_ms ?? st.cooldownMs,
+      presets: world.sfx_8bit?.presets || {},
+    };
+  }
+
   const EVENT_PRESETS = {
     'command:after': 'accept',
     'command:unknown': 'fail',
@@ -75,6 +84,67 @@ const SFXEngine = (() => {
     module: 'sawtooth',
     game: 'triangle',
     misc: 'sine',
+  };
+
+  const PRESET_LIBRARY = {
+    accept: [{ kind:'tone', type:'square', from:880, to:1320, dur:0.2, vol:0.22 }],
+    fail: [{ kind:'tone', type:'sawtooth', from:110, to:55, dur:0.3, vol:0.26 }],
+    move: [{ kind:'tone', type:'triangle', from:440, to:110, dur:0.06, vol:0.18 }],
+    map: [{ kind:'noise', noiseType:'L', dur:0.3, vol:0.25, freq:500 }],
+    talk: [
+      { kind:'tone', type:'square', from:620, to:510, at:0.00, dur:0.06, vol:0.12 },
+      { kind:'tone', type:'square', from:690, to:545, at:0.08, dur:0.06, vol:0.12 },
+      { kind:'tone', type:'square', from:760, to:580, at:0.16, dur:0.06, vol:0.12 },
+    ],
+    trade: [660, 830, 1040].map((from, i) => ({ kind:'tone', type:'triangle', from, at:i * 0.06, dur:0.09, vol:0.12 })),
+    attack: [{ kind:'noise', noiseType:'H', dur:0.1, vol:0.3, freq:8000 }],
+    damage: [
+      { kind:'noise', noiseType:'L', dur:0.2, vol:0.32, freq:1000 },
+      { kind:'tone', type:'sawtooth', from:100, to:40, dur:0.2, vol:0.24 },
+    ],
+    hurt: [
+      { kind:'tone', type:'sawtooth', from:150, to:40, dur:0.25, vol:0.25 },
+      { kind:'noise', noiseType:'L', dur:0.2, vol:0.2, freq:500 },
+    ],
+    poison: [{ kind:'tone', type:'triangle', from:430, to:210, dur:0.36, vol:0.18, vibrato:true }],
+    burn: [
+      { kind:'noise', noiseType:'H', dur:0.22, vol:0.25, freq:4200 },
+      { kind:'tone', type:'square', from:240, to:90, dur:0.18, vol:0.18 },
+    ],
+    cast: [
+      { kind:'noise', noiseType:'H', dur:0.5, vol:0.2, freq:4000 },
+      { kind:'tone', type:'sine', from:440, to:1760, dur:0.5, vol:0.2 },
+    ],
+    skill: [
+      { kind:'tone', type:'square', from:200, to:800, dur:0.3, vol:0.28 },
+      { kind:'noise', noiseType:'S', dur:0.12, vol:0.22, freq:2000 },
+    ],
+    upgrade: Array.from({ length: 8 }, (_, i) => ({ kind:'tone', type:'sine', from:800 + i * 200, at:i * 0.04, dur:0.1, vol:0.12 })),
+    levelup: [523, 659, 783, 1046].map((from, i) => ({ kind:'tone', type:'square', from, at:i * 0.12, dur:0.2, vol:0.18 })),
+    victory: [523, 659, 783, 1046].map((from, i) => ({ kind:'tone', type:'square', from, at:i * 0.12, dur:0.2, vol:0.18 })),
+    defeat: [{ kind:'tone', type:'triangle', from:220, to:73, dur:0.45, vol:0.24 }],
+    enchant: [{ kind:'tone', type:'sine', from:1500, dur:0.6, vol:0.22, vibrato:true }],
+    forge: [{ kind:'tone', type:'square', from:2000, to:400, dur:0.2, vol:0.22 }],
+    catch: [
+      { kind:'noise', noiseType:'L', dur:0.1, vol:0.3, freq:300 },
+      { kind:'tone', type:'square', from:1200, to:900, at:0.14, dur:0.12, vol:0.2 },
+    ],
+    train: [
+      { kind:'noise', noiseType:'L', dur:0.1, vol:0.25, freq:1500, at:0.00 },
+      { kind:'noise', noiseType:'L', dur:0.1, vol:0.25, freq:1500, at:0.15 },
+      { kind:'tone', type:'triangle', from:200, dur:0.1, vol:0.18, at:0.00 },
+      { kind:'tone', type:'triangle', from:200, dur:0.1, vol:0.18, at:0.15 },
+    ],
+    flee: [{ kind:'tone', type:'sawtooth', from:300, to:1800, dur:0.4, vol:0.2 }],
+    battle_start: [
+      { kind:'tone', type:'square', from:220, at:0.00, dur:0.14, vol:0.21 },
+      { kind:'tone', type:'square', from:277, at:0.11, dur:0.14, vol:0.21 },
+      { kind:'tone', type:'square', from:330, at:0.22, dur:0.14, vol:0.21 },
+    ],
+    execute: [
+      { kind:'noise', noiseType:'H', dur:0.08, vol:0.35, freq:8500 },
+      { kind:'tone', type:'square', from:880, to:110, dur:0.16, vol:0.2 },
+    ],
   };
 
   function _hash(text) {
@@ -195,92 +265,35 @@ const SFXEngine = (() => {
     if(ctx.state === 'suspended') ctx.resume().catch(()=>{});
     const t = ctx.currentTime;
 
-    switch(name) {
-      case 'accept':
-        _tone(ctx, { type:'square', from:880, to:1320, at:t, dur:0.2, vol:0.22 });
-        return true;
-      case 'fail':
-        _tone(ctx, { type:'sawtooth', from:110, to:55, at:t, dur:0.3, vol:0.26 });
-        return true;
-      case 'move':
-        _tone(ctx, { type:'triangle', from:440, to:110, at:t, dur:0.06, vol:0.18 });
-        return true;
-      case 'map':
-        _noise(ctx, 'L', t, 0.3, 0.25, 500);
-        return true;
-      case 'talk':
-        [0, 0.08, 0.16].forEach((d, i) => _tone(ctx, { type:'square', from:620 + i * 70, to:510 + i * 35, at:t + d, dur:0.06, vol:0.12 }));
-        return true;
-      case 'trade':
-        [660, 830, 1040].forEach((f, i) => _tone(ctx, { type:'triangle', from:f, at:t + i * 0.06, dur:0.09, vol:0.12 }));
-        return true;
-      case 'attack':
-        _noise(ctx, 'H', t, 0.1, 0.3, 8000);
-        return true;
-      case 'damage':
-        _noise(ctx, 'L', t, 0.2, 0.32, 1000);
-        _tone(ctx, { type:'sawtooth', from:100, to:40, at:t, dur:0.2, vol:0.24 });
-        return true;
-      case 'hurt':
-        _tone(ctx, { type:'sawtooth', from:150, to:40, at:t, dur:0.25, vol:0.25 });
-        _noise(ctx, 'L', t, 0.2, 0.2, 500);
-        return true;
-      case 'poison':
-        _tone(ctx, { type:'triangle', from:430, to:210, at:t, dur:0.36, vol:0.18, vibrato:true });
-        return true;
-      case 'burn':
-        _noise(ctx, 'H', t, 0.22, 0.25, 4200);
-        _tone(ctx, { type:'square', from:240, to:90, at:t, dur:0.18, vol:0.18 });
-        return true;
-      case 'cast':
-        _noise(ctx, 'H', t, 0.5, 0.2, 4000);
-        _tone(ctx, { type:'sine', from:440, to:1760, at:t, dur:0.5, vol:0.2 });
-        return true;
-      case 'skill':
-        _tone(ctx, { type:'square', from:200, to:800, at:t, dur:0.3, vol:0.28 });
-        _noise(ctx, 'S', t, 0.12, 0.22, 2000);
-        return true;
-      case 'upgrade':
-        for(let i=0; i<8; i += 1) _tone(ctx, { type:'sine', from:800 + i * 200, at:t + i * 0.04, dur:0.1, vol:0.12 });
-        return true;
-      case 'levelup':
-      case 'victory':
-        [523, 659, 783, 1046].forEach((f, i) => _tone(ctx, { type:'square', from:f, at:t + i * 0.12, dur:0.2, vol:0.18 }));
-        return true;
-      case 'defeat':
-        _tone(ctx, { type:'triangle', from:220, to:73, at:t, dur:0.45, vol:0.24 });
-        return true;
-      case 'enchant':
-        _tone(ctx, { type:'sine', from:1500, at:t, dur:0.6, vol:0.22, vibrato:true });
-        return true;
-      case 'forge':
-        _tone(ctx, { type:'square', from:2000, to:400, at:t, dur:0.2, vol:0.22 });
-        return true;
-      case 'catch':
-        _noise(ctx, 'L', t, 0.1, 0.3, 300);
-        _tone(ctx, { type:'square', from:1200, to:900, at:t + 0.14, dur:0.12, vol:0.2 });
-        return true;
-      case 'train':
-        [0, 0.15].forEach(d => {
-          _noise(ctx, 'L', t + d, 0.1, 0.25, 1500);
-          _tone(ctx, { type:'triangle', from:200, at:t + d, dur:0.1, vol:0.18 });
-        });
-        return true;
-      case 'flee':
-        _tone(ctx, { type:'sawtooth', from:300, to:1800, at:t, dur:0.4, vol:0.2 });
-        return true;
-      case 'battle_start':
-        _tone(ctx, { type:'square', from:220, at:t, dur:0.14, vol:0.21 });
-        _tone(ctx, { type:'square', from:277, at:t + 0.11, dur:0.14, vol:0.21 });
-        _tone(ctx, { type:'square', from:330, at:t + 0.22, dur:0.14, vol:0.21 });
-        return true;
-      case 'execute':
-        _noise(ctx, 'H', t, 0.08, 0.35, 8500);
-        _tone(ctx, { type:'square', from:880, to:110, at:t, dur:0.16, vol:0.2 });
-        return true;
-      default:
-        return false;
-    }
+    const presetCfg = _cfg().presets[name];
+    const actions = Array.isArray(presetCfg) ? presetCfg : (PRESET_LIBRARY[name] || null);
+    if(!actions?.length) return false;
+
+    actions.forEach(action => {
+      const at = t + Math.max(0, Number(action.at || 0));
+      if(action.kind === 'noise') {
+        _noise(
+          ctx,
+          action.noiseType || action.type || 'L',
+          at,
+          Number(action.dur || 0.1),
+          Number(action.vol || 0.2),
+          Number(action.freq || 800)
+        );
+        return;
+      }
+
+      _tone(ctx, {
+        type: action.type || 'square',
+        from: Number(action.from || 440),
+        to: action.to == null ? null : Number(action.to),
+        at,
+        dur: Number(action.dur || 0.16),
+        vol: Number(action.vol || 0.2),
+        vibrato: !!action.vibrato,
+      });
+    });
+    return true;
   }
 
   function _playPattern(pattern) {
@@ -313,6 +326,7 @@ const SFXEngine = (() => {
   }
 
   function _shouldPlay(eventName) {
+    st.cooldownMs = Math.max(0, Number(_cfg().cooldownMs ?? st.cooldownMs));
     const now = performance.now();
     const prev = st.lastTs[eventName] || 0;
     if(now - prev < st.cooldownMs) return false;
@@ -340,6 +354,7 @@ const SFXEngine = (() => {
   }
 
   function init() {
+    st.volume = Math.max(0, Math.min(0.2, Number(_cfg().volume ?? st.volume)));
     _bindAll();
   }
 
