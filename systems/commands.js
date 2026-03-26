@@ -214,6 +214,7 @@ async function dispatch(cmd) {
     case 'cancelar_trade': _cmdCancelarTrade(); break;
 
     case 'musica': case 'music': cmdMusica(args); break;
+    case 'sfx':                 cmdSfx(args); break;
     case 'plugins':     cmdPlugins(); break;
     case 'modulos':     cmdModulos(); break;
     case 'eventos':     cmdEventos(); break;
@@ -707,6 +708,11 @@ function cmdMusica(args) {
   MusicEngine.cmd(args||[]);
 }
 
+function cmdSfx(args) {
+  if(typeof SFXEngine === 'undefined') { Out.line('Sistema de SFX no disponible.','t-dim'); return; }
+  SFXEngine.cmd(args||[]);
+}
+
 // ── AYUDA ─────────────────────────────────────────────────────
 function cmdAyuda(tema) {
   if(!tema) {
@@ -727,7 +733,7 @@ function cmdAyuda(tema) {
       ['MUNDO','t-eco',['mapa · mapa [jugador] · mapa secciones · secciones']],
       ['XP','t-mem',['experiencia · atributos · asignar [atributo]']],
       ['MULTIJUGADOR','t-eco',['host · conectar [código] · aceptar_conexion [resp]','jugadores · desconectar','comerciar · ofrecer · confirmar_trade']],
-      ['AUDIO','t-mag',['musica estado · musica on · musica off · musica midi']],
+      ['AUDIO','t-mag',['musica estado · musica on · musica off · musica midi · sfx estado · sfx on · sfx off · sfx test']],
       ['SISTEMA','t-dim',['guardar · exportar · importar · nuevo · limpiar · semilla · nombre']],
       ['PLUGINS','t-mag',['plugins · modulos · eventos · cargar_plugin · descargar_plugin']],
     ];
