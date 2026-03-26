@@ -18,6 +18,12 @@ const AC = (() => {
     try { return fn(); } catch(_) { return fallback; }
   }
 
+  function _shortHash(obj) {
+    const raw = String(obj?.imprint?.hash || obj?.hash || obj?.id || '').trim();
+    if(!raw) return '';
+    return raw.slice(0, 6).toUpperCase();
+  }
+
   function getVerbs() {
     const base = [
       { v:'ir', h:'norte/sur/este/oeste' }, { v:'n', h:'ir norte' }, { v:'s', h:'ir sur' },
@@ -72,8 +78,8 @@ const AC = (() => {
   function getNPCsAqui() {
     return _safe(() => GS.npcEnNodo(Player.pos()), []).map(n => ({
       label: n.nombre,
-      value: n.nombre.toLowerCase().replace(/\s+/g, '_'),
-      hint: `[${n.arq_vis}]${(n.misiones_ofrecidas || []).length ? ' ◈' : ''}${n.desesperacion > 75 ? ' ⚠' : ''}`,
+      value: n.id || n.nombre,
+      hint: `[${n.arq_vis}] #${_shortHash(n) || '—'}${(n.misiones_ofrecidas || []).length ? ' ◈' : ''}${n.desesperacion > 75 ? ' ⚠' : ''}`,
       color: n.estado === 'sometido' ? 't-mem' : 't-npc',
       group: 'npc',
     }));
@@ -168,13 +174,24 @@ const AC = (() => {
   }
 
   function getEnemigosNodo() {
-    return ((World.node(Player.pos())?.enemies) || []).map(e => ({
-      label: e.nombre,
-      value: e.nombre.toLowerCase().replace(/\s+/g, '_'),
-      hint: `HP:${e.hp_current || e.hp} ATK:${e.atk}`,
-      color: 't-pel',
-      group: 'enemigo',
-    }));
+    const enemies = (World.node(Player.pos())?.enemies) || [];
+    const counts = enemies.reduce((acc, e) => {
+      const k = (e?.nombre || '').toLowerCase();
+      acc[k] = (acc[k] || 0) + 1;
+      return acc;
+    }, {});
+
+    return enemies.map(e => {
+      const repeated = counts[(e?.nombre || '').toLowerCase()] > 1;
+      const hash = _shortHash(e);
+      return {
+        label: repeated && hash ? `${e.nombre} #${hash}` : e.nombre,
+        value: e.id || e.nombre,
+        hint: `${hash ? '#' + hash + '  ' : ''}HP:${e.hp_current || e.hp} ATK:${e.atk}`,
+        color: 't-pel',
+        group: 'enemigo',
+      };
+    });
   }
 
   function getMatRecarga() {
