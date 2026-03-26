@@ -7,10 +7,13 @@ const MusicEngine = (() => {
     enabled: true,
     nodeTipo: null,
     melody: [],
+    melodyKey: null,
     step: 0,
     timer: null,
     ctx: null,
     gain: null,
+    battle: { active:false, tipo:'normal', nodeId:null },
+    outcomeTimer: null,
     midiAccess: null,
     midiOut: null,
     midiEnabled: false,
@@ -18,6 +21,34 @@ const MusicEngine = (() => {
   };
 
   const SEMI = { C:0, 'C#':1, DB:1, D:2, 'D#':3, EB:3, E:4, F:5, 'F#':6, GB:6, G:7, 'G#':8, AB:8, A:9, 'A#':10, BB:10, B:11 };
+  const FALLBACK_MELODIES = {
+    battle: [
+      { n:'E4', d:1 }, { n:'G4', d:1 }, { n:'A4', d:1 }, { n:'G4', d:1 },
+      { n:'D4', d:1 }, { n:'E4', d:1 }, { n:'C4', d:1 }, { n:'R',  d:1 },
+    ],
+    battle_lowhp: [
+      { n:'E4', d:1 }, { n:'F4', d:1 }, { n:'G4', d:1 }, { n:'F4', d:1 },
+      { n:'D4', d:1 }, { n:'E4', d:1 }, { n:'C4', d:1 }, { n:'R',  d:1 },
+    ],
+    battle_boss: [
+      { n:'C3', d:2 }, { n:'G3', d:1 }, { n:'C4', d:1 }, { n:'D#4', d:1 },
+      { n:'C4', d:1 }, { n:'G3', d:1 }, { n:'F3', d:1 }, { n:'R',   d:1 },
+    ],
+    battle_boss_lowhp: [
+      { n:'C3', d:2 }, { n:'D#3', d:1 }, { n:'F3', d:1 }, { n:'G3', d:1 },
+      { n:'F3', d:1 }, { n:'D#3', d:1 }, { n:'C3', d:1 }, { n:'R',  d:1 },
+    ],
+    battle_trickster: [
+      { n:'B4', d:1 }, { n:'D5', d:1 }, { n:'F5', d:1 }, { n:'D5', d:1 },
+      { n:'G#4', d:1 }, { n:'B4', d:1 }, { n:'D5', d:1 }, { n:'R', d:1 },
+    ],
+    battle_win: [
+      { n:'C5', d:1 }, { n:'E5', d:1 }, { n:'G5', d:1 }, { n:'C6', d:2 }, { n:'R', d:1 },
+    ],
+    battle_lose: [
+      { n:'E4', d:1 }, { n:'D4', d:1 }, { n:'C4', d:1 }, { n:'A3', d:2 }, { n:'R', d:1 },
+    ],
+  };
 
   function _cfg() {
     const world = D.world || {};
@@ -41,6 +72,13 @@ const MusicEngine = (() => {
 
   function _midiToFreq(midi) {
     return 440 * Math.pow(2, (midi - 69) / 12);
+  }
+
+  function _isLowHp() {
+    const p = Player.get?.();
+    const hp = p?.hp ?? 0;
+    const maxHp = Math.max(1, p?.maxHp || p?.hp || 1);
+    return (hp / maxHp) <= 0.35;
   }
 
   function _ensureAudio() {
@@ -113,15 +151,47 @@ const MusicEngine = (() => {
 
   function _getMelody(tipo) {
     const cfg = _cfg();
-    return cfg.melodies[tipo] || cfg.melodies.hub || [];
+    return cfg.melodies[tipo] || FALLBACK_MELODIES[tipo] || cfg.melodies.hub || FALLBACK_MELODIES.hub || [];
+  }
+
+  function _getBpm() {
+    const base = _cfg().bpm;
+    if(!st.battle.active) return base;
+    let mult = 1.05;
+    if(st.battle.tipo === 'boss') mult = 1.24;
+    if(st.battle.tipo === 'trickster') mult = 1.12;
+    if(_isLowHp()) mult += 0.12;
+    return Math.round(base * mult);
+  }
+
+  function _pickBattleMelodyKey() {
+    const low = _isLowHp();
+    if(st.battle.tipo === 'boss') return low ? 'battle_boss_lowhp' : 'battle_boss';
+    if(st.battle.tipo === 'trickster') return 'battle_trickster';
+    return low ? 'battle_lowhp' : 'battle';
+  }
+
+  function _setMelodyByKey(key, restart = false) {
+    const next = _getMelody(key);
+    if(!next.length) return;
+    const changed = key !== st.melodyKey || st.melody !== next;
+    st.melodyKey = key;
+    st.melody = next;
+    if(changed) st.step = 0;
+    if(st.enabled && (restart || changed)) _startLoop();
+  }
+
+  function _refreshBattleMusic(forceRestart = false) {
+    if(!st.battle.active) return;
+    _setMelodyByKey(_pickBattleMelodyKey(), forceRestart);
   }
 
   function _startLoop() {
     _stopLoop();
-    const cfg = _cfg();
-    const beatMs = Math.max(80, Math.round(60000 / cfg.bpm));
+    const beatMs = Math.max(80, Math.round(60000 / _getBpm()));
     st.timer = setInterval(() => {
       if(!st.enabled || !st.melody.length) return;
+      if(st.battle.active && st.step % Math.max(1, st.melody.length) === 0) _refreshBattleMusic();
       const ev = st.melody[st.step % st.melody.length];
       _playStep(ev, beatMs);
       st.step += 1;
@@ -135,16 +205,51 @@ const MusicEngine = (() => {
   }
 
   function onNodeEnter(payload) {
+    if(st.battle.active) return payload;
     const tipo = payload?.node?.tipo || 'hub';
     st.nodeTipo = tipo;
-    st.melody = _getMelody(tipo);
-    st.step = 0;
-    if(st.enabled) _startLoop();
+    _setMelodyByKey(tipo, true);
     return payload;
+  }
+
+  function _battleFlavor(battle) {
+    const enemies = battle?.cola?.filter(c => c.tipo !== 'player') || [];
+    if(enemies.some(e => e.es_boss)) return 'boss';
+    if(enemies.some(e => e.es_trickster || e.trickster || e.tags?.includes?.('trickster'))) return 'trickster';
+    return 'normal';
+  }
+
+  function onCombatStart({ battle }) {
+    if(st.outcomeTimer) clearTimeout(st.outcomeTimer);
+    st.outcomeTimer = null;
+    st.battle.active = true;
+    st.battle.nodeId = battle?.nodeId ?? null;
+    st.battle.tipo = _battleFlavor(battle);
+    _refreshBattleMusic(true);
+  }
+
+  function onCombatWin() {
+    st.battle.active = false;
+    st.battle.tipo = 'normal';
+    _setMelodyByKey('battle_win', true);
+    st.outcomeTimer = setTimeout(() => {
+      st.outcomeTimer = null;
+      if(st.battle.active) return;
+      _setMelodyByKey(st.nodeTipo || World.node(Player.pos())?.tipo || 'hub', true);
+    }, 2200);
+  }
+
+  function onPlayerDie() {
+    st.battle.active = false;
+    st.battle.tipo = 'normal';
+    _setMelodyByKey('battle_lose', true);
   }
 
   function init() {
     EventBus.on('world:node_enter', onNodeEnter);
+    EventBus.on('combat:start', onCombatStart);
+    EventBus.on('combat:post_resolve', onCombatWin);
+    EventBus.on('player:die', onPlayerDie);
   }
 
   async function cmd(args = []) {
