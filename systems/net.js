@@ -203,7 +203,8 @@ const Net = (() => {
               const name = String(c.name || '').toLowerCase();
               const id   = String(c.id || '').toLowerCase();
               const hash = String(c.imprint?.hash || c.hash || '').toLowerCase();
-              return id === query || hash === qHash || name.includes(query);
+              const short = hash ? hash.slice(0, 6) : '';
+              return id === query || hash === qHash || short === qHash || id.startsWith(query) || name.includes(query);
             })
           : battle.cola.find(c=>c.vivo&&c.tipo!=='player');
         if(!target) { Out.line('Sin objetivo.','t-dim'); return; }
