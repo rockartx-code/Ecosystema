@@ -18,10 +18,44 @@ const MusicEngine = (() => {
     midiOut: null,
     midiEnabled: false,
     noteOffTimer: null,
+    delay: null,
+    delayFb: null,
   };
 
   const SEMI = { C:0, 'C#':1, DB:1, D:2, 'D#':3, EB:3, E:4, F:5, 'F#':6, GB:6, G:7, 'G#':8, AB:8, A:9, 'A#':10, BB:10, B:11 };
   const FALLBACK_MELODIES = {
+    hub: [
+      { n:'C4', d:1 }, { n:'E4', d:1 }, { n:'G4', d:1 }, { n:'C5', d:1 },
+      { n:'B4', d:1 }, { n:'G4', d:1 }, { n:'A4', d:1 }, { n:'G4', d:1 },
+      { n:'F4', d:1 }, { n:'E4', d:1 }, { n:'D4', d:1 }, { n:'C4', d:1 },
+    ],
+    bosque: [
+      { n:'F4', d:1 }, { n:'A4', d:1 }, { n:'C5', d:1 }, { n:'A4', d:1 },
+      { n:'G4', d:1 }, { n:'A4', d:1 }, { n:'D5', d:1 }, { n:'C5', d:1 },
+      { n:'A4', d:1 }, { n:'G4', d:1 }, { n:'F4', d:1 }, { n:'R',  d:1 },
+    ],
+    caverna: [
+      { n:'C5', d:0.5 }, { n:'R', d:1.5 }, { n:'D#5', d:0.5 }, { n:'R', d:1.5 },
+      { n:'G5', d:0.5 }, { n:'R', d:1.5 }, { n:'C6', d:0.5 }, { n:'R', d:1.5 },
+    ],
+    vacío: [
+      { n:'C4', d:4 }, { n:'F#3', d:4 }, { n:'F3', d:4 }, { n:'D#3', d:4 },
+    ],
+    abismo: [
+      { n:'C3', d:1 }, { n:'B2', d:1 }, { n:'A#2', d:1 }, { n:'A2', d:1 },
+      { n:'G#2', d:1 }, { n:'G2', d:1 }, { n:'F#2', d:1 }, { n:'F2', d:1 },
+    ],
+    grieta: [
+      { n:'C4', d:0.5 }, { n:'E4', d:0.5 }, { n:'G4', d:0.5 }, { n:'C5', d:0.5 },
+      { n:'D#4', d:0.5 }, { n:'G4', d:0.5 }, { n:'A#4', d:0.5 }, { n:'D#5', d:0.5 },
+    ],
+    templo: [
+      { n:'A3', d:2 }, { n:'C4', d:2 }, { n:'E4', d:2 }, { n:'G#4', d:2 },
+      { n:'A4', d:4 }, { n:'E4', d:4 }, { n:'F4', d:4 }, { n:'D4', d:4 },
+    ],
+    yermo: [
+      { n:'G3', d:4 }, { n:'R', d:2 }, { n:'D4', d:2 }, { n:'C4', d:6 }, { n:'R', d:2 },
+    ],
     battle: [
       { n:'E4', d:1 }, { n:'G4', d:1 }, { n:'A4', d:1 }, { n:'G4', d:1 },
       { n:'D4', d:1 }, { n:'E4', d:1 }, { n:'C4', d:1 }, { n:'R',  d:1 },
@@ -56,6 +90,8 @@ const MusicEngine = (() => {
       bpm: world.musica_8bit?.bpm || 156,
       volume: world.musica_8bit?.volume ?? 0.05,
       pulse: world.musica_8bit?.pulse || 'square',
+      echoMix: world.musica_8bit?.echo_mix ?? 0.18,
+      echoTime: world.musica_8bit?.echo_time ?? 0.14,
       melodies: world.melodias_8bit_por_tipo || {},
     };
   }
@@ -88,7 +124,15 @@ const MusicEngine = (() => {
     st.ctx = new Ctx();
     st.gain = st.ctx.createGain();
     st.gain.gain.value = _cfg().volume;
+    st.delay = st.ctx.createDelay();
+    st.delay.delayTime.value = _cfg().echoTime;
+    st.delayFb = st.ctx.createGain();
+    st.delayFb.gain.value = _cfg().echoMix;
     st.gain.connect(st.ctx.destination);
+    st.gain.connect(st.delay);
+    st.delay.connect(st.delayFb);
+    st.delayFb.connect(st.delay);
+    st.delay.connect(st.ctx.destination);
     return st.ctx;
   }
 
@@ -126,11 +170,12 @@ const MusicEngine = (() => {
       const env = ctx.createGain();
       const now = ctx.currentTime;
       const dur = Math.max(0.05, (beatMs * (ev?.d || 1) * 0.9) / 1000);
+      const vel = Math.max(0.25, Math.min(1, (ev?.v || 84) / 127));
 
-      osc.type = _cfg().pulse;
+      osc.type = ev?.w || _cfg().pulse;
       osc.frequency.value = _midiToFreq(midi);
       env.gain.setValueAtTime(0, now);
-      env.gain.linearRampToValueAtTime(1, now + 0.008);
+      env.gain.linearRampToValueAtTime(vel, now + 0.008);
       env.gain.exponentialRampToValueAtTime(0.001, now + dur);
 
       osc.connect(env);
@@ -151,7 +196,8 @@ const MusicEngine = (() => {
 
   function _getMelody(tipo) {
     const cfg = _cfg();
-    return cfg.melodies[tipo] || FALLBACK_MELODIES[tipo] || cfg.melodies.hub || FALLBACK_MELODIES.hub || [];
+    const key = String(tipo || 'hub').toLowerCase();
+    return cfg.melodies[key] || cfg.melodies[tipo] || FALLBACK_MELODIES[key] || FALLBACK_MELODIES[tipo] || cfg.melodies.hub || FALLBACK_MELODIES.hub || [];
   }
 
   function _getBpm() {
@@ -293,11 +339,18 @@ const MusicEngine = (() => {
       return;
     }
 
+    if(sub === 'test') {
+      const key = String(args[1] || 'hub');
+      _setMelodyByKey(key, true);
+      Out.line(`Música test: ${key.toUpperCase()}`, 't-mag');
+      return;
+    }
+
     const current = World.node(Player.pos())?.tipo || 'hub';
     const midiName = st.midiOut?.name || 'sin salida';
     Out.line(`Música: ${st.enabled ? 'ON' : 'OFF'} · zona ${current.toUpperCase()} · pasos ${st.melody.length}`, 't-eco');
     Out.line(`MIDI: ${st.midiEnabled ? 'ON' : 'OFF'} · ${midiName}`, 't-dim');
-    Out.line('Usa: musica on | musica off | musica midi | musica estado', 't-dim');
+    Out.line('Usa: musica on | musica off | musica midi | musica test <tipo> | musica estado', 't-dim');
   }
 
   return { init, cmd };
