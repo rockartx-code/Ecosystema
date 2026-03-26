@@ -166,9 +166,16 @@ function _mkCreature(arcId, nodeId, nodeEstado = 'virgen', opts = {}) {
   });
 }
 
+function _anclasRequeridas(creature) {
+  if(!creature) return [];
+  if(typeof creature.anclasRequeridas === 'function') return creature.anclasRequeridas();
+  const arq = D.creatures?.[creature.arquetipo];
+  return arq?.anclas || [];
+}
+
 // ── Verificar si el jugador tiene ancla compatible ────────────────
 function _anclaCompatible(creature) {
-  const reqs = creature.anclasRequeridas();
+  const reqs = _anclasRequeridas(creature);
   if(!reqs.length) return { ok:true, ancla:null };
   const ancla = Player.get().inventory.find(i=>reqs.includes(i.blueprint));
   return { ok:!!ancla, ancla:ancla || null };
@@ -193,7 +200,7 @@ function cmdCapturar(args) {
 
   cre.hp_current = cre.hp || cre.maxHp;
   const { ok, ancla } = _anclaCompatible(cre);
-  const reqs = cre.anclasRequeridas();
+  const reqs = _anclasRequeridas(cre);
 
   Out.sp(); Out.sep('─');
   Out.line(`CAPTURA — ${cre.nombre}  [${cre.arquetipo}]`, 't-cri', true);
@@ -239,7 +246,7 @@ function cmdVincular(args, battle) {
   if(hpPct >= 0.30) { Out.line(`HP al ${Math.round(hpPct*100)}%. Necesitas < 30% para vincular.`,'t-pel'); return; }
 
   // Verificar ancla
-  const reqs = cre.anclasRequeridas();
+  const reqs = _anclasRequeridas(cre);
   let ancla = null;
   if(reqs.length) {
     ancla = anclaQuery
