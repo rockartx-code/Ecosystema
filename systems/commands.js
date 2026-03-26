@@ -103,6 +103,11 @@ async function dispatch(cmd) {
     if(verb==='defender'||verb==='d')          { Net.sendBattleAction(battle.id,Player.get().id,'defender',null); return; }
     if(['magia','lanzar_b'].includes(verb))    { Net.sendBattleAction(battle.id,Player.get().id,'magia',args.join(' ')||null); return; }
     if(['habilidad','hab_b'].includes(verb))   { Net.sendBattleAction(battle.id,Player.get().id,'habilidad',args.join(' ')||null); return; }
+    if(verb==='vincular') {
+      if(typeof cmdVincular!=='undefined') cmdVincular(args.join(' ') || null, battle);
+      else Out.line('No puedes vincular ahora.', 't-dim');
+      return;
+    }
     if(verb==='usar') {
       const item = Player.findItem(args.join(' '));
       if(item && typeof ItemSystem!=='undefined' && ItemSystem.CATALOGO[item.blueprint]) { ItemSystem.aplicar(item,battle); refreshStatus(); Net.sendBattleAction(battle.id,Player.get().id,'defender',null); return; }
@@ -110,7 +115,7 @@ async function dispatch(cmd) {
     }
     if(verb==='copiar')    { if(typeof cmdCopiar!=='undefined')    cmdCopiar(args);    return; }
     if(verb==='canalizar') { if(typeof cmdCanalizar!=='undefined') cmdCanalizar(args); return; }
-    Out.line('Tu turno: atacar · defender · magia · habilidad · usar · copiar · canalizar · huir · examinar', 't-pel');
+    Out.line('Tu turno: atacar · defender · magia · habilidad · vincular · usar · copiar · canalizar · huir · examinar', 't-pel');
     return;
   }
 

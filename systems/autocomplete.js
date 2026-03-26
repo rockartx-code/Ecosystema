@@ -90,6 +90,17 @@ const AC = (() => {
     return getInventario(i => i.tipo === 'material' && !used.has(i.blueprint)).map(i => ({ ...i, value: i.label, color: 't-cra' }));
   }
 
+  const TAGS_ENCARNAR = ['tendón', 'nervio', 'hueso', 'sangre', 'tejido', 'médula'];
+  const TAGS_CONJURAR = ['resonante', 'corrupto', 'cristal', 'susurro', 'llama', 'vacío'];
+
+  function getMaterialesModo(modo, yaEscritos) {
+    const tagsObjetivo = modo === 'corporal' ? TAGS_ENCARNAR : TAGS_CONJURAR;
+    return getMaterialesInv(yaEscritos).filter(i => {
+      const tags = _safe(() => D.matTags(i.blueprint), []) || [];
+      return tags.some(t => tagsObjetivo.includes(t));
+    });
+  }
+
   function getHabilidades() {
     const p = Player.get();
     return (p.habilidades || []).map(h => ({
@@ -176,6 +187,11 @@ const AC = (() => {
     });
   }
 
+  function getAnclas() {
+    return getInventario(i => i.categoria === 'ancla' || _safe(() => D.mat(i.blueprint)?.categoria === 'ancla', false))
+      .map(i => ({ ...i, hint: `ancla ${i.hint || ''}`.trim(), color: 't-cri', group: 'ancla' }));
+  }
+
   function getEnemigosNodo() {
     const enemies = (World.node(Player.pos())?.enemies) || [];
     const counts = enemies.reduce((acc, e) => {
@@ -237,12 +253,15 @@ const AC = (() => {
         return { list: ['deseo', 'miedo', 'secreto', 'pasado', 'anterior', 'vínculo'].map(t => ({ label: t, value: t, hint: 'tema', color: 't-dim', group: 'tema' })) };
       case 'atacar': return { list: [...getNPCsAqui(), ...getEnemigosNodo(), ...getCriaturasNodo()] };
       case 'capturar': return { list: getCriaturasNodo() };
+      case 'vincular': return { list: getAnclas() };
       case 'recoger': case 'tomar': return { list: getSuelo() };
       case 'soltar': case 'drop': return { list: getInventario() };
       case 'equipar': return { list: getEquipables() };
       case 'usar': return { list: getUsables() };
       case 'examinar': case 'ex': return { list: [...getInventario(), ...getHabilidades(), ...getMagias(), ...getCompañeros(), ...getNPCsAqui()] };
-      case 'forjar': case 'encarnar': case 'conjurar': return { list: getMaterialesInv(yaEscritos) };
+      case 'forjar': return { list: getMaterialesInv(yaEscritos) };
+      case 'encarnar': return { list: getMaterialesModo('corporal', yaEscritos) };
+      case 'conjurar': return { list: getMaterialesModo('mágico', yaEscritos) };
       case 'fusionar': {
         const usedSet = new Set(yaEscritos);
         return { list: [...getInventario(i => !usedSet.has((i.nombre || i.blueprint || '').toLowerCase().replace(/\s+/g, '_'))), ...getHabilidades().filter(h => !usedSet.has(h.value)), ...getMagias().filter(m => !usedSet.has(m.value))] };
