@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ECOSISTEMA v2.0 — Arquitectura</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:     #050507;
+  --bg2:    #09090d;
+  --bg3:    #0d0d14;
+  --border: #13131c;
+  --out:    #a8a896;
+  --dim:    #303040;
+  --acc:    #ff6600;
+  --cra:    #6affaa;
+  --sis:    #4a9eff;
+  --pel:    #ff4040;
+  --mem:    #ffd700;
+  --cor:    #c040ff;
+  --mag:    #40e0d0;
+  --hab:    #a8ff3e;
+  --cri:    #ff9f43;
+  --npc:    #ff8fab;
+  --eco:    #8888ff;
+  --twi:    #ff4db8;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--out);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  padding: 32px 24px 64px;
+  min-height: 100vh;
+}
+
+h1 {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .4em;
+  color: var(--acc);
+  margin-bottom: 4px;
+}
+.subtitle {
+  font-size: 10px;
+  color: var(--dim);
+  letter-spacing: .2em;
+  margin-bottom: 40px;
+}
+
+/* ── Layout ── */
+.arch {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 2px;
+  max-width: 1100px;
+  margin: 0 auto 2px;
+}
+.arch.two { grid-template-columns: 1fr 1fr; }
+.arch.four { grid-template-columns: repeat(4, 1fr); }
+.arch.five { grid-template-columns: repeat(5, 1fr); }
+
+.row-label {
+  max-width: 1100px;
+  margin: 24px auto 6px;
+  font-size: 9px;
+  letter-spacing: .3em;
+  color: var(--dim);
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.row-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* ── Cards ── */
+.card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  padding: 14px 16px;
+  position: relative;
+  transition: border-color .15s;
+}
+.card:hover { border-color: var(--dim); }
+
+.card.core    { border-left: 2px solid var(--sis); }
+.card.plugin  { border-left: 2px solid var(--mag); }
+.card.data    { border-left: 2px solid var(--mem); }
+.card.event   { border-left: 2px solid var(--cor); }
+.card.system  { border-left: 2px solid var(--cra); }
+.card.ui      { border-left: 2px solid var(--acc); }
+
+.card-title {
+  font-size: 11px;
+  font-weight: 500;
+  margin-bottom: 8px;
+  letter-spacing: .05em;
+}
+.card.core   .card-title { color: var(--sis); }
+.card.plugin .card-title { color: var(--mag); }
+.card.data   .card-title { color: var(--mem); }
+.card.event  .card-title { color: var(--cor); }
+.card.system .card-title { color: var(--cra); }
+.card.ui     .card-title { color: var(--acc); }
+
+.card-desc {
+  font-size: 10px;
+  color: var(--dim);
+  margin-bottom: 10px;
+  line-height: 1.5;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+}
+.tag {
+  font-size: 9px;
+  padding: 2px 6px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--out);
+  letter-spacing: .05em;
+}
+.tag.emit  { border-color: var(--cor); color: var(--cor); }
+.tag.listen{ border-color: var(--sis); color: var(--sis); }
+.tag.cmd   { border-color: var(--acc); color: var(--acc); }
+.tag.new   { border-color: var(--cra); color: var(--cra); }
+.tag.warn  { border-color: var(--pel); color: var(--pel); }
+
+/* ── EventBus contract table ── */
+.contract-table {
+  max-width: 1100px;
+  margin: 0 auto;
+  border: 1px solid var(--border);
+  background: var(--bg2);
+}
+.ct-header {
+  display: grid;
+  grid-template-columns: 2fr 1.2fr 2fr;
+  gap: 1px;
+  background: var(--border);
+  padding: 0;
+}
+.ct-header > div {
+  background: var(--bg3);
+  padding: 8px 12px;
+  font-size: 9px;
+  letter-spacing: .2em;
+  color: var(--dim);
+  text-transform: uppercase;
+}
+.ct-row {
+  display: grid;
+  grid-template-columns: 2fr 1.2fr 2fr;
+  gap: 1px;
+  background: var(--border);
+  border-top: 1px solid var(--border);
+}
+.ct-row:hover > div { background: var(--bg3); }
+.ct-row > div {
+  background: var(--bg2);
+  padding: 7px 12px;
+  font-size: 10px;
+}
+.ct-event { color: var(--cor); }
+.ct-emitter { color: var(--dim); }
+.ct-listener { color: var(--out); }
+.ct-group {
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  padding: 5px 12px;
+  font-size: 9px;
+  letter-spacing: .2em;
+  color: var(--dim);
+  text-transform: uppercase;
+  grid-column: 1 / -1;
+}
+
+/* ── Arrow diagram ── */
+.flow {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+}
+.flow-block {
+  flex: 1;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  padding: 12px 14px;
+  text-align: center;
+}
+.flow-block .fb-title {
+  font-size: 10px;
+  font-weight: 500;
+  margin-bottom: 6px;
+  letter-spacing: .08em;
+}
+.flow-block .fb-detail {
+  font-size: 9px;
+  color: var(--dim);
+  line-height: 1.6;
+}
+.flow-arrow {
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+  color: var(--dim);
+  font-size: 14px;
+  align-self: center;
+}
+
+/* ── Separators ── */
+.sep {
+  max-width: 1100px;
+  margin: 32px auto 0;
+  height: 1px;
+  background: var(--border);
+}
+
+/* ── Nota de cambio ── */
+.change-note {
+  max-width: 1100px;
+  margin: 0 auto;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--cra);
+  padding: 12px 16px;
+  font-size: 10px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0 24px;
+}
+.cn-label {
+  color: var(--cra);
+  font-size: 9px;
+  letter-spacing: .15em;
+  padding-top: 1px;
+}
+.cn-list {
+  color: var(--out);
+  list-style: none;
+}
+.cn-list li { margin-bottom: 2px; }
+.cn-list li::before { content: '→ '; color: var(--dim); }
+.cn-list .new::before { color: var(--cra); }
+.cn-list .mod::before { color: var(--mem); content: '↻ '; }
+.cn-list .del::before { color: var(--pel); content: '✕ '; }
+</style>
+</head>
+<body>
+
+<h1>ECOSISTEMA</h1>
+<div class="subtitle">v2.0 — arquitectura por plugins · documento de referencia</div>
+
+<!-- ════════ ROW 1: DATOS ════════ -->
+<div class="row-label">datos declarativos</div>
+<div class="arch four">
+  <div class="card data">
+    <div class="card-title">module-base.json</div>
+    <div class="card-desc">Materiales, arquetipos de forja, enemigos base, NPCs, misiones, plot twists, fases.</div>
+    <div class="tags">
+      <span class="tag">JSON puro</span>
+      <span class="tag">sin código</span>
+    </div>
+  </div>
+  <div class="card data">
+    <div class="card-title">module-creatures.json</div>
+    <div class="card-desc">Definiciones de criaturas, familias, nombres procedurales, anclas.</div>
+    <div class="tags">
+      <span class="tag new">separado</span>
+      <span class="tag">módulo de expansión</span>
+    </div>
+  </div>
+  <div class="card data">
+    <div class="card-title">plugin-factions.json</div>
+    <div class="card-desc">Definición de facciones: nombre, color, tipos de nodo, reputación inicial.</div>
+    <div class="tags">
+      <span class="tag">JSON + handlers</span>
+    </div>
+  </div>
+  <div class="card data">
+    <div class="card-title">plugin-resonance.json</div>
+    <div class="card-desc">Campo de resonancia: acumulación en combate, descarga, status bar.</div>
+    <div class="tags">
+      <span class="tag">JSON + handlers</span>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ ROW 2: CORE INFRA ════════ -->
+<div class="row-label">infraestructura core — sin conocimiento de dominio</div>
+<div class="arch">
+  <div class="card core">
+    <div class="card-title">EventBus</div>
+    <div class="card-desc">Pipeline mutable de listeners con prioridad. Cada listener recibe el payload del anterior y puede mutarlo. Soporta cancelación.</div>
+    <div class="tags">
+      <span class="tag emit">emit(event, payload)</span>
+      <span class="tag emit">emitCancellable()</span>
+      <span class="tag listen">on / once / off</span>
+    </div>
+  </div>
+  <div class="card core">
+    <div class="card-title">ModuleLoader · DataAccessor D</div>
+    <div class="card-desc">Carga y fusiona JSON de datos. D expone getters tipados. El motor nunca llama ModuleLoader.get() directamente.</div>
+    <div class="tags">
+      <span class="tag">D.mats · D.enemies · D.npcs</span>
+      <span class="tag">D.archetypes · D.phases</span>
+      <span class="tag">deepMerge</span>
+    </div>
+  </div>
+  <div class="card core">
+    <div class="card-title">PluginLoader · CommandRegistry</div>
+    <div class="card-desc">Registra plugins JS y JSON. Monta hooks en EventBus, comandos en CommandRegistry con metadatos de ayuda.</div>
+    <div class="tags">
+      <span class="tag cmd">register(verb, fn, pluginId, meta)</span>
+      <span class="tag cmd">registerMeta()</span>
+      <span class="tag">listByPlugin()</span>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ ROW 3: ENTITY + PLAYER + WORLD ════════ -->
+<div class="row-label">contratos de dominio — motor sin implementación de sistemas</div>
+<div class="arch">
+  <div class="card core">
+    <div class="card-title">Entity + EntityRegistry</div>
+    <div class="card-desc">Clase base con contrato mínimo. Los plugins registran fábricas por tipo. El motor crea entidades sin saber qué son.</div>
+    <div class="tags">
+      <span class="tag new">onTick(clock)</span>
+      <span class="tag new">onNodeEnter()</span>
+      <span class="tag new">onCombatStart()</span>
+      <span class="tag new">onDamage()</span>
+      <span class="tag emit">EntityRegistry.create(tipo, data)</span>
+      <span class="tag emit">entity:factory_registered</span>
+      <span class="tag emit">entity:tick_all</span>
+    </div>
+  </div>
+  <div class="card core">
+    <div class="card-title">Player — stats dinámicos</div>
+    <div class="card-desc">Estado base + player.ext (namespace de plugins) + player.slots (capacidades declaradas por plugins). Stats calculados siempre vía EventBus.</div>
+    <div class="tags">
+      <span class="tag new">getAtk() → player:calc_stat</span>
+      <span class="tag new">getDef() → player:calc_stat</span>
+      <span class="tag new">getStat(key) → player:calc_stat</span>
+      <span class="tag new">getSlot(tipo) → player:calc_slot</span>
+      <span class="tag new">addToSlot / findInSlot</span>
+      <span class="tag new">player.ext.{habilidades,magias,compañeros}</span>
+      <span class="tag emit">player:create · player:tick</span>
+      <span class="tag emit">player:stat_change · player:equip</span>
+    </div>
+  </div>
+  <div class="card core">
+    <div class="card-title">World + Clock + GS</div>
+    <div class="card-desc">Grafo de nodos. Generación delega entidades al EventBus. Clock.tick() llama EntityRegistry.tickAll() antes del world:tick.</div>
+    <div class="tags">
+      <span class="tag new">world:request_enemies</span>
+      <span class="tag new">world:request_creatures</span>
+      <span class="tag new">world:request_npcs</span>
+      <span class="tag new">world:calc_difficulty</span>
+      <span class="tag emit">world:before_gen · world:after_gen</span>
+      <span class="tag emit">world:node_enter · world:section_expand</span>
+      <span class="tag emit">player:tick (antes de world:tick)</span>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ ROW 4: COMBAT RESOLUTION ════════ -->
+<div class="row-label">resolución de combate — pipeline delegada</div>
+<div class="flow">
+  <div class="flow-block" style="border-left:2px solid var(--pel);">
+    <div class="fb-title" style="color:var(--pel)">execBattleAction</div>
+    <div class="fb-detail">switch limpio:<br>atacar · defender<br>magia · habilidad<br>huir · ia</div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-block" style="border-left:2px solid var(--cor);">
+    <div class="fb-title" style="color:var(--cor)">CombatResolution</div>
+    <div class="fb-detail">resolveAttack()<br>resolveMagia()<br>resolveHabilidad()<br>resolveIA()</div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-block" style="border-left:2px solid var(--cor);">
+    <div class="fb-title" style="color:var(--cor)">combat:resolve_damage</div>
+    <div class="fb-detail">base + multipliers[]<br>finalDmg calculado<br>si ningún plugin lo setea</div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-block" style="border-left:2px solid var(--cor);">
+    <div class="fb-title" style="color:var(--cor)">combat:apply_states</div>
+    <div class="fb-detail">plugin elementales<br>plugin heridas<br>statesApplied[]</div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-block" style="border-left:2px solid var(--cor);">
+    <div class="fb-title" style="color:var(--cor)">combat:side_effects</div>
+    <div class="fb-detail">poise · reacciones<br>superficie · desgaste<br>sideEffects[]</div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-block" style="border-left:2px solid var(--cor);">
+    <div class="fb-title" style="color:var(--cor)">combat:post_resolve</div>
+    <div class="fb-detail">XP · evolución<br>aura compañeros<br>actualizar UI</div>
+  </div>
+</div>
+<div style="max-width:1100px;margin:2px auto 0;display:flex;gap:2px;">
+  <div class="flow-block" style="flex:1;border-left:2px solid var(--mag);">
+    <div class="fb-title" style="color:var(--mag)">combat:resolve_magia</div>
+    <div class="fb-detail">100% implementado por plugin:magias · handled flag</div>
+  </div>
+  <div class="flow-block" style="flex:1;border-left:2px solid var(--hab);">
+    <div class="fb-title" style="color:var(--hab)">combat:resolve_habilidad</div>
+    <div class="fb-detail">100% implementado por plugin:habilidades · handled flag</div>
+  </div>
+  <div class="flow-block" style="flex:1;border-left:2px solid var(--cri);">
+    <div class="fb-title" style="color:var(--cri)">combat:resolve_ia</div>
+    <div class="fb-detail">implementado por plugin:ia_batalla<br>fallback: atacar primer enemigo</div>
+  </div>
+</div>
+
+<!-- ════════ ROW 5: PLUGINS ════════ -->
+<div class="row-label">plugins registrados en PluginLoader</div>
+<div class="arch five">
+  <div class="card plugin">
+    <div class="card-title">plugin:criaturas</div>
+    <div class="card-desc">Clase Creature extends Entity. Captura, breeding, compañeros, aura en batalla.</div>
+    <div class="tags">
+      <span class="tag listen">world:request_creatures</span>
+      <span class="tag listen">worldai:tick_creatures</span>
+      <span class="tag listen">player:create · player:tick</span>
+      <span class="tag listen">combat:post_resolve</span>
+      <span class="tag cmd">capturar · vincular · criar</span>
+    </div>
+  </div>
+  <div class="card plugin">
+    <div class="card-title">plugin:habilidades</div>
+    <div class="card-desc">Habilidades corporales: bonuses pasivos, efectos en batalla, evolución con combates.</div>
+    <div class="tags">
+      <span class="tag listen">player:create · player:calc_stat</span>
+      <span class="tag listen">player:calc_slot</span>
+      <span class="tag listen">combat:resolve_habilidad</span>
+      <span class="tag cmd">habilidades · encarnar</span>
+    </div>
+  </div>
+  <div class="card plugin">
+    <div class="card-title">plugin:magias</div>
+    <div class="card-desc">Magias con cargas, fragilidad, maná, efectos elementales dentro y fuera de combate.</div>
+    <div class="tags">
+      <span class="tag listen">player:create · player:calc_slot</span>
+      <span class="tag listen">combat:resolve_magia</span>
+      <span class="tag cmd">magias · lanzar · recargar</span>
+    </div>
+  </div>
+  <div class="card plugin">
+    <div class="card-title">plugin:supervivencia</div>
+    <div class="card-desc">Hambre y heridas persistentes. Antes era Player.hungerTick() hardcodeado en cmdIr.</div>
+    <div class="tags">
+      <span class="tag new">extraído de Player</span>
+      <span class="tag listen">player:create · player:tick</span>
+    </div>
+  </div>
+  <div class="card plugin">
+    <div class="card-title">plugin:dificultad</div>
+    <div class="card-desc">Escala dificultad del mundo según equipo, ciclos y kills. Antes era World.calcDificultad().</div>
+    <div class="tags">
+      <span class="tag new">extraído de World</span>
+      <span class="tag listen">world:calc_difficulty</span>
+    </div>
+  </div>
+</div>
+<div class="arch five" style="margin-top:2px">
+  <div class="card plugin">
+    <div class="card-title">plugin:enemigos</div>
+    <div class="card-desc">Fábrica de Entity tipo 'enemy'. Escalado por dificultad y tags elementales en secciones avanzadas.</div>
+    <div class="tags">
+      <span class="tag new">EntityRegistry.register('enemy')</span>
+      <span class="tag listen">world:request_enemies</span>
+    </div>
+  </div>
+  <div class="card plugin">
+    <div class="card-title">plugin:factions (fusionado)</div>
+    <div class="card-desc">Funde FactionSystem + plugin-factions.json. Control territorial, rangos, emboscadas, servicios.</div>
+    <div class="tags">
+      <span class="tag listen">world:node_enter · narrative:npc_death</span>
+      <span class="tag listen">world:after_gen · world:section_expand</span>
+      <span class="tag cmd">facciones · reputacion</span>
+    </div>
+  </div>
+  <div class="card plugin">
+    <div class="card-title">plugin:bosses</div>
+    <div class="card-desc">BossSystem extraído. Definición, generación de loot mítico, proximidad, BFS de ruta.</div>
+    <div class="tags">
+      <span class="tag listen">world:after_gen · world:tick</span>
+      <span class="tag listen">world:node_enter</span>
+      <span class="tag cmd">bosses · buscar_jefe</span>
+    </div>
+  </div>
+  <div class="card plugin">
+    <div class="card-title">plugin:resonance_field</div>
+    <div class="card-desc">Campo de resonancia que se acumula en combate. Status bar, descarga en área.</div>
+    <div class="tags">
+      <span class="tag listen">player:create · combat:after_attack</span>
+      <span class="tag listen">world:tick · render:node_extra</span>
+      <span class="tag cmd">resonancia · liberar_resonancia</span>
+    </div>
+  </div>
+  <div class="card plugin">
+    <div class="card-title">plugin:npc_engine</div>
+    <div class="card-desc">NPCEngine registrado como plugin. Genera y gestiona NPCs. Escucha world:request_npcs.</div>
+    <div class="tags">
+      <span class="tag new">extraído del core</span>
+      <span class="tag listen">world:request_npcs</span>
+      <span class="tag listen">narrative:* events</span>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ ROW 6: SISTEMAS INTERNOS ════════ -->
+<div class="row-label">sistemas internos — no en PluginLoader, sí en EventBus</div>
+<div class="arch four">
+  <div class="card system">
+    <div class="card-title">WorldAI</div>
+    <div class="card-desc">Migración de enemies y NPCs. Emite worldai:tick_creatures para que plugin:criaturas mueva las suyas.</div>
+    <div class="tags">
+      <span class="tag listen">world:tick</span>
+      <span class="tag emit">worldai:tick_creatures</span>
+      <span class="tag emit">enemy_enter · npc_enter</span>
+    </div>
+  </div>
+  <div class="card system">
+    <div class="card-title">Forge + Tags + Imprint</div>
+    <div class="card-desc">Sistema de forja de ítems. Calcula afinidades, tensión, genera nombres. No tiene dependencia con habilidades ni criaturas.</div>
+    <div class="tags">
+      <span class="tag emit">forge:result · forge:collapse</span>
+    </div>
+  </div>
+  <div class="card system">
+    <div class="card-title">ArcEngine</div>
+    <div class="card-desc">Arcos narrativos procedurales con desviaciones. Escucha eventos de misiones y muertes de NPC.</div>
+    <div class="tags">
+      <span class="tag listen">narrative:mission_complete</span>
+      <span class="tag listen">narrative:npc_death</span>
+    </div>
+  </div>
+  <div class="card system">
+    <div class="card-title">Net (P2P) + Tactics + ItemSystem</div>
+    <div class="card-desc">Multiplayer WebRTC, sistema táctico elemental y catálogo de ítems. Internos pero sin cambios de arquitectura.</div>
+    <div class="tags">
+      <span class="tag listen">combat:resolve_damage (Tactics)</span>
+      <span class="tag listen">combat:side_effects (Tactics)</span>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ ROW 7: UI ════════ -->
+<div class="row-label">ui — renderer, input, autocomplete</div>
+<div class="arch">
+  <div class="card ui">
+    <div class="card-title">Renderer R</div>
+    <div class="card-desc">Escribe líneas en el output. upd() actualiza la status bar. Los plugins escriben directamente usando R a través de CTX.</div>
+    <div class="tags">
+      <span class="tag">R.w(txt, col, bold)</span>
+      <span class="tag">R.sep · R.sp · R.echo</span>
+      <span class="tag listen">render:node_extra (plugins añaden líneas al mirar)</span>
+    </div>
+  </div>
+  <div class="card ui">
+    <div class="card-title">cmdAyuda — extensible</div>
+    <div class="card-desc">Busca en AYUDA_TEMAS del core y en CommandRegistry.getMeta(). Los plugins documentan sus comandos al registrarlos.</div>
+    <div class="tags">
+      <span class="tag new">CommandRegistry.getMeta(verb)</span>
+      <span class="tag new">CommandRegistry.listByPlugin(id)</span>
+    </div>
+  </div>
+  <div class="card ui">
+    <div class="card-title">Autocomplete AC</div>
+    <div class="card-desc">Resolve usa CommandRegistry para los verbos de plugins. Los grupos de sugerencias son extensibles.</div>
+    <div class="tags">
+      <span class="tag new">CommandRegistry.listAll() para verbos</span>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ EventBus contracts table ════════ -->
+<div class="row-label">contratos completos del EventBus</div>
+<div class="contract-table">
+  <div class="ct-header">
+    <div>evento</div>
+    <div>emitido por</div>
+    <div>escuchado por</div>
+  </div>
+
+  <div class="ct-row"><div class="ct-group" style="grid-column:1/-1">— JUGADOR —</div></div>
+  <div class="ct-row">
+    <div class="ct-event">player:create</div>
+    <div class="ct-emitter">Player.create()</div>
+    <div class="ct-listener">plugin:criaturas · plugin:habilidades · plugin:magias · plugin:supervivencia · plugin:factions</div>
+  </div>
+  <div class="ct-row">
+    <div class="ct-event">player:tick</div>
+    <div class="ct-emitter">Clock.tick()</div>
+    <div class="ct-listener">plugin:supervivencia (hambre, heridas) · plugin:magias (flags) · plugin:habilidades (niebla)</div>
+  </div>
+  <div class="ct-row">
+    <div class="ct-event">player:calc_stat {stat, base, final}</div>
+    <div class="ct-emitter">Player.getAtk/getDef/getStat()</div>
+    <div class="ct-listener">plugin:habilidades (atk_bonus, def_pasiva) · plugin:equipped (reliquias) · cualquier modificador</div>
+  </div>
+  <div class="ct-row">
+    <div class="ct-event">player:calc_slot {tipo, base, final}</div>
+    <div class="ct-emitter">Player.getSlot()</div>
+    <div class="ct-listener">plugin:habilidades · plugin:magias · plugin:criaturas · XP (extra slots)</div>
+  </div>
+
+  <div class="ct-row"><div class="ct-group" style="grid-column:1/-1">— MUNDO —</div></div>
+  <div class="ct-row">
+    <div class="ct-event">world:request_enemies {tipo, nodeId, rng, difficulty, enemies[]}</div>
+    <div class="ct-emitter">World.gen() · World.expandSection()</div>
+    <div class="ct-listener">plugin:enemigos → push a payload.enemies[]</div>
+  </div>
+  <div class="ct-row">
+    <div class="ct-event">world:request_creatures {tipo, nodeId, rng, creatures[]}</div>
+    <div class="ct-emitter">World.gen() · World.expandSection()</div>
+    <div class="ct-listener">plugin:criaturas → push a payload.creatures[]</div>
+  </div>
+  <div class="ct-row">
+    <div class="ct-event">world:request_npcs {nodes, seed, npcChance}</div>
+    <div class="ct-emitter">World.gen() · World.expandSection()</div>
+    <div class="ct-listener">plugin:npc_engine → genera y añade NPCs a GS + nodo.npc_ids</div>
+  </div>
+  <div class="ct-row">
+    <div class="ct-event">world:calc_difficulty {player, cycle, difficulty}</div>
+    <div class="ct-emitter">World.expandSection()</div>
+    <div class="ct-listener">plugin:dificultad → setea payload.difficulty</div>
+  </div>
+  <div class="ct-row">
+    <div class="ct-event">worldai:tick_creatures {nodes, playerPos, eventos[]}</div>
+    <div class="ct-emitter">WorldAI.tick()</div>
+    <div class="ct-listener">plugin:criaturas → mueve criaturas libres, añade a eventos[]</div>
+  </div>
+
+  <div class="ct-row"><div class="ct-group" style="grid-column:1/-1">— ENTIDADES —</div></div>
+  <div class="ct-row">
+    <div class="ct-event">entity:tick_all {clock}</div>
+    <div class="ct-emitter">EntityRegistry.tickAll()</div>
+    <div class="ct-listener">cualquier plugin que necesite tick global adicional</div>
+  </div>
+  <div class="ct-row">
+    <div class="ct-event">entity:factory_registered {tipo}</div>
+    <div class="ct-emitter">EntityRegistry.register()</div>
+    <div class="ct-listener">diagnóstico / debug</div>
+  </div>
+
+  <div class="ct-row"><div class="ct-group" style="grid-column:1/-1">— COMBATE —</div></div>
+  <div class="ct-row">
+    <div class="ct-event">combat:resolve_damage {actor, target, base, multipliers[], finalDmg}</div>
+    <div class="ct-emitter">CombatResolution.resolveAttack()</div>
+    <div class="ct-listener">Tactics (clima, poise, reacciones) · plugin:habilidades (pasivos) · plugin:bosses (inmunidades)</div>
+  </div>
+  <div class="ct-row">
+    <div class="ct-event">combat:apply_states {…damage, statesApplied[]}</div>
+    <div class="ct-emitter">CombatResolution.resolveAttack()</div>
+    <div class="ct-listener">plugin:elementales (ARDIENDO, MOJADO…) · plugin:heridas</div>
+  </div>
+  <div class="ct-row">
+    <div class="ct-event">combat:side_effects {…states, sideEffects[]}</div>
+    <div class="ct-emitter">CombatResolution.resolveAttack()</div>
+    <div class="ct-listener">Tactics (poise, superficie) · plugin:elementales (área) · plugin:armas (desgaste)</div>
+  </div>
+  <div class="ct-row">
+    <div class="ct-event">combat:post_resolve {…side_effects}</div>
+    <div class="ct-emitter">CombatResolution.resolveAttack()</div>
+    <div class="ct-listener">XP · plugin:habilidades (evolución) · plugin:criaturas (aura)</div>
+  </div>
+  <div class="ct-row">
+    <div class="ct-event">combat:resolve_magia {actor, mag, target, handled, logEntry}</div>
+    <div class="ct-emitter">CombatResolution.resolveMagia()</div>
+    <div class="ct-listener">plugin:magias → implementación completa, setea handled=true</div>
+  </div>
+  <div class="ct-row">
+    <div class="ct-event">combat:resolve_habilidad {actor, hab, target, handled, logEntry}</div>
+    <div class="ct-emitter">CombatResolution.resolveHabilidad()</div>
+    <div class="ct-listener">plugin:habilidades → implementación completa, setea handled=true</div>
+  </div>
+  <div class="ct-row">
+    <div class="ct-event">combat:resolve_ia {actor, battle, action, handled}</div>
+    <div class="ct-emitter">CombatResolution.resolveIA()</div>
+    <div class="ct-listener">plugin:ia_batalla · fallback interno: atacar</div>
+  </div>
+</div>
+
+<!-- ════════ Cambios respecto a v1.2 ════════ -->
+<div class="row-label">delta v1.2 → v2.0</div>
+<div class="change-note">
+  <div class="cn-label">AÑADIDO</div>
+  <ul class="cn-list">
+    <li class="new">Entity + EntityRegistry — contrato base para todas las entidades del mundo</li>
+    <li class="new">player.ext — namespace de plugins sin contaminar el estado base</li>
+    <li class="new">player.slots — capacidades declaradas por plugins vía player:calc_slot</li>
+    <li class="new">Player.getStat(key) / Player.getSlot(tipo) — stats totalmente dinámicos</li>
+    <li class="new">CombatResolution — pipeline de 4 fases con eventos delegados</li>
+    <li class="new">CommandRegistry.registerMeta() — ayuda contextual extensible por plugins</li>
+    <li class="new">world:request_enemies / creatures / npcs — generación completamente delegada</li>
+    <li class="new">world:calc_difficulty — dificultad como evento, no hardcodeada en World</li>
+    <li class="new">Clock emite player:tick antes de world:tick</li>
+    <li class="new">worldai:tick_creatures — WorldAI delega movimiento de criaturas al plugin</li>
+  </ul>
+</div>
+<div class="change-note" style="margin-top:2px">
+  <div class="cn-label">MOVIDO</div>
+  <ul class="cn-list">
+    <li class="mod">Player.hungerTick() → plugin:supervivencia escucha player:tick</li>
+    <li class="mod">World.calcDificultad() → plugin:dificultad escucha world:calc_difficulty</li>
+    <li class="mod">World._mkCreature() → plugin:criaturas escucha world:request_creatures</li>
+    <li class="mod">BossSystem → plugin:bosses (extrae definiciones al módulo de datos)</li>
+    <li class="mod">FactionSystem + plugin-factions.json → plugin:factions (fusionados)</li>
+    <li class="mod">Player.habilidades[] → Player.ext.habilidades[] (gestión por plugin)</li>
+    <li class="mod">Player.magias[] → Player.ext.magias[] (gestión por plugin)</li>
+    <li class="mod">Player.compañeros[] → Player.ext.compañeros[] (gestión por plugin)</li>
+    <li class="mod">case 'magia' en execBattleAction → combat:resolve_magia</li>
+    <li class="mod">case 'habilidad' en execBattleAction → combat:resolve_habilidad</li>
+    <li class="mod">Player.getAtk/getDef hardcodeado → player:calc_stat pipeline</li>
+    <li class="mod">NPCEngine inline → plugin:npc_engine escucha world:request_npcs</li>
+  </ul>
+</div>
+<div class="change-note" style="margin-top:2px">
+  <div class="cn-label">SIN CAMBIO</div>
+  <ul class="cn-list">
+    <li>EventBus, ModuleLoader, PluginLoader, CommandRegistry — API idéntica</li>
+    <li>Forge, Tags, Imprint — sin cambios (no tenían acoplamientos con los sistemas extraídos)</li>
+    <li>Net, Tactics, ItemSystem, ArcEngine, RunMem, XP — internos, sin cambios de arquitectura</li>
+    <li>UI: Renderer R, Hist, AC — sin cambios</li>
+    <li>CSS, HTML shell, boot screen — idénticos</li>
+    <li>Formato de plugins JSON (application/json+plugin) — retrocompatible</li>
+  </ul>
+</div>
+
+<div class="sep"></div>
+
+</body>
+</html>

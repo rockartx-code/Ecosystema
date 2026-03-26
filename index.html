@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ECOSISTEMA — v2.0</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     MÓDULO BASE — datos del juego en JSON puro, sin lógica.
+     Para añadir contenido: crea otro bloque con id="module-xxx"
+     y el motor lo fusionará automáticamente al arrancar.
+     ═══════════════════════════════════════════════════════════════ -->
+<script id="module-base" type="application/json">
+{
+  "meta": { "id":"base", "nombre":"Ecosistema Base", "version":"2.0.0" },
+  "player": { "hp_base":50, "atk_base":5, "def_base":1, "hunger_base":100, "slots_habilidades":3, "slots_magias":2, "slots_compañeros":1 },
+  "world": {
+    "node_count":32,
+    "tipos_nodo":["caverna","ruina","bosque","grieta","hub","vacío","umbral","abismo"],
+    "npc_nodos_permitidos":["hub","ruina","umbral","bosque"],
+    "npc_chance":0.55, "enemy_chance":0.38, "creature_chance":0.35, "loot_chance":0.60,
+    "nombres_nodo":{
+      "caverna":["Hueco Profundo","Cámara Resonante","Galería Oscura","Fosa del Eco"],
+      "ruina":["Estructura Olvidada","Columna Caída","Sala sin Techo","Umbral Roto"],
+      "bosque":["Arboleda Torcida","Claro Silencioso","Raíces Expuestas","Sendero Bifurcado"],
+      "grieta":["Fisura Vertical","Hendidura Pulsante","Abertura Inestable","Portal Menor"],
+      "hub":["Intersección","Nodo Compartido","Confluencia","Cruce de Caminos"],
+      "vacío":["Espacio Abierto","Extensión Gris","Campo Inerte","Llanura Sin Nombre"],
+      "umbral":["Puerta Sin Marco","Límite Perceptible","Transición","Borde del Conocido"],
+      "abismo":["Caída Sin Fondo","Pozo de Inestabilidad","Precipicio","Foso Resonante"]
+    },
+    "atmósferas":["El aire tiene un peso extraño.","Algo resuena aquí sin fuente visible.","El silencio se comporta de forma irregular.","Una luz sin origen ilumina débilmente.","Las sombras se mueven más despacio.","Hay olor a tierra húmeda y metal quemado.","El suelo vibra en una frecuencia apenas perceptible.","El eco de tus pasos llega antes de que camines.","Cristales de resonancia crecen en las paredes.","La temperatura cae hacia el centro del nodo.","Una marca en la pared que reconoce tu presencia.","Una sensación de haber estado aquí antes sin haberlo hecho.","El tiempo fluye de forma discontinua aquí."],
+    "loot_por_tipo":{"caverna":["hierro_roto","hueso_antiguo","cristal_grieta","ancla_resonante"],"ruina":["fragmento_origen","tejido_antiguo","hierro_roto","ancla_antigua"],"bosque":["fibra_oscura","raiz_antigua","hongo_bifurco","ancla_resonante"],"grieta":["cristal_grieta","vacío_cristalizado","polvo_echo","ancla_inestable"],"hub":["carne_seca","eco_condensado","extracto_raiz"],"vacío":["cristal_vacio","fibra_oscura","ancla_inestable"],"umbral":["fragmento_verdad","piedra_eco","ancla_antigua","ancla_inestable"],"abismo":["mineral_oscuro","susurro_corrupto","vacío_cristalizado","ancla_corrupta"]},
+    "criaturas_por_tipo":{"caverna":["eco_encarnado","corrupto_menor"],"ruina":["guardián_dormido","antiguo_menor"],"bosque":["resonante_bestia","eco_encarnado"],"grieta":["bifurcado","fragmento_vivo"],"hub":["fragmento_vivo"],"abismo":["antiguo_menor","vacío_animado"],"vacío":["vacío_animado","bifurcado"],"umbral":["bifurcado","antiguo_menor"]}
+  },
+  "fases":[
+    {"id":"ALBA",       "color":"t-mem", "bonus_tags":["resonante"]},
+    {"id":"DÍA",        "color":"t-out", "bonus_tags":[]},
+    {"id":"CREPÚSCULO", "color":"t-acc", "bonus_tags":[]},
+    {"id":"NOCHE",      "color":"t-sis", "bonus_tags":["inestable"], "stat_mult":1.3}
+  ],
+  "materiales":{
+    "hierro_roto":      {"tags":["metal","básico"],            "desc":"Fragmento de hierro fracturado."},
+    "hueso_antiguo":    {"tags":["orgánico","antiguo"],        "desc":"Hueso de criatura que ya no existe."},
+    "cristal_grieta":   {"tags":["mineral","inestable"],       "desc":"Cristal del borde de una fisura."},
+    "fibra_oscura":     {"tags":["orgánico","corrupto"],       "desc":"Fibra que absorbe la luz."},
+    "piedra_eco":       {"tags":["mineral","resonante"],       "desc":"Piedra que repite el último sonido."},
+    "fragmento_origen": {"tags":["antiguo","inestable"],       "desc":"Fragmento que no debería existir."},
+    "polvo_echo":       {"tags":["resonante","corrupto"],      "desc":"Polvo brillante de origen incierto."},
+    "mineral_oscuro":   {"tags":["mineral","corrupto"],        "desc":"Mineral que irradia anomalía."},
+    "raiz_antigua":     {"tags":["orgánico","antiguo","resonante"], "desc":"Raíz del primer ciclo."},
+    "cristal_vacio":    {"tags":["mineral","vacío"],           "desc":"Cristal que contiene ausencia."},
+    "tendón_templado":  {"tags":["orgánico","tendón","básico"],"desc":"Tendón endurecido.","categoria":"corporal"},
+    "nervio_resonante": {"tags":["orgánico","nervio","resonante"],"desc":"Nervio que vibra con el entorno.","categoria":"corporal"},
+    "hueso_endurecido": {"tags":["orgánico","hueso","mineral"],"desc":"Hueso cristalizado.","categoria":"corporal"},
+    "sangre_corrupta":  {"tags":["orgánico","sangre","corrupto"],"desc":"Sangre con poder oscuro.","categoria":"corporal"},
+    "tejido_antiguo":   {"tags":["orgánico","tejido","antiguo"],"desc":"Tejido con memoria muscular.","categoria":"corporal"},
+    "médula_inestable": {"tags":["orgánico","médula","inestable"],"desc":"Médula que muta.","categoria":"corporal"},
+    "eco_condensado":   {"tags":["resonante","básico"],        "desc":"Eco puro sin fuente.","categoria":"mágico"},
+    "fragmento_verdad": {"tags":["antiguo","mineral"],         "desc":"Verdad cristalizada.","categoria":"mágico"},
+    "susurro_corrupto": {"tags":["corrupto","susurro","orgánico"],"desc":"Susurro que tomó forma.","categoria":"mágico"},
+    "cristal_memoria":  {"tags":["mineral","cristal","resonante"],"desc":"Almacena experiencias.","categoria":"mágico","efecto_pasivo":"+1_slot_magia"},
+    "vacío_cristalizado":{"tags":["inestable","vacío","antiguo"],"desc":"Vacío que aprendió a persistir.","categoria":"mágico"},
+    "llama_sin_fuente": {"tags":["corrupto","llama","resonante"],"desc":"Llama sin origen.","categoria":"mágico"},
+    "carne_seca":       {"tags":["orgánico","alimento"],       "desc":"Carne preservada.","hunger":20},
+    "hongo_bifurco":    {"tags":["orgánico","inestable","alimento"],"desc":"Hongo bifurcante.","hunger":10,"hp":5},
+    "extracto_raiz":    {"tags":["orgánico","curativo"],       "desc":"Extracto de raíces.","hp":15},
+    "ancla_resonante":  {"tags":["resonante","mineral"],       "desc":"Ancla para ecos y resonantes.","categoria":"ancla"},
+    "ancla_corrupta":   {"tags":["corrupto","metal"],          "desc":"Ancla para corruptos.","categoria":"ancla"},
+    "ancla_antigua":    {"tags":["antiguo","orgánico"],        "desc":"Ancla para antiguos.","categoria":"ancla"},
+    "ancla_inestable":  {"tags":["inestable","vacío"],         "desc":"Ancla de alta varianza.","categoria":"ancla"}
+  },
+  "criaturas":{
+    "fragmento_vivo":    {"nombre":"Fragmento Errante",  "tags":["inestable","básico"],   "hp":14,"atk":4,"def":1,"desc":"Residuo del sistema.",              "anclas":["ancla_inestable","ancla_resonante"]},
+    "eco_encarnado":     {"nombre":"Eco Encarnado",      "tags":["resonante","orgánico"], "hp":10,"atk":3,"def":0,"desc":"Un eco que tomó forma.",             "anclas":["ancla_resonante"]},
+    "resonante_bestia":  {"nombre":"Bestia Resonante",   "tags":["resonante","mineral"],  "hp":18,"atk":7,"def":2,"desc":"Vibra en frecuencias dañinas.",      "anclas":["ancla_resonante","ancla_antigua"]},
+    "corrupto_menor":    {"nombre":"Corrupto Menor",     "tags":["corrupto","inestable"], "hp":12,"atk":6,"def":1,"desc":"Nacida de la inestabilidad.",        "anclas":["ancla_corrupta"]},
+    "guardián_dormido":  {"nombre":"Guardián Dormido",   "tags":["antiguo","mineral"],    "hp":25,"atk":8,"def":4,"desc":"Estructura de defensa que despertó.","anclas":["ancla_antigua"]},
+    "bifurcado":         {"nombre":"Bifurcado",          "tags":["inestable","vacío"],    "hp":8, "atk":5,"def":0,"desc":"Existe en dos estados.",            "anclas":["ancla_inestable"]},
+    "vacío_animado":     {"nombre":"Vacío Animado",      "tags":["vacío","inestable"],    "hp":9, "atk":4,"def":1,"desc":"Forma que tomó el espacio.",         "anclas":["ancla_inestable","ancla_corrupta"]},
+    "antiguo_menor":     {"nombre":"Antiguo Menor",      "tags":["antiguo","resonante"],  "hp":20,"atk":6,"def":3,"desc":"Superviviente de un ciclo anterior.","anclas":["ancla_antigua","ancla_resonante"]}
+  },
+  "criatura_familias":{"resonante":["eco_encarnado","resonante_bestia","antiguo_menor"],"corrupto":["corrupto_menor","fragmento_vivo","bifurcado"],"antiguo":["guardián_dormido","antiguo_menor","eco_encarnado"],"vacío":["vacío_animado","bifurcado"]},
+  "criatura_nombres":{"prefijos":["Eco","Sombra","Grieta","Velo","Forma","Nexo","Pulso","Marca"],"sufijos":["Profundo","Olvidado","Resonante","Bifurcado","Antiguo","Inestable","Sellado","Corrupto"]},
+  "enemigos":[
+    {"id":"fragmento_errante","nombre":"Fragmento Errante","hp":10,"atk":4,"def":0,"desc":"Residuo del sistema.",               "loot":["hierro_roto","fibra_oscura"]},
+    {"id":"eco_corrupto",     "nombre":"Eco Corrupto",     "hp":14,"atk":6,"def":1,"desc":"Eco que absorbió inestabilidad.",    "loot":["polvo_echo"]},
+    {"id":"guardian_oxidado", "nombre":"Guardián Oxidado", "hp":20,"atk":8,"def":3,"desc":"Estructura de defensa degradada.",   "loot":["hierro_roto","piedra_eco"]},
+    {"id":"resonante_hueco",  "nombre":"Resonante Hueco",  "hp":8, "atk":5,"def":0,"desc":"Vibra en frecuencias dañinas.",     "loot":["eco_condensado"]},
+    {"id":"grieta_animada",   "nombre":"Grieta Animada",   "hp":28,"atk":11,"def":2,"desc":"Una fisura que aprendió a moverse.","loot":["vacío_cristalizado"]},
+    {"id":"antiguo_menor_e",  "nombre":"Antiguo Menor",    "hp":22,"atk":7,"def":4,"desc":"Superviviente de un ciclo.",        "loot":["fragmento_origen","tejido_antiguo"]}
+  ],
+  "items_inicio":["hierro_roto","fibra_oscura","carne_seca","eco_condensado","tendón_templado"],
+  "ciclo_hunger_perdida":3,
+  "hunger_cero_hp_perdida":2,
+  "npc_desesperacion_tick_chance":0.12,
+  "npc_desesperacion_tick_max":5,
+  "npc_corrupcion_tick_chance":0.07,
+  "npc_corrupcion_tick_max":3,
+  "npc_quiebre_chance":0.15
+}
+</script>
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     PLUGINS DECLARATIVOS (JSON + handlers)
+     Para añadir un plugin: copia el bloque y cambia el id y el JSON.
+     El motor los detecta por type="application/json+plugin".
+     ═══════════════════════════════════════════════════════════════ -->
+<script id="plugin-resonance" type="application/json+plugin">
+{
+  "id": "resonance_field",
+  "nombre": "Campo de Resonancia",
+  "version": "1.0.0",
+  "descripcion": "Acumula resonancia en combate y la libera en área.",
+  "modulo": {
+    "materiales": {
+      "núcleo_resonante": { "tags":["resonante","resonante","mineral"], "desc":"Amplifica campos de resonancia.", "categoria":"especial" }
+    }
+  },
+  "statusBar": [
+    { "id":"resonance", "label":"RES", "getValue":"player.resonance||0", "color":"t-mag" }
+  ],
+  "hooks": {
+    "player:create":        { "fn":"onPlayerCreate" },
+    "combat:after_attack":  { "fn":"onAttack" },
+    "world:tick":           { "fn":"onTick" },
+    "render:node_extra":    { "fn":"onNodeExtra" }
+  },
+  "comandos": {
+    "resonancia":        { "fn":"cmdResonancia" },
+    "liberar_resonancia":{ "fn":"cmdLiberarResonancia" }
+  },
+  "handlers": {
+    "onPlayerCreate":       "payload.player.resonance=0;payload.player.maxResonance=100;return payload;",
+    "onAttack":             "if(payload.isPlayer){ctx.Player.get().resonance=ctx.U.clamp((ctx.Player.get().resonance||0)+Math.floor(payload.damage/3),0,100);}return payload;",
+    "onTick":               "const p=ctx.Player.get();if(p.resonance>0)p.resonance=Math.max(0,p.resonance-1);return payload;",
+    "onNodeExtra":          "const res=ctx.Player.get().resonance||0;if(res>50)payload.lines.push({text:`Campo resonante activo: ${res}/100`,color:'t-mag'});return payload;",
+    "cmdResonancia":        "const p=ctx.Player.get();ctx.R.w(`Resonancia acumulada: ${p.resonance||0}/100`,'t-mag');if((p.resonance||0)>=80)ctx.R.w('Listo para liberar. Usa \"liberar_resonancia\"','t-mag');",
+    "cmdLiberarResonancia": "const p=ctx.Player.get();if((p.resonance||0)<50){ctx.R.w('Resonancia insuficiente (mín. 50).','t-dim');return;}const n=ctx.World.node(ctx.Player.pos());if(n?.enemies?.length){const dmg=Math.floor(p.resonance*0.8);n.enemies.forEach(e=>{e.hp_current-=dmg;ctx.R.w(`Descarga resonante → ${e.nombre} -${dmg}HP`,'t-mag');if(e.hp_current<=0){ctx.World.rmEnemy(ctx.Player.pos(),e.id);ctx.R.w(`${e.nombre} colapsa.`,'t-cra');}});}else ctx.R.w('Sin objetivos en el nodo.','t-dim');p.resonance=0;ctx.R.upd();"
+  }
+}
+</script>
+
+</head>
+<body>
+
+<!-- ── Boot screen ─────────────────────────────────────────────── -->
+<div id="boot">
+  <div class="logo">ECOSISTEMA</div>
+  <div class="sub">v2.0 — motor con plugins</div>
+  <div class="bl" id="b1"></div>
+  <div class="bl" id="b2"></div>
+  <div class="bl" id="b3"></div>
+  <div class="bl" id="b4"></div>
+  <div class="bl" id="b5"></div>
+</div>
+
+<!-- ── Shell ───────────────────────────────────────────────────── -->
+<div id="shell">
+
+  <!-- Cabecera: título + versión del módulo activo -->
+  <div id="hdr">
+    <div class="htit">ECOSISTEMA</div>
+    <div class="hver" id="hmod">v2.0</div>
+  </div>
+
+  <!-- Status bar: stats del jugador + stats de plugins -->
+  <div id="sbar">
+    <div class="st hp">HP   <span id="s-hp">—</span></div>
+    <div class="st">HAM  <span id="s-hun">—</span></div>
+    <div class="st">STA  <span id="s-sta">—</span></div>
+    <div class="st">MAG  <span id="s-mna">—</span></div>
+    <div class="st loc">NODO <span id="s-loc">—</span></div>
+    <div class="st cyc">CICLO<span id="s-cyc">—</span></div>
+    <div class="st">INV  <span id="s-inv">0</span></div>
+    <div class="st">HAB  <span id="s-hab">0/0</span></div>
+    <div class="st">MAG  <span id="s-mag">0/0</span></div>
+    <div class="st">COMP <span id="s-comp">0/0</span></div>
+    <div class="st npc">NPCs <span id="s-npc">0</span></div>
+    <div class="st mis">MIS  <span id="s-mis">0</span></div>
+    <div class="st run">RUN  <span id="s-run">1</span></div>
+    <!-- Los plugins de status bar montan sus elementos aquí -->
+    <div id="plugin-stats"></div>
+    <div class="st">MOD  <span id="s-mod">—</span></div>
+    <div class="st" id="s-p2p-wrap" style="display:none">NET <span id="s-p2p" class="t-cra">—</span></div>
+  </div>
+
+  <!-- Área de output -->
+  <div id="out"></div>
+
+  <!-- Input con autocomplete -->
+  <div id="iln">
+    <div id="ac"></div>
+    <div id="ps">›</div>
+    <input id="inp" type="text" autocomplete="off" spellcheck="false" placeholder="comando...">
+  </div>
+
+</div><!-- #shell -->
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SCRIPTS — orden de carga estricto
+     Cada archivo depende de los anteriores. No reordenar.
+
+     CORE (sin dependencias de dominio)
+       core.js      → U, EventBus, ModuleLoader, PluginLoader,
+                       CommandRegistry, D
+       entity.js    → Entity, EntityRegistry
+       player.js    → Player
+       world.js     → Clock, World, GS
+       combat-resolution.js → CombatResolution, battleLog
+
+     SISTEMAS INTERNOS (dependen del core, no van en PluginLoader)
+       — estos archivos se añaden aquí cuando se extraigan —
+       systems/world-ai.js
+       systems/forge.js
+       systems/npc-engine.js
+       systems/arc-engine.js
+       systems/run-memory.js
+       systems/xp.js
+       systems/imprint.js
+       systems/tags.js
+       systems/tactics.js
+       systems/item-system.js
+       systems/faction-system.js
+       systems/boss-system.js
+       systems/net.js
+       systems/renderer.js
+       systems/save-load.js
+
+     PLUGINS DE DOMINIO (se registran en PluginLoader vía main.js)
+       plugins/plugin-criaturas.js
+       plugins/plugin-habilidades.js
+       plugins/plugin-magias.js
+
+     ENTRADA
+       core/main.js  → CTX, bootstrap, init()
+     ═══════════════════════════════════════════════════════════════ -->
+<script type="module">
+  // Durante la migración, los sistemas internos aún viven en un
+  // único bloque inline hasta ser extraídos uno a uno.
+  // Este bloque se irá vaciando a medida que cada sistema
+  // pase a su propio archivo en systems/.
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SCRIPTS — orden de carga estricto
+     ═══════════════════════════════════════════════════════════════ -->
+
+<!-- CORE -->
+<script type="module" src="core/core.js"></script>
+<script type="module" src="core/entity.js"></script>
+<script type="module" src="core/player.js"></script>
+<script type="module" src="core/world.js"></script>
+<script type="module" src="core/combat-resolution.js"></script>
+<script type="module" src="core/io-bus.js"></script>
+<script type="module" src="core/renderer.js"></script>
+
+<!-- SISTEMAS INTERNOS -->
+<script type="module" src="systems/run-memory.js"></script>
+<script type="module" src="systems/forge.js"></script>
+<script type="module" src="systems/npc-engine.js"></script>
+<script type="module" src="systems/arc-engine.js"></script>
+<script type="module" src="systems/tactics.js"></script>
+<script type="module" src="systems/item-system.js"></script>
+<script type="module" src="systems/xp.js"></script>
+<script type="module" src="systems/world-ai.js"></script>
+<script type="module" src="systems/net.js"></script>
+<script type="module" src="systems/save-load.js"></script>
+<script type="module" src="systems/commands.js"></script>
+
+<!-- PLUGINS DE DOMINIO -->
+<script type="module" src="plugins/plugin-criaturas.js"></script>
+<script type="module" src="plugins/plugin-habilidades.js"></script>
+<script type="module" src="plugins/plugin-magias.js"></script>
+<script type="module" src="plugins/plugin-ia-batalla.js"></script>
+<script type="module" src="plugins/plugin-facciones.js"></script>
+<script type="module" src="plugins/plugin-bosses.js"></script>
+
+<!-- ENTRADA: CTX + bootstrap -->
+<script type="module" src="core/main.js"></script>
+
+</body>
+</html>

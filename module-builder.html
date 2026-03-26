@@ -1,0 +1,1622 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ECOSISTEMA — Constructor de Módulos y Plugins</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+
+/* ── Variables ─────────────────────────────────────────── */
+:root {
+  --bg:     #050507;
+  --bg2:    #09090d;
+  --bg3:    #0d0d14;
+  --border: #1a1a28;
+  --border2:#252535;
+  --out:    #a8a896;
+  --dim:    #3a3a50;
+  --dim2:   #505068;
+  --acc:    #ff6600;
+  --sis:    #4a9eff;
+  --pel:    #ff4040;
+  --cra:    #6affaa;
+  --mem:    #ffd700;
+  --cor:    #c040ff;
+  --mag:    #40e0d0;
+  --hab:    #a8ff3e;
+  --npc:    #ff8fab;
+  --eco:    #8888ff;
+  --inp:    #ffffff;
+  --mut:    #1c1c26;
+}
+
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+html, body {
+  background: var(--bg);
+  color: var(--out);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* ── Layout ─────────────────────────────────────────────── */
+.app {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 100vh;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg2);
+  flex-shrink: 0;
+}
+
+.logo {
+  padding: 12px 24px;
+  color: var(--acc);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .35em;
+  border-right: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.tabs {
+  display: flex;
+  gap: 0;
+  flex: 1;
+}
+
+.tab {
+  padding: 12px 20px;
+  font-size: 10px;
+  letter-spacing: .15em;
+  color: var(--dim2);
+  cursor: pointer;
+  border-right: 1px solid var(--border);
+  transition: color .15s, background .15s;
+  user-select: none;
+}
+.tab:hover { color: var(--out); background: var(--mut); }
+.tab.active { color: var(--acc); background: var(--bg3); border-bottom: 1px solid var(--bg3); }
+
+.main {
+  display: grid;
+  grid-template-columns: 1fr 420px;
+  height: calc(100vh - 45px);
+  overflow: hidden;
+}
+
+.form-panel {
+  overflow-y: auto;
+  padding: 28px 32px;
+  border-right: 1px solid var(--border);
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.form-panel::-webkit-scrollbar { width: 3px; }
+.form-panel::-webkit-scrollbar-thumb { background: var(--border); }
+
+.output-panel {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg2);
+  overflow: hidden;
+}
+
+.output-header {
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.output-file-tabs {
+  display: flex;
+  gap: 0;
+}
+
+.output-ftab {
+  padding: 8px 16px;
+  font-size: 10px;
+  font-family: 'IBM Plex Mono', monospace;
+  letter-spacing: .12em;
+  color: var(--dim2);
+  cursor: pointer;
+  border-right: 1px solid var(--border);
+  transition: color .15s, background .15s;
+  user-select: none;
+}
+.output-ftab:hover  { color: var(--out); background: var(--mut); }
+.output-ftab.active { color: var(--cra); background: var(--bg3); }
+.output-ftab.active[data-file="js"] { color: var(--mem); }
+
+/* Output label moved inline */
+.output-label {
+  font-size: 9px;
+  letter-spacing: .2em;
+  color: var(--dim2);
+  padding: 0 12px;
+  align-self: center;
+}
+
+.output-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.output-code {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 18px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--cra);
+  white-space: pre-wrap;
+  word-break: break-all;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.output-code::-webkit-scrollbar { width: 3px; }
+.output-code::-webkit-scrollbar-thumb { background: var(--border); }
+
+/* ── Secciones del formulario ───────────────────────────── */
+.section {
+  margin-bottom: 28px;
+}
+
+.section-title {
+  font-size: 9px;
+  letter-spacing: .25em;
+  color: var(--dim2);
+  text-transform: uppercase;
+  margin-bottom: 14px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-title .dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dot-acc  { background: var(--acc); }
+.dot-sis  { background: var(--sis); }
+.dot-cra  { background: var(--cra); }
+.dot-mag  { background: var(--mag); }
+.dot-mem  { background: var(--mem); }
+.dot-cor  { background: var(--cor); }
+.dot-npc  { background: var(--npc); }
+.dot-eco  { background: var(--eco); }
+.dot-hab  { background: var(--hab); }
+.dot-pel  { background: var(--pel); }
+
+.page { display: none; }
+.page.active { display: block; }
+
+/* ── Campos del formulario ──────────────────────────────── */
+.field {
+  margin-bottom: 14px;
+}
+
+.field label {
+  display: block;
+  font-size: 10px;
+  color: var(--dim2);
+  letter-spacing: .08em;
+  margin-bottom: 5px;
+}
+.field label span {
+  color: var(--acc);
+  font-size: 9px;
+  margin-left: 4px;
+}
+.field label em {
+  font-style: normal;
+  color: var(--dim);
+  font-size: 9px;
+  margin-left: 6px;
+}
+
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  color: var(--inp);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  padding: 7px 10px;
+  outline: none;
+  transition: border-color .15s;
+  border-radius: 2px;
+}
+.field input:focus,
+.field select:focus,
+.field textarea:focus { border-color: var(--acc); }
+.field input::placeholder,
+.field textarea::placeholder { color: var(--dim); }
+
+.field input[type="number"] { width: 120px; }
+.field input[type="range"]  { width: 100%; accent-color: var(--acc); cursor: pointer; }
+
+.field select option { background: var(--bg3); }
+.field textarea { resize: vertical; min-height: 70px; line-height: 1.5; }
+
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.field-row.three { grid-template-columns: 1fr 1fr 1fr; }
+
+/* Slider con valor inline */
+.slider-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.slider-val {
+  font-size: 11px;
+  color: var(--acc);
+  min-width: 36px;
+  text-align: right;
+}
+
+/* Tag list (chips) */
+.tag-input-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 6px 8px;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  min-height: 38px;
+  cursor: text;
+  transition: border-color .15s;
+}
+.tag-input-wrap:focus-within { border-color: var(--acc); }
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--mut);
+  border: 1px solid var(--border2);
+  color: var(--out);
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 2px;
+}
+.chip.color-acc { border-color: var(--acc); color: var(--acc); }
+.chip.color-sis { border-color: var(--sis); color: var(--sis); }
+.chip.color-mag { border-color: var(--mag); color: var(--mag); }
+.chip.color-cra { border-color: var(--cra); color: var(--cra); }
+.chip.color-mem { border-color: var(--mem); color: var(--mem); }
+.chip.color-cor { border-color: var(--cor); color: var(--cor); }
+.chip.color-pel { border-color: var(--pel); color: var(--pel); }
+.chip.color-hab { border-color: var(--hab); color: var(--hab); }
+
+.chip-del {
+  background: none;
+  border: none;
+  color: var(--dim2);
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  padding: 0;
+  display: flex;
+  align-items: center;
+}
+.chip-del:hover { color: var(--pel); }
+
+.tag-input-inner {
+  background: none;
+  border: none;
+  color: var(--inp);
+  font-family: inherit;
+  font-size: 11px;
+  outline: none;
+  min-width: 80px;
+  flex: 1;
+}
+.tag-input-inner::placeholder { color: var(--dim); }
+
+/* ── Listas dinámicas (materiales, enemigos, hooks, etc.) ─ */
+.dynamic-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.list-item {
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  padding: 10px 12px;
+  position: relative;
+}
+
+.list-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.list-item-title {
+  font-size: 10px;
+  color: var(--acc);
+  letter-spacing: .05em;
+}
+
+.list-item-del {
+  background: none;
+  border: 1px solid var(--border2);
+  color: var(--dim2);
+  font-family: inherit;
+  font-size: 10px;
+  padding: 2px 8px;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: all .15s;
+}
+.list-item-del:hover { border-color: var(--pel); color: var(--pel); }
+
+/* ── Botones ─────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 1px solid var(--border2);
+  color: var(--out);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: .1em;
+  padding: 6px 14px;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: all .15s;
+  white-space: nowrap;
+}
+.btn:hover { border-color: var(--dim2); color: var(--inp); }
+.btn.primary { border-color: var(--acc); color: var(--acc); }
+.btn.primary:hover { background: var(--acc); color: var(--bg); }
+.btn.success { border-color: var(--cra); color: var(--cra); }
+.btn.success:hover { background: var(--cra); color: var(--bg); }
+.btn.danger { border-color: var(--pel); color: var(--pel); }
+.btn.danger:hover { background: var(--pel); color: var(--bg); }
+.btn.add { border-color: var(--sis); color: var(--sis); }
+.btn.add:hover { background: var(--sis); color: var(--bg); }
+
+.btn-group {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+/* ── Toggles / radios ────────────────────────────────────── */
+.toggle-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.toggle-btn {
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  color: var(--dim2);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  padding: 4px 10px;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: all .15s;
+  user-select: none;
+}
+.toggle-btn:hover { border-color: var(--dim2); color: var(--out); }
+.toggle-btn.active { border-color: var(--acc); color: var(--acc); background: rgba(255,102,0,.08); }
+
+/* ── Hint / info ─────────────────────────────────────────── */
+.hint {
+  font-size: 10px;
+  color: var(--dim2);
+  margin-top: 4px;
+  line-height: 1.5;
+}
+
+.info-box {
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-left: 2px solid var(--sis);
+  padding: 8px 12px;
+  font-size: 10px;
+  color: var(--dim2);
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+.info-box b { color: var(--sis); font-weight: 500; }
+
+/* ── Código inline ───────────────────────────────────────── */
+code {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  background: var(--mut);
+  color: var(--mag);
+  padding: 1px 5px;
+  border-radius: 2px;
+}
+
+/* ── Color picker custom ─────────────────────────────────── */
+.color-picker-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.color-opt {
+  width: 28px;
+  height: 22px;
+  border: 2px solid transparent;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: border-color .1s, transform .1s;
+  position: relative;
+}
+.color-opt:hover { transform: scale(1.1); }
+.color-opt.selected { border-color: var(--inp) !important; }
+.color-opt[data-c="t-out"]{ background:#a8a896; }
+.color-opt[data-c="t-sis"]{ background:#4a9eff; }
+.color-opt[data-c="t-pel"]{ background:#ff4040; }
+.color-opt[data-c="t-cra"]{ background:#6affaa; }
+.color-opt[data-c="t-mem"]{ background:#ffd700; }
+.color-opt[data-c="t-cor"]{ background:#c040ff; }
+.color-opt[data-c="t-acc"]{ background:#ff6600; }
+.color-opt[data-c="t-mag"]{ background:#40e0d0; }
+.color-opt[data-c="t-hab"]{ background:#a8ff3e; }
+.color-opt[data-c="t-npc"]{ background:#ff8fab; }
+.color-opt[data-c="t-eco"]{ background:#8888ff; }
+.color-opt[data-c="t-dim"]{ background:#303040; }
+
+/* ── Validación ──────────────────────────────────────────── */
+.field input.err,
+.field textarea.err { border-color: var(--pel); }
+.err-msg { font-size: 10px; color: var(--pel); margin-top: 3px; }
+
+/* ── Scrollbar ───────────────────────────────────────────── */
+::-webkit-scrollbar { width: 3px; height: 3px; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+/* ── Status badge ────────────────────────────────────────── */
+.status-bar {
+  padding: 8px 18px;
+  border-top: 1px solid var(--border);
+  font-size: 10px;
+  color: var(--dim2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+.status-ok  { color: var(--cra); }
+.status-err { color: var(--pel); }
+
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── Barra superior ──────────────────────────────────────── -->
+  <div class="topbar">
+    <div class="logo">ECOSISTEMA</div>
+    <div class="tabs">
+      <div class="tab active" data-tab="modulo">MÓDULO</div>
+      <div class="tab" data-tab="plugin">PLUGIN</div>
+    </div>
+  </div>
+
+  <!-- ── Main ────────────────────────────────────────────────── -->
+  <div class="main">
+
+    <!-- ═══════════════════════════════════════════════════════
+         PANEL DE FORMULARIO
+    ═══════════════════════════════════════════════════════ -->
+    <div class="form-panel">
+
+      <!-- ════════ PÁGINA: MÓDULO ════════ -->
+      <div class="page active" id="page-modulo">
+
+        <!-- META -->
+        <div class="section">
+          <div class="section-title"><span class="dot dot-acc"></span>META</div>
+          <div class="field-row">
+            <div class="field">
+              <label>ID del módulo <span>*</span></label>
+              <input type="text" id="m-id" placeholder="mi_modulo" oninput="liveGenModulo()">
+            </div>
+            <div class="field">
+              <label>Versión</label>
+              <input type="text" id="m-ver" placeholder="1.0.0" oninput="liveGenModulo()">
+            </div>
+          </div>
+          <div class="field">
+            <label>Nombre legible</label>
+            <input type="text" id="m-nombre" placeholder="Mi Módulo de Expansión" oninput="liveGenModulo()">
+          </div>
+        </div>
+
+        <!-- JUGADOR -->
+        <div class="section">
+          <div class="section-title"><span class="dot dot-sis"></span>STATS DEL JUGADOR <em>— sobrescribe los valores base</em></div>
+          <div class="field-row three">
+            <div class="field">
+              <label>HP base <em>base: 50</em></label>
+              <input type="number" id="m-hp" placeholder="50" min="1" max="999" oninput="liveGenModulo()">
+            </div>
+            <div class="field">
+              <label>ATK base <em>base: 5</em></label>
+              <input type="number" id="m-atk" placeholder="5" min="1" max="99" oninput="liveGenModulo()">
+            </div>
+            <div class="field">
+              <label>DEF base <em>base: 1</em></label>
+              <input type="number" id="m-def" placeholder="1" min="0" max="50" oninput="liveGenModulo()">
+            </div>
+          </div>
+          <div class="field-row three">
+            <div class="field">
+              <label>Hambre base</label>
+              <input type="number" id="m-hunger" placeholder="100" min="10" max="999" oninput="liveGenModulo()">
+            </div>
+            <div class="field">
+              <label>Slots habilidades</label>
+              <input type="number" id="m-slots-hab" placeholder="3" min="0" max="10" oninput="liveGenModulo()">
+            </div>
+            <div class="field">
+              <label>Slots magias</label>
+              <input type="number" id="m-slots-mag" placeholder="2" min="0" max="10" oninput="liveGenModulo()">
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>Slots compañeros</label>
+              <input type="number" id="m-slots-comp" placeholder="1" min="0" max="5" oninput="liveGenModulo()">
+            </div>
+            <div class="field">
+              <label>Hambre perdida/ciclo</label>
+              <input type="number" id="m-hunger-tick" placeholder="3" min="0" max="20" oninput="liveGenModulo()">
+            </div>
+          </div>
+        </div>
+
+        <!-- MUNDO -->
+        <div class="section">
+          <div class="section-title"><span class="dot dot-cra"></span>MUNDO</div>
+          <div class="field-row">
+            <div class="field">
+              <label>Número de nodos</label>
+              <div class="slider-wrap">
+                <input type="range" id="m-nodes" min="8" max="64" value="32"
+                  oninput="document.getElementById('m-nodes-val').textContent=this.value;liveGenModulo()">
+                <span class="slider-val" id="m-nodes-val">32</span>
+              </div>
+            </div>
+            <div class="field">
+              <label>Chance loot <em>0-1</em></label>
+              <div class="slider-wrap">
+                <input type="range" id="m-loot-ch" min="0" max="100" value="60"
+                  oninput="document.getElementById('m-loot-val').textContent=(this.value/100).toFixed(2);liveGenModulo()">
+                <span class="slider-val" id="m-loot-val">0.60</span>
+              </div>
+            </div>
+          </div>
+          <div class="field-row three">
+            <div class="field">
+              <label>Chance enemigo</label>
+              <div class="slider-wrap">
+                <input type="range" id="m-enemy-ch" min="0" max="100" value="38"
+                  oninput="document.getElementById('m-enemy-val').textContent=(this.value/100).toFixed(2);liveGenModulo()">
+                <span class="slider-val" id="m-enemy-val">0.38</span>
+              </div>
+            </div>
+            <div class="field">
+              <label>Chance criatura</label>
+              <div class="slider-wrap">
+                <input type="range" id="m-cre-ch" min="0" max="100" value="35"
+                  oninput="document.getElementById('m-cre-val').textContent=(this.value/100).toFixed(2);liveGenModulo()">
+                <span class="slider-val" id="m-cre-val">0.35</span>
+              </div>
+            </div>
+            <div class="field">
+              <label>Chance NPC</label>
+              <div class="slider-wrap">
+                <input type="range" id="m-npc-ch" min="0" max="100" value="55"
+                  oninput="document.getElementById('m-npc-val').textContent=(this.value/100).toFixed(2);liveGenModulo()">
+                <span class="slider-val" id="m-npc-val">0.55</span>
+              </div>
+            </div>
+          </div>
+          <div class="field">
+            <label>Tipos de nodo <em>— Enter para añadir</em></label>
+            <div class="tag-input-wrap" id="m-tipos-wrap" onclick="this.querySelector('.tag-input-inner').focus()">
+              <input class="tag-input-inner" id="m-tipos-input" placeholder="hub, ruina, bosque..."
+                onkeydown="tagKeydown(event,'m-tipos-wrap','m-tipos-input')">
+            </div>
+          </div>
+          <div class="field">
+            <label>Atmósferas <em>— Enter para añadir</em></label>
+            <div class="tag-input-wrap" id="m-atmos-wrap" onclick="this.querySelector('.tag-input-inner').focus()">
+              <input class="tag-input-inner" id="m-atmos-input" placeholder="El aire tiene un peso extraño."
+                onkeydown="tagKeydown(event,'m-atmos-wrap','m-atmos-input')">
+            </div>
+          </div>
+        </div>
+
+        <!-- MATERIALES -->
+        <div class="section">
+          <div class="section-title"><span class="dot dot-mag"></span>MATERIALES NUEVOS</div>
+          <div class="info-box">
+            Los materiales se <b>fusionan</b> con los del módulo base. Usa IDs únicos para no colisionar.
+            El campo <b>tags</b> determina las afinidades de forja.
+          </div>
+          <div class="dynamic-list" id="m-mats-list"></div>
+          <div class="btn-group">
+            <button class="btn add" onclick="addMaterial()">+ Material</button>
+          </div>
+        </div>
+
+        <!-- ENEMIGOS -->
+        <div class="section">
+          <div class="section-title"><span class="dot dot-pel"></span>ENEMIGOS NUEVOS</div>
+          <div class="dynamic-list" id="m-enemies-list"></div>
+          <div class="btn-group">
+            <button class="btn add" onclick="addEnemy()">+ Enemigo</button>
+          </div>
+        </div>
+
+        <!-- FASES -->
+        <div class="section">
+          <div class="section-title"><span class="dot dot-mem"></span>FASES DEL CICLO <em>— reemplaza las 4 fases base si se definen</em></div>
+          <div class="dynamic-list" id="m-fases-list"></div>
+          <div class="btn-group">
+            <button class="btn add" onclick="addFase()">+ Fase</button>
+          </div>
+        </div>
+
+        <!-- ÍTEMS DE INICIO -->
+        <div class="section">
+          <div class="section-title"><span class="dot dot-cra"></span>ÍTEMS DE INICIO</div>
+          <div class="field">
+            <label>IDs de materiales que empieza con el jugador <em>— Enter para añadir</em></label>
+            <div class="tag-input-wrap" id="m-items-wrap" onclick="this.querySelector('.tag-input-inner').focus()">
+              <input class="tag-input-inner" id="m-items-input" placeholder="hierro_roto, carne_seca..."
+                onkeydown="tagKeydown(event,'m-items-wrap','m-items-input')">
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /page-modulo -->
+
+
+      <!-- ════════ PÁGINA: PLUGIN ════════ -->
+      <div class="page" id="page-plugin">
+
+        <!-- META -->
+        <div class="section">
+          <div class="section-title"><span class="dot dot-cor"></span>META</div>
+          <div class="field-row">
+            <div class="field">
+              <label>ID del plugin <span>*</span></label>
+              <input type="text" id="p-id" placeholder="mi_plugin" oninput="liveGenPlugin()">
+            </div>
+            <div class="field">
+              <label>Versión</label>
+              <input type="text" id="p-ver" placeholder="1.0.0" oninput="liveGenPlugin()">
+            </div>
+          </div>
+          <div class="field">
+            <label>Nombre legible</label>
+            <input type="text" id="p-nombre" placeholder="Mi Plugin" oninput="liveGenPlugin()">
+          </div>
+          <div class="field">
+            <label>Descripción</label>
+            <input type="text" id="p-desc" placeholder="¿Qué hace este plugin?" oninput="liveGenPlugin()">
+          </div>
+        </div>
+
+        <!-- STATUS BAR -->
+        <div class="section">
+          <div class="section-title"><span class="dot dot-sis"></span>STATUS BAR <em>— entradas visibles en la barra de estado</em></div>
+          <div class="info-box">
+            <b>getValue</b> es una expresión JS evaluada con <code>player</code> en scope.<br>
+            Ej: <code>player.resonance||0</code> — muestra el campo directamente.
+          </div>
+          <div class="dynamic-list" id="p-sbar-list"></div>
+          <div class="btn-group">
+            <button class="btn add" onclick="addStatusBar()">+ Entrada status bar</button>
+          </div>
+        </div>
+
+        <!-- MÓDULO DE DATOS -->
+        <div class="section">
+          <div class="section-title"><span class="dot dot-mem"></span>MÓDULO DE DATOS <em>— datos extra que aporta este plugin</em></div>
+          <div class="info-box">
+            JSON libre que se fusiona en <code>ModuleLoader</code>. Puede añadir materiales,
+            facciones, criaturas, etc. Escribe el JSON directamente.
+          </div>
+          <div class="field">
+            <label>JSON del módulo <em>— solo el objeto, sin meta</em></label>
+            <textarea id="p-modulo" rows="5" placeholder='{"materiales":{"nuevo_mat":{"tags":["metal"],"desc":"Un material nuevo."}}}'
+              oninput="liveGenPlugin()"></textarea>
+          </div>
+        </div>
+
+        <!-- HOOKS -->
+        <div class="section">
+          <div class="section-title"><span class="dot dot-cor"></span>HOOKS DE EVENTOS</div>
+          <div class="info-box">
+            Cada hook escucha un evento del <b>EventBus</b>. El handler recibe <code>payload</code> y <code>ctx</code>
+            y debe devolver el payload (posiblemente modificado) con <code>return payload;</code>
+          </div>
+          <div class="dynamic-list" id="p-hooks-list"></div>
+          <div class="btn-group">
+            <button class="btn add" onclick="addHook()">+ Hook</button>
+          </div>
+        </div>
+
+        <!-- COMANDOS -->
+        <div class="section">
+          <div class="section-title"><span class="dot dot-acc"></span>COMANDOS</div>
+          <div class="info-box">
+            Cada comando añade un verbo al juego. El handler recibe <code>args</code> (array de strings)
+            y <code>ctx</code>. Usa <code>ctx.R.w('texto','t-out')</code> para mostrar output.
+          </div>
+          <div class="dynamic-list" id="p-cmds-list"></div>
+          <div class="btn-group">
+            <button class="btn add" onclick="addComando()">+ Comando</button>
+          </div>
+        </div>
+
+      </div><!-- /page-plugin -->
+
+    </div><!-- /form-panel -->
+
+
+    <!-- ═══════════════════════════════════════════════════════
+         PANEL DE OUTPUT
+    ═══════════════════════════════════════════════════════ -->
+    <div class="output-panel">
+      <div class="output-header">
+        <div class="output-file-tabs" id="output-file-tabs">
+          <!-- módulo: solo .json -->
+          <div class="output-ftab active" data-file="json" id="ftab-json">.json</div>
+          <!-- plugin: .json + .js (ocultos al inicio) -->
+          <div class="output-ftab" data-file="js" id="ftab-js" style="display:none">.js</div>
+        </div>
+        <div class="output-actions">
+          <button class="btn success" onclick="copyOutput()">Copiar</button>
+          <button class="btn primary" onclick="downloadOutput()">Descargar</button>
+          <button class="btn" id="btn-dl-both" onclick="downloadBoth()" style="display:none">Descargar ambos</button>
+        </div>
+      </div>
+      <pre class="output-code" id="output-code">// Completa el formulario para generar el archivo.</pre>
+      <div class="status-bar">
+        <span id="status-text">En espera</span>
+        <span id="char-count"></span>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /app -->
+
+
+<script>
+// ════════════════════════════════════════════════════════════════
+// ESTADO
+// ════════════════════════════════════════════════════════════════
+let currentTab  = 'modulo';
+let currentFile = 'json';   // 'json' | 'js' — solo relevante en tab plugin
+let matCounter  = 0;
+let enemyCounter= 0;
+let faseCounter = 0;
+let sbCounter   = 0;
+let hookCounter = 0;
+let cmdCounter  = 0;
+
+// Caché de los dos outputs del plugin
+let pluginOutputJSON = '';
+let pluginOutputJS   = '';
+
+const EVENTS_MODULO = [
+  'player:create','player:tick','player:calc_stat','player:calc_slot',
+  'player:stat_change','player:equip','player:item_add','player:item_remove',
+  'world:before_gen','world:after_gen','world:node_enter','world:node_exit',
+  'world:request_enemies','world:request_creatures','world:request_npcs',
+  'world:tick','world:section_expand','world:calc_difficulty',
+  'combat:start','combat:before_attack','combat:after_attack',
+  'combat:resolve_damage','combat:apply_states','combat:side_effects',
+  'combat:post_resolve','combat:resolve_magia','combat:resolve_habilidad',
+  'combat:resolve_ia','combat:enemy_defeat','combat:loot',
+  'narrative:npc_gen','narrative:npc_speak','narrative:npc_interact',
+  'narrative:npc_death','narrative:mission_gen','narrative:mission_complete',
+  'render:node_extra','render:inventory_item',
+  'entity:tick_all','creature:gen','creature:bound','creature:breed_result',
+  'plugin:loaded','module:loaded',
+  'command:before','command:after','command:unknown',
+];
+
+const COLORS = ['t-out','t-sis','t-pel','t-cra','t-mem','t-cor','t-acc','t-mag','t-hab','t-npc','t-eco','t-dim'];
+const TAGS_COMUNES = ['metal','orgánico','mineral','corrupto','resonante','antiguo','inestable','vacío','básico','alimento','curativo','ancla'];
+
+// ════════════════════════════════════════════════════════════════
+// TABS PRINCIPALES
+// ════════════════════════════════════════════════════════════════
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    currentTab = t.dataset.tab;
+    document.getElementById('page-' + currentTab).classList.add('active');
+
+    const ftabJs   = document.getElementById('ftab-js');
+    const btnBoth  = document.getElementById('btn-dl-both');
+    const ftabJson = document.getElementById('ftab-json');
+
+    if(currentTab === 'plugin') {
+      ftabJs.style.display  = '';
+      btnBoth.style.display = '';
+      ftabJson.textContent  = '.json';
+      liveGenPlugin();
+    } else {
+      ftabJs.style.display  = 'none';
+      btnBoth.style.display = 'none';
+      ftabJson.textContent  = '.json';
+      // Resetear a json si estábamos en js
+      if(currentFile === 'js') switchFile('json');
+      liveGenModulo();
+    }
+  });
+});
+
+// ════════════════════════════════════════════════════════════════
+// SUB-TABS DE ARCHIVO (.json / .js)
+// ════════════════════════════════════════════════════════════════
+document.querySelectorAll('.output-ftab').forEach(t => {
+  t.addEventListener('click', () => switchFile(t.dataset.file));
+});
+
+function switchFile(file) {
+  currentFile = file;
+  document.querySelectorAll('.output-ftab').forEach(x => x.classList.remove('active'));
+  const tab = document.querySelector(`.output-ftab[data-file="${file}"]`);
+  if(tab) tab.classList.add('active');
+
+  if(currentTab === 'plugin') {
+    const code  = document.getElementById('output-code');
+    const count = document.getElementById('char-count');
+    if(file === 'json') {
+      code.textContent  = pluginOutputJSON || '// Completa el formulario.';
+      count.textContent = pluginOutputJSON.length + ' chars';
+    } else {
+      code.textContent  = pluginOutputJS || '// Completa el formulario.';
+      count.textContent = pluginOutputJS.length + ' chars';
+    }
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// TAG INPUTS (chips)
+// ════════════════════════════════════════════════════════════════
+function tagKeydown(e, wrapId, inputId) {
+  if(e.key === 'Enter' || e.key === ',') {
+    e.preventDefault();
+    const inp = document.getElementById(inputId);
+    const val = inp.value.trim().replace(/,/g,'');
+    if(val) { addChip(wrapId, val); inp.value = ''; }
+    if(currentTab==='modulo') liveGenModulo(); else liveGenPlugin();
+  }
+  if(e.key === 'Backspace' && e.target.value === '') {
+    const wrap = document.getElementById(wrapId);
+    const chips = wrap.querySelectorAll('.chip');
+    if(chips.length) chips[chips.length-1].remove();
+    if(currentTab==='modulo') liveGenModulo(); else liveGenPlugin();
+  }
+}
+
+function addChip(wrapId, text, colorClass='') {
+  const wrap = document.getElementById(wrapId);
+  const inp  = wrap.querySelector('.tag-input-inner');
+  const chip = document.createElement('span');
+  chip.className = 'chip' + (colorClass ? ' ' + colorClass : '');
+  chip.dataset.val = text;
+  chip.innerHTML = `${text}<button class="chip-del" onclick="this.parentElement.remove();${currentTab==='modulo'?'liveGenModulo()':'liveGenPlugin()}">×</button>`;
+  wrap.insertBefore(chip, inp);
+}
+
+function getChips(wrapId) {
+  return Array.from(document.querySelectorAll(`#${wrapId} .chip`)).map(c => c.dataset.val);
+}
+
+// ════════════════════════════════════════════════════════════════
+// COLOR PICKER
+// ════════════════════════════════════════════════════════════════
+function makeColorPicker(id, defaultVal='t-out') {
+  const wrap = document.createElement('div');
+  wrap.className = 'color-picker-group';
+  wrap.id = id;
+  COLORS.forEach(c => {
+    const btn = document.createElement('div');
+    btn.className = 'color-opt' + (c === defaultVal ? ' selected' : '');
+    btn.dataset.c = c;
+    btn.title = c;
+    btn.onclick = () => {
+      wrap.querySelectorAll('.color-opt').forEach(x => x.classList.remove('selected'));
+      btn.classList.add('selected');
+      if(currentTab==='modulo') liveGenModulo(); else liveGenPlugin();
+    };
+    wrap.appendChild(btn);
+  });
+  return wrap;
+}
+
+function getColor(id) {
+  const sel = document.querySelector(`#${id} .color-opt.selected`);
+  return sel ? sel.dataset.c : 't-out';
+}
+
+// ════════════════════════════════════════════════════════════════
+// LISTAS DINÁMICAS — MÓDULO
+// ════════════════════════════════════════════════════════════════
+function addMaterial() {
+  const id = ++matCounter;
+  const list = document.getElementById('m-mats-list');
+  const item = document.createElement('div');
+  item.className = 'list-item';
+  item.id = 'm-mat-' + id;
+  item.innerHTML = `
+    <div class="list-item-header">
+      <span class="list-item-title">MATERIAL #${id}</span>
+      <button class="list-item-del" onclick="this.closest('.list-item').remove();liveGenModulo()">Eliminar</button>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>ID <span>*</span><em>sin espacios</em></label>
+        <input type="text" id="m-mat-id-${id}" placeholder="mineral_nuevo" oninput="liveGenModulo()">
+      </div>
+      <div class="field">
+        <label>Categoría</label>
+        <select id="m-mat-cat-${id}" onchange="liveGenModulo()">
+          <option value="">— ninguna —</option>
+          <option value="corporal">corporal</option>
+          <option value="mágico">mágico</option>
+          <option value="ancla">ancla</option>
+          <option value="especial">especial</option>
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label>Descripción</label>
+      <input type="text" id="m-mat-desc-${id}" placeholder="Un material que..." oninput="liveGenModulo()">
+    </div>
+    <div class="field">
+      <label>Tags <em>— Enter para añadir</em></label>
+      <div class="tag-input-wrap" id="m-mat-tags-wrap-${id}" onclick="this.querySelector('.tag-input-inner').focus()">
+        <input class="tag-input-inner" id="m-mat-tags-${id}" placeholder="metal, corrupto..."
+          onkeydown="tagKeydown(event,'m-mat-tags-wrap-${id}','m-mat-tags-${id}')">
+      </div>
+      <div class="hint">Sugeridos: ${TAGS_COMUNES.map(t=>`<code>${t}</code>`).join(' ')}</div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>HP al consumir</label>
+        <input type="number" id="m-mat-hp-${id}" placeholder="0" min="0" max="999" oninput="liveGenModulo()">
+      </div>
+      <div class="field">
+        <label>Hambre al consumir</label>
+        <input type="number" id="m-mat-hunger-${id}" placeholder="0" min="0" max="999" oninput="liveGenModulo()">
+      </div>
+    </div>`;
+  list.appendChild(item);
+}
+
+function addEnemy() {
+  const id = ++enemyCounter;
+  const list = document.getElementById('m-enemies-list');
+  const item = document.createElement('div');
+  item.className = 'list-item';
+  item.id = 'm-enemy-' + id;
+  item.innerHTML = `
+    <div class="list-item-header">
+      <span class="list-item-title">ENEMIGO #${id}</span>
+      <button class="list-item-del" onclick="this.closest('.list-item').remove();liveGenModulo()">Eliminar</button>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>ID <span>*</span></label>
+        <input type="text" id="m-en-id-${id}" placeholder="enemigo_nuevo" oninput="liveGenModulo()">
+      </div>
+      <div class="field">
+        <label>Nombre</label>
+        <input type="text" id="m-en-nombre-${id}" placeholder="Enemigo Nuevo" oninput="liveGenModulo()">
+      </div>
+    </div>
+    <div class="field">
+      <label>Descripción</label>
+      <input type="text" id="m-en-desc-${id}" placeholder="Una entidad que..." oninput="liveGenModulo()">
+    </div>
+    <div class="field-row three">
+      <div class="field"><label>HP</label>
+        <input type="number" id="m-en-hp-${id}" placeholder="20" min="1" oninput="liveGenModulo()"></div>
+      <div class="field"><label>ATK</label>
+        <input type="number" id="m-en-atk-${id}" placeholder="6" min="0" oninput="liveGenModulo()"></div>
+      <div class="field"><label>DEF</label>
+        <input type="number" id="m-en-def-${id}" placeholder="0" min="0" oninput="liveGenModulo()"></div>
+    </div>
+    <div class="field">
+      <label>Loot posible <em>— IDs de materiales</em></label>
+      <div class="tag-input-wrap" id="m-en-loot-wrap-${id}" onclick="this.querySelector('.tag-input-inner').focus()">
+        <input class="tag-input-inner" id="m-en-loot-${id}" placeholder="hierro_roto..."
+          onkeydown="tagKeydown(event,'m-en-loot-wrap-${id}','m-en-loot-${id}')">
+      </div>
+    </div>`;
+  list.appendChild(item);
+}
+
+function addFase() {
+  const id = ++faseCounter;
+  const list = document.getElementById('m-fases-list');
+  const item = document.createElement('div');
+  item.className = 'list-item';
+  item.id = 'm-fase-' + id;
+  const cp = makeColorPicker('m-fase-color-' + id, 't-out');
+  item.innerHTML = `
+    <div class="list-item-header">
+      <span class="list-item-title">FASE #${id}</span>
+      <button class="list-item-del" onclick="this.closest('.list-item').remove();liveGenModulo()">Eliminar</button>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>ID / nombre <span>*</span></label>
+        <input type="text" id="m-fase-id-${id}" placeholder="ALBA" oninput="liveGenModulo()">
+      </div>
+      <div class="field">
+        <label>Multiplicador de stats <em>1.0 = normal</em></label>
+        <input type="number" id="m-fase-mult-${id}" placeholder="1.0" min="0.5" max="3.0" step="0.1" oninput="liveGenModulo()">
+      </div>
+    </div>
+    <div class="field"><label>Color</label><div id="m-fase-color-wrap-${id}"></div></div>
+    <div class="field">
+      <label>Bonus tags <em>— añaden tag al forjar en esta fase</em></label>
+      <div class="tag-input-wrap" id="m-fase-tags-wrap-${id}" onclick="this.querySelector('.tag-input-inner').focus()">
+        <input class="tag-input-inner" id="m-fase-tags-${id}" placeholder="resonante, inestable..."
+          onkeydown="tagKeydown(event,'m-fase-tags-wrap-${id}','m-fase-tags-${id}')">
+      </div>
+    </div>`;
+  list.appendChild(item);
+  document.getElementById('m-fase-color-wrap-' + id).appendChild(cp);
+}
+
+// ════════════════════════════════════════════════════════════════
+// LISTAS DINÁMICAS — PLUGIN
+// ════════════════════════════════════════════════════════════════
+function addStatusBar() {
+  const id = ++sbCounter;
+  const list = document.getElementById('p-sbar-list');
+  const item = document.createElement('div');
+  item.className = 'list-item';
+  item.id = 'p-sb-' + id;
+  const cp = makeColorPicker('p-sb-color-' + id, 't-out');
+  item.innerHTML = `
+    <div class="list-item-header">
+      <span class="list-item-title">ENTRADA STATUS BAR #${id}</span>
+      <button class="list-item-del" onclick="this.closest('.list-item').remove();liveGenPlugin()">Eliminar</button>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>ID interno <span>*</span></label>
+        <input type="text" id="p-sb-id-${id}" placeholder="resonance" oninput="liveGenPlugin()">
+      </div>
+      <div class="field">
+        <label>Label visible</label>
+        <input type="text" id="p-sb-label-${id}" placeholder="RES" oninput="liveGenPlugin()">
+      </div>
+    </div>
+    <div class="field">
+      <label>getValue <em>— expresión JS con <code>player</code> en scope</em></label>
+      <input type="text" id="p-sb-val-${id}" placeholder="player.resonance||0" oninput="liveGenPlugin()">
+    </div>
+    <div class="field"><label>Color</label><div id="p-sb-color-wrap-${id}"></div></div>`;
+  list.appendChild(item);
+  document.getElementById('p-sb-color-wrap-' + id).appendChild(cp);
+}
+
+function addHook() {
+  const id = ++hookCounter;
+  const list = document.getElementById('p-hooks-list');
+  const item = document.createElement('div');
+  item.className = 'list-item';
+  item.id = 'p-hook-' + id;
+  const opts = EVENTS_MODULO.map(e => `<option value="${e}">${e}</option>`).join('');
+  item.innerHTML = `
+    <div class="list-item-header">
+      <span class="list-item-title">HOOK #${id}</span>
+      <button class="list-item-del" onclick="this.closest('.list-item').remove();liveGenPlugin()">Eliminar</button>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Evento <span>*</span></label>
+        <select id="p-hook-event-${id}" onchange="liveGenPlugin()">
+          <option value="">— selecciona —</option>${opts}
+        </select>
+      </div>
+      <div class="field">
+        <label>Nombre función <span>*</span></label>
+        <input type="text" id="p-hook-fn-${id}" placeholder="onPlayerCreate" oninput="liveGenPlugin()">
+      </div>
+    </div>
+    <div class="field">
+      <label>Prioridad <em>0=primero · 100=último · default 50</em></label>
+      <input type="number" id="p-hook-prio-${id}" placeholder="50" min="0" max="100" oninput="liveGenPlugin()">
+    </div>
+    <div class="field">
+      <label>Código del handler
+        <em>— recibe <code>payload</code> y <code>ctx</code>, termina en <code>return payload;</code></em>
+      </label>
+      <textarea id="p-hook-code-${id}" rows="4"
+        placeholder="payload.player.miCampo = 0;\nreturn payload;"
+        oninput="liveGenPlugin()"></textarea>
+    </div>`;
+  list.appendChild(item);
+}
+
+function addComando() {
+  const id = ++cmdCounter;
+  const list = document.getElementById('p-cmds-list');
+  const item = document.createElement('div');
+  item.className = 'list-item';
+  item.id = 'p-cmd-' + id;
+  item.innerHTML = `
+    <div class="list-item-header">
+      <span class="list-item-title">COMANDO #${id}</span>
+      <button class="list-item-del" onclick="this.closest('.list-item').remove();liveGenPlugin()">Eliminar</button>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Verbo <span>*</span><em>lo que escribe el jugador</em></label>
+        <input type="text" id="p-cmd-verb-${id}" placeholder="mi_comando" oninput="liveGenPlugin()">
+      </div>
+      <div class="field">
+        <label>Nombre función <span>*</span></label>
+        <input type="text" id="p-cmd-fn-${id}" placeholder="cmdMiComando" oninput="liveGenPlugin()">
+      </div>
+    </div>
+    <div class="field">
+      <label>Descripción para ayuda</label>
+      <input type="text" id="p-cmd-desc-${id}" placeholder="¿Qué hace este comando?" oninput="liveGenPlugin()">
+    </div>
+    <div class="field">
+      <label>Ejemplos de uso <em>— Enter para añadir</em></label>
+      <div class="tag-input-wrap" id="p-cmd-uso-wrap-${id}" onclick="this.querySelector('.tag-input-inner').focus()">
+        <input class="tag-input-inner" id="p-cmd-uso-${id}" placeholder="mi_comando [arg]"
+          onkeydown="tagKeydown(event,'p-cmd-uso-wrap-${id}','p-cmd-uso-${id}')">
+      </div>
+    </div>
+    <div class="field">
+      <label>Código del handler <em>— recibe <code>args</code> (array) y <code>ctx</code></em></label>
+      <textarea id="p-cmd-code-${id}" rows="4"
+        placeholder="const p = ctx.Player.get();\nctx.R.w(\`Hola \${p.name}\`, 't-acc');"
+        oninput="liveGenPlugin()"></textarea>
+    </div>`;
+  list.appendChild(item);
+}
+
+// ════════════════════════════════════════════════════════════════
+// HELPERS
+// ════════════════════════════════════════════════════════════════
+function v(id)  { const el=document.getElementById(id); return el?el.value.trim():''; }
+function vi(id) { const el=document.getElementById(id); return el&&el.value!==''?Number(el.value):null; }
+
+function setOutput(text) {
+  document.getElementById('output-code').textContent = text;
+  document.getElementById('char-count').textContent  = text.length + ' chars';
+}
+function setStatus(ok, msg) {
+  const el = document.getElementById('status-text');
+  el.textContent = msg;
+  el.className   = ok ? 'status-ok' : 'status-err';
+}
+
+// ════════════════════════════════════════════════════════════════
+// GENERADOR — MÓDULO
+// ════════════════════════════════════════════════════════════════
+function liveGenModulo() {
+  try {
+    const json = buildModulo();
+    const str  = JSON.stringify(json, null, 2);
+    setOutput(str);
+    setStatus(true, '✓ JSON válido');
+  } catch(e) {
+    setOutput('// Error: ' + e.message);
+    setStatus(false, '✗ ' + e.message);
+  }
+}
+
+function buildModulo() {
+  const modId  = v('m-id') || 'modulo_sin_nombre';
+  const result = {
+    meta: { id:modId, nombre:v('m-nombre')||modId, version:v('m-ver')||'1.0.0' },
+  };
+
+  const player = {};
+  if(vi('m-hp')        !=null) player.hp_base          = vi('m-hp');
+  if(vi('m-atk')       !=null) player.atk_base         = vi('m-atk');
+  if(vi('m-def')       !=null) player.def_base         = vi('m-def');
+  if(vi('m-hunger')    !=null) player.hunger_base      = vi('m-hunger');
+  if(vi('m-slots-hab') !=null) player.slots_habilidades= vi('m-slots-hab');
+  if(vi('m-slots-mag') !=null) player.slots_magias     = vi('m-slots-mag');
+  if(vi('m-slots-comp')!=null) player.slots_compañeros = vi('m-slots-comp');
+  if(Object.keys(player).length) result.player = player;
+
+  const world = {
+    loot_chance:     Number((vi('m-loot-ch')||60)/100),
+    enemy_chance:    Number((vi('m-enemy-ch')||38)/100),
+    creature_chance: Number((vi('m-cre-ch')||35)/100),
+    npc_chance:      Number((vi('m-npc-ch')||55)/100),
+  };
+  const nodeCount = vi('m-nodes');
+  if(nodeCount!=null) world.node_count = nodeCount;
+  const tipos = getChips('m-tipos-wrap');
+  if(tipos.length) world.tipos_nodo = tipos;
+  const atmos = getChips('m-atmos-wrap');
+  if(atmos.length) world.atmósferas = atmos;
+  result.world = world;
+
+  if(vi('m-hunger-tick')!=null) result.ciclo_hunger_perdida = vi('m-hunger-tick');
+
+  const mats = {};
+  document.querySelectorAll('[id^="m-mat-id-"]').forEach(el => {
+    const num = el.id.replace('m-mat-id-','');
+    const matId = el.value.trim();
+    if(!matId) return;
+    const entry = { tags:getChips('m-mat-tags-wrap-'+num), desc:v('m-mat-desc-'+num)||'' };
+    const cat = v('m-mat-cat-'+num);
+    if(cat) entry.categoria = cat;
+    const hp = vi('m-mat-hp-'+num); const hunger = vi('m-mat-hunger-'+num);
+    if(hp) entry.hp = hp; if(hunger) entry.hunger = hunger;
+    mats[matId] = entry;
+  });
+  if(Object.keys(mats).length) result.materiales = mats;
+
+  const enemies = [];
+  document.querySelectorAll('[id^="m-en-id-"]').forEach(el => {
+    const num = el.id.replace('m-en-id-','');
+    const enId = el.value.trim();
+    if(!enId) return;
+    enemies.push({ id:enId, nombre:v('m-en-nombre-'+num)||enId,
+      hp:vi('m-en-hp-'+num)??20, atk:vi('m-en-atk-'+num)??6,
+      def:vi('m-en-def-'+num)??0, desc:v('m-en-desc-'+num)||'—',
+      loot:getChips('m-en-loot-wrap-'+num) });
+  });
+  if(enemies.length) result.enemigos = enemies;
+
+  const fases = [];
+  document.querySelectorAll('[id^="m-fase-id-"]').forEach(el => {
+    const num = el.id.replace('m-fase-id-','');
+    const fId = el.value.trim();
+    if(!fId) return;
+    const fase = { id:fId, color:getColor('m-fase-color-'+num), bonus_tags:getChips('m-fase-tags-wrap-'+num) };
+    const mult = v('m-fase-mult-'+num);
+    if(mult && Number(mult)!==1) fase.stat_mult = Number(mult);
+    fases.push(fase);
+  });
+  if(fases.length) result.fases = fases;
+
+  const items = getChips('m-items-wrap');
+  if(items.length) result.items_inicio = items;
+
+  return result;
+}
+
+// ════════════════════════════════════════════════════════════════
+// GENERADOR — PLUGIN (produce DOS archivos)
+// ════════════════════════════════════════════════════════════════
+function liveGenPlugin() {
+  try {
+    const { json, js } = buildPlugin();
+    pluginOutputJSON = JSON.stringify(json, null, 2);
+    pluginOutputJS   = js;
+
+    // Mostrar el archivo activo
+    if(currentFile === 'js') {
+      setOutput(pluginOutputJS);
+      document.getElementById('char-count').textContent = pluginOutputJS.length + ' chars';
+    } else {
+      setOutput(pluginOutputJSON);
+      document.getElementById('char-count').textContent = pluginOutputJSON.length + ' chars';
+    }
+    setStatus(true, '✓ .json + .js generados');
+  } catch(e) {
+    setOutput('// Error: ' + e.message);
+    setStatus(false, '✗ ' + e.message);
+  }
+}
+
+function buildPlugin() {
+  const plugId    = v('p-id') || 'mi_plugin';
+  const nombre    = v('p-nombre') || plugId;
+  const version   = v('p-ver')   || '1.0.0';
+  const desc      = v('p-desc')  || '';
+
+  // ── Recopilar datos de hooks ──────────────────────────────────
+  const hooksData = [];
+  document.querySelectorAll('[id^="p-hook-event-"]').forEach(el => {
+    const num   = el.id.replace('p-hook-event-','');
+    const event = el.value;
+    const fn    = v('p-hook-fn-'+num);
+    const code  = v('p-hook-code-'+num);
+    const prio  = vi('p-hook-prio-'+num);
+    if(!event || !fn) return;
+    hooksData.push({ event, fn, code, prio });
+  });
+
+  // ── Recopilar datos de comandos ───────────────────────────────
+  const cmdsData = [];
+  document.querySelectorAll('[id^="p-cmd-verb-"]').forEach(el => {
+    const num  = el.id.replace('p-cmd-verb-','');
+    const verb = el.value.trim();
+    const fn   = v('p-cmd-fn-'+num);
+    const code = v('p-cmd-code-'+num);
+    const desc = v('p-cmd-desc-'+num);
+    const usos = getChips('p-cmd-uso-wrap-'+num);
+    if(!verb || !fn) return;
+    cmdsData.push({ verb, fn, code, desc, usos });
+  });
+
+  // ── Status bar ────────────────────────────────────────────────
+  const sbItems = [];
+  document.querySelectorAll('[id^="p-sb-id-"]').forEach(el => {
+    const num  = el.id.replace('p-sb-id-','');
+    const sbId = el.value.trim();
+    if(!sbId) return;
+    sbItems.push({ id:sbId, label:v('p-sb-label-'+num)||sbId.toUpperCase(),
+      getValue:v('p-sb-val-'+num)||'0', color:getColor('p-sb-color-'+num) });
+  });
+
+  // ── Módulo de datos ───────────────────────────────────────────
+  let moduloObj = null;
+  const moduloStr = v('p-modulo');
+  if(moduloStr) {
+    try { moduloObj = JSON.parse(moduloStr); } catch { moduloObj = null; }
+  }
+
+  // ════════════════════════════════════════
+  // ARCHIVO 1: .json (declarativo, handlers como strings)
+  // Útil para cargar desde <script type="application/json+plugin">
+  // ════════════════════════════════════════
+  const json = { id:plugId, nombre, version, descripcion:desc };
+  if(moduloObj) json.modulo = moduloObj;
+  if(sbItems.length) json.statusBar = sbItems;
+
+  const jsonHooks    = {};
+  const jsonHandlers = {};
+  hooksData.forEach(h => {
+    const hookDef = { fn: h.fn };
+    if(h.prio != null && h.prio !== 50) hookDef.priority = h.prio;
+    jsonHooks[h.event] = hookDef;
+    if(h.code) jsonHandlers[h.fn] = h.code;
+  });
+  if(Object.keys(jsonHooks).length) json.hooks = jsonHooks;
+
+  const jsonComandos = {};
+  cmdsData.forEach(c => {
+    const cmdDef = { fn: c.fn };
+    if(c.desc || c.usos.length) {
+      cmdDef.meta = {};
+      if(c.desc)        cmdDef.meta.desc = c.desc;
+      if(c.usos.length) cmdDef.meta.uso  = c.usos;
+    }
+    jsonComandos[c.verb] = cmdDef;
+    if(c.code) jsonHandlers[c.fn] = c.code;
+  });
+  if(Object.keys(jsonComandos).length) json.comandos = jsonComandos;
+  if(Object.keys(jsonHandlers).length) json.handlers  = jsonHandlers;
+
+  // ════════════════════════════════════════
+  // ARCHIVO 2: .js (nativo, funciones reales)
+  // Para cargar con <script type="module" src="plugins/...">
+  // ════════════════════════════════════════
+  const varName = _toCamelCase('plugin_' + plugId);
+  const lines   = [];
+
+  lines.push(`// ${'═'.repeat(62)}`);
+  lines.push(`// PLUGIN: ${nombre} v${version}`);
+  if(desc) lines.push(`// ${desc}`);
+  lines.push(`//`);
+  lines.push(`// Generado por ECOSISTEMA Module Builder`);
+  lines.push(`// ${'═'.repeat(62)}`);
+  lines.push('');
+
+  // Funciones de handler para hooks
+  hooksData.forEach(h => {
+    if(!h.fn || !h.code) return;
+    lines.push(`// ── Handler: ${h.event} ${'─'.repeat(Math.max(0,44-h.event.length))}`);
+    lines.push(`function ${h.fn}(payload, ctx) {`);
+    // Indentar el código del usuario
+    h.code.split('\n').forEach(l => lines.push('  ' + l));
+    lines.push('}');
+    lines.push('');
+  });
+
+  // Funciones de handler para comandos
+  cmdsData.forEach(c => {
+    if(!c.fn || !c.code) return;
+    lines.push(`// ── Comando: ${c.verb} ${'─'.repeat(Math.max(0,44-c.verb.length))}`);
+    lines.push(`function ${c.fn}(args, ctx) {`);
+    c.code.split('\n').forEach(l => lines.push('  ' + l));
+    lines.push('}');
+    lines.push('');
+  });
+
+  // Objeto del plugin
+  lines.push(`// ── Registro del plugin ${'─'.repeat(40)}`);
+  lines.push(`const ${varName} = {`);
+  lines.push(`  id:          '${plugId}',`);
+  lines.push(`  nombre:      '${nombre}',`);
+  lines.push(`  version:     '${version}',`);
+  lines.push(`  descripcion: '${desc}',`);
+  lines.push('');
+
+  // onLoad (si hay módulo de datos)
+  if(moduloObj) {
+    lines.push(`  onLoad(ctx) {`);
+    lines.push(`    // Registrar datos del módulo`);
+    lines.push(`    ctx.ModuleLoader.apply({`);
+    lines.push(`      meta: { id: 'plugin:${plugId}' },`);
+    lines.push(`      ...${JSON.stringify(moduloObj, null, 2).split('\n').join('\n      ')}`);
+    lines.push(`    });`);
+    lines.push(`  },`);
+    lines.push('');
+  }
+
+  // statusBar
+  if(sbItems.length) {
+    lines.push(`  statusBar: ${JSON.stringify(sbItems, null, 2)
+      .split('\n').join('\n  ')},`);
+    lines.push('');
+  }
+
+  // hooks como objetos con fn nativas
+  if(hooksData.length) {
+    lines.push(`  hooks: {`);
+    hooksData.forEach((h, i) => {
+      lines.push('');
+      lines.push(`    // ${h.event}`);
+      lines.push(`    '${h.event}': {`);
+      if(h.prio != null && h.prio !== 50) lines.push(`      priority: ${h.prio},`);
+      if(h.fn) {
+        lines.push(`      fn(payload, ctx) {`);
+        lines.push(`        return ${h.fn}(payload, ctx);`);
+        lines.push(`      },`);
+      }
+      lines.push(`    }${i < hooksData.length-1 ? ',' : ''}`);
+    });
+    lines.push(`  },`);
+    lines.push('');
+  }
+
+  // comandos como objetos con fn nativas
+  if(cmdsData.length) {
+    lines.push(`  comandos: {`);
+    cmdsData.forEach((c, i) => {
+      lines.push('');
+      const metaParts = [];
+      if(c.desc)        metaParts.push(`titulo: '${c.verb}', desc: '${c.desc}'`);
+      if(c.usos.length) metaParts.push(`uso: ${JSON.stringify(c.usos)}`);
+
+      lines.push(`    '${c.verb}': {`);
+      if(c.fn) {
+        lines.push(`      fn: (args) => ${c.fn}(args, CTX),`);
+      }
+      if(metaParts.length) {
+        lines.push(`      meta: { ${metaParts.join(', ')} },`);
+      }
+      lines.push(`    }${i < cmdsData.length-1 ? ',' : ''}`);
+    });
+    lines.push(`  },`);
+  }
+
+  lines.push(`};`);
+  lines.push('');
+  lines.push(`// Para usar en main.js:`);
+  lines.push(`// PluginLoader.register(${varName});`);
+
+  const js = lines.join('\n');
+
+  return { json, js };
+}
+
+// CamelCase desde snake_case o kebab-case
+function _toCamelCase(str) {
+  return str.replace(/[_-](.)/g, (_, c) => c.toUpperCase());
+}
+
+// ════════════════════════════════════════════════════════════════
+// ACCIONES DE OUTPUT
+// ════════════════════════════════════════════════════════════════
+function _currentText() {
+  if(currentTab === 'plugin') {
+    return currentFile === 'js' ? pluginOutputJS : pluginOutputJSON;
+  }
+  return document.getElementById('output-code').textContent;
+}
+
+function _currentFilename() {
+  if(currentTab === 'modulo') {
+    return 'module-' + (v('m-id')||'modulo') + '.json';
+  }
+  const id = v('p-id') || 'plugin';
+  return (currentFile === 'js' ? 'plugin-' : 'plugin-') + id + (currentFile === 'js' ? '.js' : '.json');
+}
+
+function copyOutput() {
+  const text = _currentText();
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector('.btn.success');
+    const prev = btn.textContent;
+    btn.textContent = '✓ Copiado';
+    btn.style.background = 'var(--cra)'; btn.style.color = 'var(--bg)';
+    setTimeout(() => { btn.textContent=prev; btn.style.background=''; btn.style.color=''; }, 1500);
+  });
+}
+
+function downloadOutput() {
+  _download(_currentText(), _currentFilename());
+}
+
+function downloadBoth() {
+  if(currentTab !== 'plugin') return;
+  const id = v('p-id') || 'plugin';
+  _download(pluginOutputJSON, 'plugin-' + id + '.json');
+  setTimeout(() => _download(pluginOutputJS, 'plugin-' + id + '.js'), 200);
+}
+
+function _download(text, filename) {
+  const mime = filename.endsWith('.js') ? 'text/javascript' : 'application/json';
+  const blob = new Blob([text], { type: mime });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href=url; a.download=filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// ════════════════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════════════════
+// Activar la primera file-tab
+document.querySelector('.output-ftab[data-file="json"]').classList.add('active');
+liveGenModulo();
+</script>
+</body>
+</html>

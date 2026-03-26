@@ -1,0 +1,350 @@
+/* ════════════════════════════════════════════════════════════════
+   ECOSISTEMA v2.0 — Estilos
+   Organización:
+     1. Variables (paleta de colores del sistema)
+     2. Reset + base
+     3. Shell (layout principal)
+     4. Header + status bar
+     5. Output (área de texto)
+     6. Clases de color semántico (t-*)
+     7. Input + autocomplete
+     8. Boot screen
+     9. P2P / multiplayer
+    10. Animaciones
+   ════════════════════════════════════════════════════════════════ */
+
+
+/* ── 1. Variables ────────────────────────────────────────────────
+   Paleta del sistema. Cada color tiene un rol semántico estricto.
+   Los plugins que añaden status bar usan estas clases directamente. */
+:root {
+  /* Fondos */
+  --bg:     #050507;   /* fondo principal */
+  --bg2:    #09090d;   /* fondo secundario (status bar, autocomplete) */
+  --mut:    #1c1c26;   /* fondo de hover / separadores suaves */
+  --border: #13131c;   /* bordes */
+
+  /* Texto base */
+  --out: #a8a896;   /* texto normal */
+  --inp: #ffffff;   /* texto de input / bold */
+  --dim: #303040;   /* texto atenuado / labels */
+
+  /* Colores de acento semántico */
+  --acc: #ff6600;   /* acento UI, prompt, marcadores */
+  --sis: #4a9eff;   /* sistema, localización, info */
+  --pel: #ff4040;   /* peligro, daño, enemigos */
+  --cra: #6affaa;   /* éxito, curación, loot */
+  --mem: #ffd700;   /* memoria, ciclos, advertencia */
+  --cor: #c040ff;   /* corrupción, muerte, mítico */
+  --mag: #40e0d0;   /* magia, resonancia */
+  --hab: #a8ff3e;   /* habilidades corporales */
+  --cri: #ff9f43;   /* criaturas */
+  --npc: #ff8fab;   /* NPCs */
+  --mis: #ffb347;   /* misiones */
+  --eco: #8888ff;   /* ecos, runs anteriores, P2P */
+  --twi: #ff4db8;   /* plot twists, revelaciones */
+}
+
+
+/* ── 2. Reset + base ─────────────────────────────────────────── */
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  background: var(--bg);
+  color: var(--out);
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.7;
+  overflow: hidden;
+}
+
+
+/* ── 3. Shell (layout principal) ─────────────────────────────── */
+#shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+
+/* ── 4. Header + status bar ──────────────────────────────────── */
+#hdr {
+  padding: 9px 18px 7px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-shrink: 0;
+}
+
+.htit {
+  color: var(--acc);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .32em;
+}
+
+.hver {
+  color: var(--dim);
+  font-size: 10px;
+}
+
+#sbar {
+  padding: 4px 18px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 11px;
+  flex-shrink: 0;
+  background: var(--bg2);
+  font-size: 10px;
+  flex-wrap: wrap;
+}
+
+/* Stat genérico */
+.st            { color: var(--dim); white-space: nowrap; }
+.st span       { color: var(--out); }
+
+/* Stats con color propio */
+.st.hp  span   { color: var(--cra); }
+.st.loc span   { color: var(--sis); }
+.st.cyc span   { color: var(--mem); }
+.st.npc span   { color: var(--npc); }
+.st.mis span   { color: var(--mis); }
+.st.run span   { color: var(--eco); }
+
+/* Contenedor de stats de plugins — display:contents para que
+   los hijos aparezcan inline en el flex de #sbar */
+#plugin-stats  { display: contents; }
+
+
+/* ── 5. Output (área de texto) ───────────────────────────────── */
+#out {
+  flex: 1;
+  overflow-y: auto;
+  padding: 13px 18px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+#out::-webkit-scrollbar       { width: 3px; }
+#out::-webkit-scrollbar-thumb { background: var(--border); }
+
+/* Líneas de output */
+.ln         { margin-bottom: 1px; word-break: break-word; animation: fi .1s ease; }
+.ln.bl      { margin-bottom: 5px; }
+.ln.sp      { margin-bottom: 8px; height: 3px; }
+
+/* Separadores */
+.sep        { color: var(--mut); margin: 4px 0; font-size: 10px; }
+
+/* Eco del comando escrito */
+.pecho      { color: var(--dim); }
+.pecho span { color: var(--inp); }
+
+
+/* ── 6. Clases de color semántico (t-*) ──────────────────────── 
+   Usadas por R.w(texto, 't-acc') y por los plugins.
+   Cada clase mapea directamente a una variable de color. */
+.t-out { color: var(--out); }
+.t-sis { color: var(--sis); }
+.t-pel { color: var(--pel); }
+.t-cra { color: var(--cra); }
+.t-mem { color: var(--mem); }
+.t-cor { color: var(--cor); }
+.t-inp { color: var(--inp); }
+.t-dim { color: var(--dim); }
+.t-acc { color: var(--acc); }
+.t-mag { color: var(--mag); }
+.t-cri { color: var(--cri); }
+.t-hab { color: var(--hab); }
+.t-npc { color: var(--npc); }
+.t-mis { color: var(--mis); }
+.t-eco { color: var(--eco); }
+.t-twi { color: var(--twi); }
+.t-mut { color: #2e2e3a; }   /* casi invisible — used for muted separators */
+
+
+/* ── 7. Input + autocomplete ─────────────────────────────────── */
+#iln {
+  display: flex;
+  align-items: center;
+  padding: 8px 18px 12px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  gap: 8px;
+  position: relative;   /* ancla el autocomplete */
+}
+
+/* Prompt › */
+#ps {
+  color: var(--acc);
+  user-select: none;
+}
+
+/* Campo de texto */
+#inp {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--inp);
+  font-family: inherit;
+  font-size: 13px;
+  caret-color: var(--acc);
+}
+#inp::placeholder { color: var(--mut); }
+
+/* Dropdown de autocomplete */
+#ac {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  max-height: 220px;
+  overflow-y: auto;
+  display: none;
+  z-index: 50;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+#ac::-webkit-scrollbar       { width: 3px; }
+#ac::-webkit-scrollbar-thumb { background: var(--border); }
+
+/* Ítem de autocomplete */
+.ac-item {
+  padding: 4px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border);
+}
+.ac-item:last-child              { border-bottom: none; }
+.ac-item:hover, .ac-item.ac-sel  { background: var(--mut); }
+.ac-item.ac-sel                  { border-left: 2px solid var(--acc); }
+
+.ac-verb { color: var(--acc); min-width: 130px; font-size: 12px; }
+.ac-hint { color: var(--dim); font-size: 11px; overflow: hidden; text-overflow: ellipsis; }
+.ac-tag  { color: var(--cra); font-size: 11px; }
+
+/* Separador de grupo en el dropdown */
+.ac-sep {
+  padding: 2px 12px;
+  font-size: 10px;
+  color: var(--dim);
+  background: var(--bg);
+  letter-spacing: .08em;
+  pointer-events: none;
+}
+
+
+/* ── 8. Boot screen ──────────────────────────────────────────── */
+#boot {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  gap: 3px;
+  transition: opacity .35s;
+}
+
+#boot .logo {
+  color: var(--acc);
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: .35em;
+  margin-bottom: 10px;
+}
+
+#boot .sub {
+  color: var(--dim);
+  font-size: 10px;
+  letter-spacing: .2em;
+  margin-bottom: 14px;
+}
+
+/* Líneas de boot status */
+.bl         { font-size: 11px; color: var(--dim); }
+.bl.ok      { color: var(--cra); }
+.bl.warn    { color: var(--mem); }
+.bl.plug    { color: var(--mag); }
+
+
+/* ── 9. P2P / Multiplayer ────────────────────────────────────── */
+.p2p-player {
+  color: var(--eco);
+  font-size: 11px;
+}
+
+.p2p-msg {
+  color: var(--eco);
+  border-left: 2px solid var(--eco);
+  padding-left: 8px;
+  margin: 2px 0;
+}
+
+/* Botón de copiar código de sala */
+.copy-btn {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 4px 14px;
+  background: var(--mut);
+  border: 1px solid var(--acc);
+  color: var(--acc);
+  font-size: 11px;
+  font-family: inherit;
+  letter-spacing: .08em;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: background .15s;
+}
+.copy-btn:hover  { background: var(--acc); color: var(--bg); }
+.copy-btn.copied { background: var(--cra); border-color: var(--cra); color: var(--bg); }
+
+/* Bloque SDP */
+.sdp-block {
+  font-family: monospace;
+  font-size: 11px;
+  word-break: break-all;
+  color: var(--eco);
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  padding: 8px 10px;
+  margin: 4px 0;
+  border-radius: 2px;
+}
+
+/* Indicador de conexión en curso */
+.p2p-connecting { animation: pulse 1.2s infinite; }
+
+
+/* ── 10. Animaciones ─────────────────────────────────────────── */
+
+/* Entrada de líneas de output */
+@keyframes fi {
+  from { opacity: 0; transform: translateY(2px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Pulso para estados de espera */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: .4; }
+}
