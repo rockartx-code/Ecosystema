@@ -45,7 +45,7 @@ const AC = (() => {
       { v:'usar', h:'[objeto]' }, { v:'examinar', h:'[objeto/npc]' }, { v:'atacar', h:'[objetivo]' },
       { v:'estado', h:'ver stats' }, { v:'legados', h:'historial de runs' },
       { v:'atributos', h:'ver atributos' }, { v:'experiencia', h:'ver XP' }, { v:'asignar', h:'[atributo]' },
-      { v:'plugins', h:'ver plugins' }, { v:'modulos', h:'ver módulos' }, { v:'eventos', h:'ver eventos' },
+      { v:'musica', h:'estado/on/off/midi' }, { v:'plugins', h:'ver plugins' }, { v:'modulos', h:'ver módulos' }, { v:'eventos', h:'ver eventos' },
       { v:'guardar', h:'guardar partida' }, { v:'exportar', h:'exportar partida' },
       { v:'importar', h:'importar partida' }, { v:'semilla', h:'ver semilla' },
       { v:'nombre', h:'[nombre]' }, { v:'nuevo', h:'nueva run' },

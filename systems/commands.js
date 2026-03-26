@@ -213,6 +213,7 @@ async function dispatch(cmd) {
     case 'confirmar_trade': _cmdConfirmarTrade(); break;
     case 'cancelar_trade': _cmdCancelarTrade(); break;
 
+    case 'musica': case 'music': cmdMusica(args); break;
     case 'plugins':     cmdPlugins(); break;
     case 'modulos':     cmdModulos(); break;
     case 'eventos':     cmdEventos(); break;
@@ -701,6 +702,11 @@ function cmdEventos() { Out.sp(); Out.line('— EVENTOS EventBus —','t-acc'); 
 function cmdCargarModulo(jsonStr) { if(!jsonStr){Out.line('cargar_modulo <JSON>','t-dim');return;} try{const def=JSON.parse(jsonStr);ModuleLoader.apply(def);Out.line(`Módulo "${def.meta?.id||'?'}" cargado.`,'t-cra');save();}catch(e){Out.line(`Error: ${e.message}`,'t-pel');} }
 function cmdCargarPlugin(jsonStr) { if(!jsonStr){Out.line('cargar_plugin <JSON>','t-dim');return;} try{const def=JSON.parse(jsonStr);const ok=PluginLoader.registerFromJSON(def);Out.line(ok?`Plugin "${def.id}" cargado.`:`Plugin "${def.id}" ya existe.`,ok?'t-cra':'t-pel');if(ok)save();}catch(e){Out.line(`Error: ${e.message}`,'t-pel');} }
 
+function cmdMusica(args) {
+  if(typeof MusicEngine === 'undefined') { Out.line('Sistema de música no disponible.','t-dim'); return; }
+  MusicEngine.cmd(args||[]);
+}
+
 // ── AYUDA ─────────────────────────────────────────────────────
 function cmdAyuda(tema) {
   if(!tema) {
@@ -721,6 +727,7 @@ function cmdAyuda(tema) {
       ['MUNDO','t-eco',['mapa · mapa [jugador] · mapa secciones · secciones']],
       ['XP','t-mem',['experiencia · atributos · asignar [atributo]']],
       ['MULTIJUGADOR','t-eco',['host · conectar [código] · aceptar_conexion [resp]','jugadores · desconectar','comerciar · ofrecer · confirmar_trade']],
+      ['AUDIO','t-mag',['musica estado · musica on · musica off · musica midi']],
       ['SISTEMA','t-dim',['guardar · exportar · importar · nuevo · limpiar · semilla · nombre']],
       ['PLUGINS','t-mag',['plugins · modulos · eventos · cargar_plugin · descargar_plugin']],
     ];
