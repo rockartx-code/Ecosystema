@@ -242,7 +242,7 @@
      ENTRADA
        core/main.js  → CTX, bootstrap, init()
      ═══════════════════════════════════════════════════════════════ -->
-<script type="module">
+<script>
   // Durante la migración, los sistemas internos aún viven en un
   // único bloque inline hasta ser extraídos uno a uno.
   // Este bloque se irá vaciando a medida que cada sistema
@@ -254,37 +254,37 @@
      ═══════════════════════════════════════════════════════════════ -->
 
 <!-- CORE -->
-<script type="module" src="core/core.js"></script>
-<script type="module" src="core/entity.js"></script>
-<script type="module" src="core/player.js"></script>
-<script type="module" src="core/world.js"></script>
-<script type="module" src="core/combat-resolution.js"></script>
-<script type="module" src="core/io-bus.js"></script>
-<script type="module" src="core/renderer.js"></script>
+<script src="core/core.js"></script>
+<script src="core/entity.js"></script>
+<script src="core/player.js"></script>
+<script src="core/world.js"></script>
+<script src="core/combat-resolution.js"></script>
+<script src="core/io-bus.js"></script>
+<script src="core/renderer.js"></script>
 
 <!-- SISTEMAS INTERNOS -->
-<script type="module" src="systems/run-memory.js"></script>
-<script type="module" src="systems/forge.js"></script>
-<script type="module" src="systems/npc-engine.js"></script>
-<script type="module" src="systems/arc-engine.js"></script>
-<script type="module" src="systems/tactics.js"></script>
-<script type="module" src="systems/item-system.js"></script>
-<script type="module" src="systems/xp.js"></script>
-<script type="module" src="systems/world-ai.js"></script>
-<script type="module" src="systems/net.js"></script>
-<script type="module" src="systems/save-load.js"></script>
-<script type="module" src="systems/commands.js"></script>
+<script src="systems/run-memory.js"></script>
+<script src="systems/forge.js"></script>
+<script src="systems/npc-engine.js"></script>
+<script src="systems/arc-engine.js"></script>
+<script src="systems/tactics.js"></script>
+<script src="systems/item-system.js"></script>
+<script src="systems/xp.js"></script>
+<script src="systems/world-ai.js"></script>
+<script src="systems/net.js"></script>
+<script src="systems/save-load.js"></script>
+<script src="systems/commands.js"></script>
 
 <!-- PLUGINS DE DOMINIO -->
-<script type="module" src="plugins/plugin-criaturas.js"></script>
-<script type="module" src="plugins/plugin-habilidades.js"></script>
-<script type="module" src="plugins/plugin-magias.js"></script>
-<script type="module" src="plugins/plugin-ia-batalla.js"></script>
-<script type="module" src="plugins/plugin-facciones.js"></script>
-<script type="module" src="plugins/plugin-bosses.js"></script>
+<script src="plugins/plugin-criaturas.js"></script>
+<script src="plugins/plugin-habilidades.js"></script>
+<script src="plugins/plugin-magias.js"></script>
+<script src="plugins/plugin-ia-batalla.js"></script>
+<script src="plugins/plugin-facciones.js"></script>
+<script src="plugins/plugin-bosses.js"></script>
 
 <!-- ENTRADA: CTX + bootstrap -->
-<script type="module" src="core/main.js"></script>
+<script src="core/main.js"></script>
 
 </body>
 </html>
