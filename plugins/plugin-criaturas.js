@@ -232,17 +232,27 @@ function cmdVincular(args, battle) {
   const pos = Player.pos();
   const n   = World.node(pos);
 
-  // Buscar criatura en combate activo
-  let cre = null;
+  // Buscar criatura en combate activo.
+  // Importante: la HP confiable durante combate vive en `battle.cola`,
+  // no necesariamente en el estado persistido del nodo.
+  let cre = null;         // referencia persistida (mundo/inventario)
+  let creCombate = null;  // snapshot de combate con HP actual
   if(battle) {
     const c = battle.cola.find(x=>x.tipo==='creature'&&x.vivo);
-    if(c) cre = n?.creatures?.find(x=>x.id===c.id) || c._cre_ref;
+    if(c) {
+      creCombate = c;
+      cre = n?.creatures?.find(x=>x.id===c.id) || c._cre_ref || null;
+    }
   }
-  if(!cre) cre = n?.creatures?.[0];
-  if(!cre) { Out.line('No hay criatura para vincular.','t-dim'); return; }
+  if(!cre) cre = n?.creatures?.[0] || null;
+  if(!cre && creCombate) cre = creCombate;
+  if(!creCombate && cre) creCombate = cre;
+  if(!creCombate) { Out.line('No hay criatura para vincular.','t-dim'); return; }
 
-  // Verificar HP
-  const hpPct = (cre.hp_current ?? cre.hp) / (cre.maxHp || cre.hp);
+  // Verificar HP usando los valores del combate cuando existen.
+  const hpActual = creCombate.hp_current ?? creCombate.hp;
+  const hpMax    = creCombate.maxHp || cre.maxHp || creCombate.hp || cre.hp || 1;
+  const hpPct = hpActual / hpMax;
   if(hpPct >= 0.30) { Out.line(`HP al ${Math.round(hpPct*100)}%. Necesitas < 30% para vincular.`,'t-pel'); return; }
 
   // Verificar ancla
