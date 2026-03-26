@@ -234,6 +234,17 @@ const Net = (() => {
           dmg = Math.max(1, actor.atk - (target.def||0));
         }
 
+        const beforeApply = EventBus.emit('combat:before_damage_apply', {
+          battle, actor, target, dmg,
+          source: 'player_attack',
+          cancelled: false,
+        });
+        if(beforeApply?.cancelled) {
+          battleLog(battle, `${actor.name} cancela su ataque.`, 't-dim');
+          break;
+        }
+        dmg = beforeApply?.dmg ?? dmg;
+
         target.hp = Math.max(0, target.hp - dmg);
         let log = `${actor.name} → ${target.name}  −${dmg}HP  (${target.hp}/${target.maxHp})`;
         if(reaccion) {
@@ -248,6 +259,13 @@ const Net = (() => {
         battleLog(battle, log, reaccion?'t-cor':'t-pel');
         if(typeof Tactics !== 'undefined' && !reaccion) Tactics.aplicarPoiseDmg(target, Math.floor(dmg*0.4), battle);
         if(target.hp <= 0) { target.vivo=false; battleLog(battle, `${target.name} cae.`, 't-cor'); }
+
+        EventBus.emit('combat:after_damage_apply', {
+          battle, actor, target, dmg,
+          source: 'player_attack',
+          targetDied: target.hp <= 0,
+        });
+
         if(typeof XP !== 'undefined') XP.ganar('combate', Math.ceil(dmg/3), 'daño en batalla');
         break;
       }

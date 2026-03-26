@@ -88,6 +88,7 @@ function _registerCoreSystems() {
   if(typeof pluginIABatalla !== 'undefined') PluginLoader.register(pluginIABatalla);
   if(typeof pluginFacciones !== 'undefined') PluginLoader.register(pluginFacciones);
   if(typeof pluginBosses !== 'undefined')    PluginLoader.register(pluginBosses);
+  if(typeof pluginTricksters !== 'undefined')PluginLoader.register(pluginTricksters);
 
   // ── Plugin: Supervivencia (hambre, heridas fuera de combate) ──
   // Antes era Player.hungerTick() inline en cmdIr.
