@@ -841,7 +841,8 @@ Este es el orden correcto en `index.html`. No reordenar.
 |---|---|
 | `ir norte/sur/este/oeste` (n/s/e/o) | Mover al jugador. Expande mapa automáticamente en frontera. |
 | `mirar` (l) | Describir el nodo actual: objetos, enemigos, criaturas, NPCs. |
-| `mapa` | Estado del mundo: nodos explorados, secciones, dificultad. |
+| `mapa` | Estado del mundo y mini-mapa de nodos explorados en la sección actual. |
+| `mapa secciones` / `secciones` | Muestra resumen y mini-mapas de todas las secciones conocidas. |
 | `mapa [jugador]` | BFS hacia otro jugador conectado con ruta y distancia. |
 | `semilla` | Ver la semilla del mundo actual. |
 

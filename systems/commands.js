@@ -146,7 +146,8 @@ async function dispatch(cmd) {
     case 'facciones': case 'faccion': if(typeof FactionSystem!=='undefined') FactionSystem.cmdFacciones(); break;
     case 'reputacion': case 'rep':    _cmdReputacion(); break;
     case 'bosses': case 'boss':       if(typeof BossSystem!=='undefined') BossSystem.cmdBosses(); break;
-    case 'mapa': case 'map': case 'secciones': cmdMapa(args); break;
+    case 'mapa': case 'map': cmdMapa(args); break;
+    case 'secciones':         cmdMapa(['secciones']); break;
 
     case 'descansar': case 'rest': case 'dormir': if(typeof Tactics!=='undefined') await Tactics.cmdDescansar(); break;
     case 'tactica': case 'táctica': case 'tac':   if(typeof Tactics!=='undefined') Tactics.cmdTactica(); break;
@@ -570,12 +571,125 @@ function cmdRecargarMagia(args) {
 }
 
 // ── MAPA ──────────────────────────────────────────────────────
+function _sectionId(node) {
+  return Number.isFinite(node?.seccion) ? node.seccion : 0;
+}
+
+function _dirDelta(dir) {
+  if(dir === 'norte') return [0, -1];
+  if(dir === 'sur') return [0, 1];
+  if(dir === 'este') return [1, 0];
+  if(dir === 'oeste') return [-1, 0];
+  return [0, 0];
+}
+
+function _renderMiniMapa(sectionId) {
+  const nodes = Object.values(World.all()).filter(n => _sectionId(n) === sectionId);
+  const explorados = nodes.filter(n => n.visitado);
+  if(!explorados.length) {
+    Out.line('Mini-mapa: sin nodos explorados en esta sección todavía.', 't-dim');
+    return;
+  }
+
+  const pos = {};
+  const ocupados = new Set();
+  const key = (x, y) => `${x},${y}`;
+  const startId = explorados.find(n => n.id === Player.pos())?.id || explorados[0].id;
+
+  pos[startId] = { x:0, y:0 };
+  ocupados.add(key(0, 0));
+  const q = [startId];
+
+  while(q.length) {
+    const id = q.shift();
+    const p = pos[id];
+    const exits = World.exits(id) || {};
+    for(const [dir, to] of Object.entries(exits)) {
+      const dst = World.node(to);
+      if(!dst || _sectionId(dst) !== sectionId || !dst.visitado || pos[to]) continue;
+      const [dx, dy] = _dirDelta(dir);
+      let nx = p.x + dx;
+      let ny = p.y + dy;
+      let tries = 0;
+      while(ocupados.has(key(nx, ny)) && tries < 8) {
+        nx += dx || 1;
+        ny += dy || 1;
+        tries++;
+      }
+      pos[to] = { x:nx, y:ny };
+      ocupados.add(key(nx, ny));
+      q.push(to);
+    }
+  }
+
+  const ubicados = explorados.filter(n => pos[n.id]);
+  const xs = ubicados.map(n => pos[n.id].x);
+  const ys = ubicados.map(n => pos[n.id].y);
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  const minY = Math.min(...ys), maxY = Math.max(...ys);
+  const W = maxX - minX + 1;
+  const H = maxY - minY + 1;
+  const grid = Array.from({ length:H }, () => Array.from({ length:W }, () => '·'));
+
+  for(const node of ubicados) {
+    const p = pos[node.id];
+    const gx = p.x - minX;
+    const gy = p.y - minY;
+    let c = '■';
+    if(node.id === Player.pos()) c = '✦';
+    else if(World.isBorder(node.id)) c = '▣';
+    grid[gy][gx] = c;
+  }
+
+  Out.line('Mini-mapa (✦ tú · ■ explorado · ▣ frontera):', 't-eco');
+  grid.forEach(row => Out.line(`  ${row.join(' ')}`, 't-dim'));
+}
+
+function _renderMapaSecciones() {
+  const bySection = {};
+  Object.values(World.all()).forEach(n => {
+    const id = _sectionId(n);
+    if(!bySection[id]) bySection[id] = { total:0, vis:0, current:false };
+    bySection[id].total++;
+    if(n.visitado) bySection[id].vis++;
+    if(n.id === Player.pos()) bySection[id].current = true;
+  });
+
+  const sections = Object.keys(bySection).map(Number).sort((a,b)=>a-b);
+  if(!sections.length) {
+    Out.line('Sin secciones disponibles.', 't-dim');
+    return;
+  }
+
+  Out.line('— MAPA DE SECCIONES —', 't-acc');
+  sections.forEach(id => {
+    const s = bySection[id];
+    const marca = s.current ? ' ✦' : '';
+    Out.line(`Sección ${id}${marca}: ${s.vis}/${s.total} explorados`, s.current ? 't-eco' : 't-dim');
+  });
+  Out.sp();
+
+  sections.forEach(id => {
+    Out.line(`Sección ${id}:`, 't-acc');
+    _renderMiniMapa(id);
+    Out.sp();
+  });
+}
+
 function cmdMapa(args) {
+  const sub = (args[0] || '').toLowerCase();
+  if(sub === 'secciones') {
+    Out.sp();
+    _renderMapaSecciones();
+    return;
+  }
+
   if(args.length) { /* BFS hacia jugador — simplificado */ const q=args.join(' ').toLowerCase(); const otros=typeof Net!=='undefined'?Object.values(Net.getPlayers()):[]; const target=otros.find(p=>p.name.toLowerCase().includes(q)); if(target){Out.sp();Out.line(`${target.name} está en ${World.node(target.nodeId)?.name||target.nodeId}`, target.color||'t-eco');Out.sp();}else Out.line(`Jugador "${q}" no encontrado.`,'t-dim'); return; }
   Out.sp(); Out.line('— ESTADO DEL MUNDO —','t-acc');
   const total=Object.keys(World.all()).length; const vis=Object.values(World.all()).filter(n=>n.visitado).length;
   Out.line(`Explorados: ${vis}/${total}  Secciones: ${World.sectionCount||0}`, 't-dim');
   const n=World.node(Player.pos()); if(n)Out.line(`Aquí: ${n.name}  [${n.tipo}]${World.isBorder(Player.pos())?' ← FRONTERA':''}`, World.isBorder(Player.pos())?'t-eco':'t-dim');
+  _renderMiniMapa(_sectionId(n));
   if(World.isBorder(Player.pos()))Out.line('Frontera — muévete en dirección sin salida para expandir el mapa.','t-eco');
   Out.sp();
 }
@@ -604,7 +718,7 @@ function cmdAyuda(tema) {
       ['INVENTARIO','t-cra',['inventario · recoger · soltar · equipar']],
       ['FACCIONES','t-sis',['facciones · reputacion']],
       ['BOSSES','t-cor',['bosses']],
-      ['MUNDO','t-eco',['mapa [jugador] · secciones']],
+      ['MUNDO','t-eco',['mapa · mapa [jugador] · mapa secciones · secciones']],
       ['XP','t-mem',['experiencia · atributos · asignar [atributo]']],
       ['MULTIJUGADOR','t-eco',['host · conectar [código] · aceptar_conexion [resp]','jugadores · desconectar','comerciar · ofrecer · confirmar_trade']],
       ['SISTEMA','t-dim',['guardar · exportar · importar · nuevo · limpiar · semilla · nombre']],
