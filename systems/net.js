@@ -181,7 +181,7 @@ const Net = (() => {
     Out.line('⚔ BATALLA INICIADA', 't-pel', true);
     Out.line(`${cola.filter(c=>c.tipo==='player').map(c=>c.name).join(', ')} vs ${cola.filter(c=>c.tipo!=='player').map(c=>c.name).join(', ')}`, 't-dim');
     Out.sep('─');
-    Out.line('Tu turno: atacar · defender · magia · habilidad · huir · examinar', 't-dim');
+    Out.line('Tu turno: atacar · defender · magia · habilidad · interiorizar · transformar · huir · examinar', 't-dim');
 
     renderBattle(battle);
     EventBus.emit('combat:start', { battle, nodeId });
@@ -203,6 +203,8 @@ const Net = (() => {
     if(!actor || actor.playerId !== playerId) return;
 
     const p = Player.get();
+
+    let consumeTurn = true;
 
     switch(verb) {
       case 'atacar': {
@@ -307,12 +309,25 @@ const Net = (() => {
           if(enemy) { const dmg=Math.max(1,(enemy.atk||4)-(actor.def||0)); actor.hp=Math.max(0,actor.hp-dmg); p.hp=actor.hp; battleLog(battle,`${enemy.name} aprovecha — −${dmg}HP`,'t-pel'); }
         }
         break;
+      default: {
+        const custom = EventBus.emit('combat:player_action', {
+          battle, actor, verb, arg,
+          handled: false,
+          consumeTurn: false,
+        });
+        if(!custom?.handled) {
+          Out.line(`Acción no válida en batalla: ${verb}`, 't-dim');
+          return;
+        }
+        consumeTurn = custom.consumeTurn !== false;
+        break;
+      }
     }
 
     // Actualizar HP del jugador local
     actor.hp = p.hp;
     _checkBattleEnd(battle);
-    if(battle.estado === 'activo') { _advanceTurn(battle); _advanceTurnIfAI(battle); }
+    if(battle.estado === 'activo' && consumeTurn) { _advanceTurn(battle); _advanceTurnIfAI(battle); }
     renderBattle(battle);
     refreshStatus();
   }

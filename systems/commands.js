@@ -99,10 +99,12 @@ async function dispatch(cmd) {
       return;
     }
 
-    if(['atacar','a','atk'].includes(verb))   { Net.sendBattleAction(battle.id,Player.get().id,'atacar',args.join(' ')||null); return; }
-    if(verb==='defender'||verb==='d')          { Net.sendBattleAction(battle.id,Player.get().id,'defender',null); return; }
-    if(['magia','lanzar_b'].includes(verb))    { Net.sendBattleAction(battle.id,Player.get().id,'magia',args.join(' ')||null); return; }
-    if(['habilidad','hab_b'].includes(verb))   { Net.sendBattleAction(battle.id,Player.get().id,'habilidad',args.join(' ')||null); return; }
+    if(['atacar','a','atk'].includes(verb))    { Net.sendBattleAction(battle.id,Player.get().id,'atacar',args.join(' ')||null); return; }
+    if(verb==='defender'||verb==='d')           { Net.sendBattleAction(battle.id,Player.get().id,'defender',null); return; }
+    if(['magia','lanzar_b'].includes(verb))     { Net.sendBattleAction(battle.id,Player.get().id,'magia',args.join(' ')||null); return; }
+    if(['habilidad','hab_b'].includes(verb))    { Net.sendBattleAction(battle.id,Player.get().id,'habilidad',args.join(' ')||null); return; }
+    if(verb==='interiorizar')                   { Net.sendBattleAction(battle.id,Player.get().id,'interiorizar',args.join(' ')||null); return; }
+    if(verb==='transformar')                    { Net.sendBattleAction(battle.id,Player.get().id,'transformar',args.join(' ')||null); return; }
     if(verb==='vincular') {
       if(typeof cmdVincular!=='undefined') cmdVincular(args.join(' ') || null, battle);
       else Out.line('No puedes vincular ahora.', 't-dim');
@@ -115,7 +117,7 @@ async function dispatch(cmd) {
     }
     if(verb==='copiar')    { if(typeof cmdCopiar!=='undefined')    cmdCopiar(args);    return; }
     if(verb==='canalizar') { if(typeof cmdCanalizar!=='undefined') cmdCanalizar(args); return; }
-    Out.line('Tu turno: atacar · defender · magia · habilidad · vincular · usar · copiar · canalizar · huir · examinar', 't-pel');
+    Out.line('Tu turno: atacar · defender · magia · habilidad · interiorizar · transformar · vincular · usar · copiar · canalizar · huir · examinar', 't-pel');
     return;
   }
 
