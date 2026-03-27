@@ -34,8 +34,13 @@ const Player = {
 
       position: '',
 
-      // Equipamiento
-      equipped: { arma:null, armadura:null, reliquia:null, mitico:null },
+      // Equipamiento (multislot + compat legacy)
+      equipped: {
+        casco:null, guantes:null, peto:null, botas:null,
+        mano_izquierda:null, mano_derecha:null,
+        accesorio_1:null, accesorio_2:null,
+        arma:null, armadura:null, reliquia:null, mitico:null,
+      },
 
       // Inventario plano
       inventory: [],
@@ -83,7 +88,13 @@ const Player = {
   // El valor base lo calcula el core; los plugins modifican `final`.
 
   getAtk() {
-    const base = this.s.atk + (this.s.equipped.arma?.atk || 0);
+    const eq = this.s.equipped || {};
+    const base = this.s.atk
+      + (eq.arma?.atk || 0)
+      + (eq.mano_derecha?.atk || 0)
+      + (eq.mano_izquierda?.atk || 0)
+      + (this._bonusAccesorios('atk') || 0)
+      + (this.s._resonance?.bonos?.atk || 0);
     const r = EventBus.emit('player:calc_stat', {
       stat: 'atk', base, player: this.s, final: base,
     });
@@ -91,7 +102,15 @@ const Player = {
   },
 
   getDef() {
-    const base = this.s.def + (this.s.equipped.armadura?.def || 0);
+    const eq = this.s.equipped || {};
+    const base = this.s.def
+      + (eq.armadura?.def || 0)
+      + (eq.peto?.def || 0)
+      + (eq.casco?.def || 0)
+      + (eq.guantes?.def || 0)
+      + (eq.botas?.def || 0)
+      + (this._bonusAccesorios('def') || 0)
+      + (this.s._resonance?.bonos?.def || 0);
     const r = EventBus.emit('player:calc_stat', {
       stat: 'def', base, player: this.s, final: base,
     });
@@ -105,10 +124,15 @@ const Player = {
    */
   getStat(stat) {
     const base = this.s[stat] ?? this.s.ext?.[stat] ?? 0;
+    let extra = 0;
+    if(stat === 'crit')       extra += this._bonusAccesorios('crit') + (this.s._resonance?.bonos?.crit || 0);
+    if(stat === 'evasion')    extra += this._bonusAccesorios('evasion') + (this.s._resonance?.bonos?.evasion || 0);
+    if(stat === 'mana_max')   extra += this._bonusAccesorios('mana_max');
+    if(stat === 'stamina_max')extra += this._bonusAccesorios('stamina_max');
     const r = EventBus.emit('player:calc_stat', {
-      stat, base, player: this.s, final: base,
+      stat, base, player: this.s, final: base + extra,
     });
-    return r?.final ?? base;
+    return r?.final ?? (base + extra);
   },
 
   /**
@@ -164,12 +188,91 @@ const Player = {
   },
 
   // ── Equipamiento ─────────────────────────────────────────────
-  equip(item) {
-    if(item.tipo==='arma')                       this.s.equipped.arma     = item;
-    else if(item.tipo==='armadura')              this.s.equipped.armadura = item;
-    else if(item.tipo==='reliquia')              this.s.equipped.reliquia = item;
-    else if(item.tipo==='mítico'||item.es_mitico)this.s.equipped.mitico   = item;
+  equip(item, slotHint=null) {
+    const eq = this.s.equipped || (this.s.equipped = {});
+    const normalizar = (s='') => s.toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/\s+/g, '_');
+    const hint = normalizar(slotHint || '');
+    const aliases = {
+      mh:'mano_izquierda', manoizquierda:'mano_izquierda', mano_i:'mano_izquierda',
+      md:'mano_derecha', manoderecha:'mano_derecha', mano_d:'mano_derecha',
+      acc1:'accesorio_1', accesorio1:'accesorio_1',
+      acc2:'accesorio_2', accesorio2:'accesorio_2',
+    };
+    const slotManual = aliases[hint] || hint || null;
+    const tipo = normalizar(item.tipo || '');
+    const equipSlot = normalizar(item.equip_slot || '');
+
+    let slot = slotManual || equipSlot;
+    if(!slot) {
+      if(tipo==='arma')            slot = 'mano_derecha';
+      else if(tipo==='armadura')   slot = 'peto';
+      else if(tipo==='casco')      slot = 'casco';
+      else if(tipo==='guantes')    slot = 'guantes';
+      else if(tipo==='peto')       slot = 'peto';
+      else if(tipo==='botas')      slot = 'botas';
+      else if(tipo==='accesorio')  slot = !eq.accesorio_1 ? 'accesorio_1' : 'accesorio_2';
+      else if(tipo==='reliquia')   slot = !eq.accesorio_1 ? 'accesorio_1' : 'accesorio_2';
+      else if(tipo==='mitico' || item.es_mitico) slot = 'mitico';
+    }
+
+    if(slot) eq[slot] = item;
+    // Compatibilidad con sistemas antiguos
+    if(tipo==='arma' || slot==='mano_derecha' || slot==='mano_izquierda') eq.arma = eq.mano_derecha || eq.mano_izquierda || item;
+    if(tipo==='armadura' || slot==='peto' || slot==='casco' || slot==='guantes' || slot==='botas') eq.armadura = eq.peto || eq.casco || eq.guantes || eq.botas || item;
+    if(tipo==='reliquia') eq.reliquia = item;
+    if(tipo==='mitico' || item.es_mitico) eq.mitico = item;
+    this._recalcResonancias();
     EventBus.emit('player:equip', { item, player:this.s });
+  },
+
+  _bonusAccesorios(stat) {
+    const eq = this.s.equipped || {};
+    const accs = [eq.accesorio_1, eq.accesorio_2, eq.reliquia].filter(Boolean);
+    return accs.reduce((sum, item) => {
+      const ef = item.efecto_accesorio || {};
+      if(ef.stat !== stat) return sum;
+      return sum + (ef.valor || 0);
+    }, 0);
+  },
+
+  _recalcResonancias() {
+    const eq = this.s.equipped || {};
+    const seen = new Set();
+    const pool = Object.values(eq).filter(Boolean).filter(it => {
+      const k = it.id || it.blueprint || JSON.stringify(it);
+      if(seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+    const grupos = {};
+    const keyFrom = (it) => it.resonancia || it.set_id ||
+      (it.tags||[]).find(t => ['resonante','corrupto','antiguo','vacío','vacio','inestable','fuego','hielo','rayo'].includes(t));
+    pool.forEach(it => {
+      const k = keyFrom(it);
+      if(!k) return;
+      if(!grupos[k]) grupos[k] = [];
+      grupos[k].push(it);
+    });
+    const bonos = { atk:0, def:0, crit:0, evasion:0 };
+    const habilidades = [];
+    Object.entries(grupos).forEach(([k, items]) => {
+      if(items.length >= 2) {
+        bonos.atk += 1;
+        bonos.def += 1;
+        habilidades.push(`Eco oculto de ${k} (x${items.length})`);
+      }
+      if(items.length >= 3) {
+        bonos.crit += 4;
+        habilidades.push(`Pulso secreto de ${k}: +4% crit`);
+      }
+      if(items.length >= 4) {
+        bonos.evasion += 6;
+        habilidades.push(`Resonancia total ${k}: +6% evasión`);
+      }
+    });
+    this.s._resonance = { bonos, habilidades };
   },
 
   // ── Acceso genérico a colecciones de plugins ─────────────────

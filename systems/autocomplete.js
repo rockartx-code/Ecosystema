@@ -234,7 +234,8 @@ const AC = (() => {
   }
 
   function getEquipables() {
-    return getInventario(i => ['arma', 'armadura'].includes(i.tipo)).map(i => ({ ...i, group: i.group === 'inventario' ? 'arma' : i.group }));
+    return getInventario(i => ['arma', 'armadura', 'casco', 'guantes', 'peto', 'botas', 'accesorio', 'reliquia', 'mítico'].includes(i.tipo))
+      .map(i => ({ ...i, group: i.group === 'inventario' ? 'equipo' : i.group }));
   }
 
   function getUsables() {

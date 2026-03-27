@@ -417,16 +417,83 @@ function cmdForjar(args, modo) {
   Out.sp(); refreshStatus(); save();
 }
 
-function cmdFusionar(args) { if(args.length<2){Out.line('fusionar [id1] [id2] ...','t-dim');return;} const items=args.map(q=>Player.findItem(q)||Player.findHab?.(q)||Player.findMag?.(q)).filter(Boolean); if(items.length<2){Out.line(`Solo encontré ${items.length} ítem(s).`,'t-dim');return;} const allTags=items.flatMap(i=>i.tags||[]); const tension=Tags.tension(allTags); Out.sp(); Out.line('CONVERGENCIA — FUSIÓN','t-cor',true); Out.line(`Tensión: ${(tension*100).toFixed(0)}%`,tension>.6?'t-pel':'t-dim'); if(tension>.8){Out.line('Tensión demasiado alta. Colapso.','t-pel');items.forEach(i=>{Player.rmItem(i.id);Player.rmHab?.(i.id);Player.rmMag?.(i.id);});const d=Player.damage(U.rand(10,25));Out.line(`−${d} HP`,'t-pel');refreshStatus();save();return;} const rng=U.rng(Date.now()); const pena=1-tension*0.3; const totalAtk=Math.floor(items.reduce((s,i)=>s+(i.atk||0)+(i.valor||0)*0.5,0)*pena); const totalDef=Math.floor(items.reduce((s,i)=>s+(i.def||0),0)*pena); const totalPoder=Math.floor(items.reduce((s,i)=>s+(i.poder||0),0)*pena); const muts=D.narrative?.mutaciones||[]; const adj=tension>.5?['Inestable','Corrupta','Fragmentada']:['Convergente','Primordial','Eterna']; const nombre=`${U.pick(adj,rng)} ${muts.length?U.pick(muts,rng):'Reliquia'}`; const imp=Imprint.gen('reliquia_viva',allTags,{nodeId:Player.pos(),cycle:Clock.cycle,pid:Player.get().id},tension); const tieneHab=items.some(i=>i.tipo==='habilidad'); const tieneMag=items.some(i=>i.tipo==='magia'); const rel={id:U.uid(),blueprint:'reliquia_viva',nombre,tipo:'mítico',tags:allTags.slice(0,5),imprint:imp,estado:'convergente',es_mitico:true,atk:totalAtk,def:totalDef,poder:totalPoder,efecto_pasivo:tieneHab&&tieneMag?'+1_slot_magia':tieneHab?'atk_bonus':tieneMag?'mana_max':null,desc:`Convergencia. Tensión:${(tension*100).toFixed(0)}%.`}; items.forEach(i=>{Player.rmItem(i.id);Player.rmHab?.(i.id);Player.rmMag?.(i.id);}); Player.addItem(rel); if(typeof XP!=='undefined'){XP.ganar('forja',60+items.length*10,'fusión ontológica');XP.ganar('mente',30,'convergencia');} Out.line(`${rel.nombre}  [MÍTICO]`,'t-cor',true); if(rel.atk)Out.line(`ATK +${rel.atk}`,'t-pel'); if(rel.def)Out.line(`DEF +${rel.def}`,'t-sis'); if(rel.efecto_pasivo)Out.line(`Efecto pasivo: ${rel.efecto_pasivo}`,'t-cor'); Out.sp(); refreshStatus(); save(); }
+function cmdFusionar(args) {
+  if(args.length<2){Out.line('fusionar [id1] [id2] ...','t-dim');return;}
+  const items=args.map(q=>Player.findItem(q)||Player.findHab?.(q)||Player.findMag?.(q)).filter(Boolean);
+  if(items.length<2){Out.line(`Solo encontré ${items.length} ítem(s).`,'t-dim');return;}
+  const allTags=items.flatMap(i=>i.tags||[]);
+  const tension=Tags.tension(allTags);
+  Out.sp(); Out.line('CONVERGENCIA — FUSIÓN','t-cor',true);
+  Out.line(`Tensión: ${(tension*100).toFixed(0)}%`,tension>.6?'t-pel':'t-dim');
+  if(tension>.8){
+    Out.line('Tensión demasiado alta. Colapso.','t-pel');
+    items.forEach(i=>{Player.rmItem(i.id);Player.rmHab?.(i.id);Player.rmMag?.(i.id);});
+    const d=Player.damage(U.rand(10,25));Out.line(`−${d} HP`,'t-pel');refreshStatus();save();return;
+  }
+  const rng=U.rng(Date.now());
+  const pena=1-tension*0.3;
+  const totalAtk=Math.floor(items.reduce((s,i)=>s+(i.atk||0)+(i.valor||0)*0.5,0)*pena);
+  const totalDef=Math.floor(items.reduce((s,i)=>s+(i.def||0),0)*pena);
+  const totalPoder=Math.floor(items.reduce((s,i)=>s+(i.poder||0),0)*pena);
+  const muts=D.narrative?.mutaciones||[];
+  const tier=tension>.55?'inestable':items.length>=4?'sublime':'estable';
+  const adj=tier==='inestable'?['Inestable','Corrupta','Fragmentada']:tier==='sublime'?['Ascendida','Soberana','Arcana']:['Convergente','Primordial','Eterna'];
+  const nombre=`${U.pick(adj,rng)} ${muts.length?U.pick(muts,rng):'Reliquia'}`;
+  const imp=Imprint.gen('reliquia_viva',allTags,{nodeId:Player.pos(),cycle:Clock.cycle,pid:Player.get().id},tension);
+  const tieneHab=items.some(i=>i.tipo==='habilidad');
+  const tieneMag=items.some(i=>i.tipo==='magia');
+  const tipoResultado = (items.some(i=>['casco','guantes','peto','botas','accesorio'].includes(i.tipo)) && U.chance(0.45)) ? 'accesorio' : 'mítico';
+  const rel={
+    id:U.uid(),blueprint:'reliquia_viva',nombre,tipo:tipoResultado,tags:allTags.slice(0,6),imprint:imp,estado:'convergente',es_mitico:tipoResultado==='mítico',
+    atk:totalAtk,def:totalDef,poder:totalPoder,efecto_pasivo:tieneHab&&tieneMag?'+1_slot_magia':tieneHab?'atk_bonus':tieneMag?'mana_max':null,
+    encantamientos: U.pickN(['filo espectral','piel de eco','núcleo vacío','chispa ancestral','trama umbral'], 1 + (items.length>=4?1:0), rng),
+    encarnaciones: U.pickN(['eco del guardián','voz fractal','instinto antiguo','sombra binaria'], tension>.45?2:1, rng),
+    desc:`Convergencia ${tier}. Tensión:${(tension*100).toFixed(0)}%.`,
+  };
+  if(rel.tipo==='accesorio'){
+    rel.raridad = tension>.5 ? 'legendario' : (items.length>=4 ? 'épico' : 'raro');
+    const pool = [
+      { stat:'atk', valor:2 }, { stat:'def', valor:2 }, { stat:'crit', valor:5 }, { stat:'evasion', valor:5 },
+      { stat:'mana_max', valor:8 }, { stat:'stamina_max', valor:10 },
+    ];
+    rel.efecto_accesorio = U.pick(pool, rng);
+  }
+  items.forEach(i=>{Player.rmItem(i.id);Player.rmHab?.(i.id);Player.rmMag?.(i.id);});
+  Player.addItem(rel);
+  if(typeof XP!=='undefined'){XP.ganar('forja',60+items.length*10,'fusión ontológica');XP.ganar('mente',30,'convergencia');}
+  Out.line(`${rel.nombre}  [${rel.tipo.toUpperCase()}]`,'t-cor',true);
+  if(rel.atk)Out.line(`ATK +${rel.atk}`,'t-pel');
+  if(rel.def)Out.line(`DEF +${rel.def}`,'t-sis');
+  if(rel.efecto_pasivo)Out.line(`Efecto pasivo: ${rel.efecto_pasivo}`,'t-cor');
+  if(rel.efecto_accesorio)Out.line(`Accesorio: +${rel.efecto_accesorio.valor} ${rel.efecto_accesorio.stat}`,'t-mag');
+  Out.line(`Encantamientos: ${rel.encantamientos.join(', ')}`,'t-mag');
+  Out.line(`Encarnaciones: ${rel.encarnaciones.join(', ')}`,'t-hab');
+  Out.sp(); refreshStatus(); save();
+}
 
 function cmdRecetas() { Out.sp(); Out.line('— GUÍA DE AFINIDADES —','t-acc'); Object.entries(D.tagAff||{}).forEach(([k,v])=>Out.line(`  ${k.padEnd(28)} → ${v.resultado}  (${v.fuerza})`,'t-dim')); Out.sp(); Out.line('Tags opuestos:','t-out'); (D.tagOpp||[]).forEach(([a,b])=>Out.line(`  ${a} ↔ ${b}`,'t-dim')); Out.sp(); }
 function cmdMateriales() { Out.sp(); Out.line('— MATERIALES —','t-acc'); const cats={}; Object.entries(D.mats||{}).forEach(([id,m])=>{const c=m.categoria||'físico';if(!cats[c])cats[c]=[];cats[c].push(id);}); Object.entries(cats).forEach(([cat,ids])=>{Out.line(cat,'t-acc');ids.forEach(id=>{const m=D.mat(id);Out.line(`  ${id.padEnd(24)} [${m?.tags?.join(',')||'—'}]`,'t-dim');});}); Out.sp(); }
 
 // ── INVENTARIO Y OBJETOS ──────────────────────────────────────
-function cmdInv() { Out.sp(); Out.line('— INVENTARIO —','t-acc'); const p=Player.get(); const inv=p.inventory; if(!inv.length){Out.line('Vacío.','t-dim');Out.sp();return;} const grupos={}; inv.forEach(i=>{const g=i.tipo||'misc';if(!grupos[g])grupos[g]=[];grupos[g].push(i);}); Object.entries(grupos).forEach(([g,items])=>{const col=g==='arma'?'t-pel':g==='armadura'?'t-sis':g==='magia'?'t-mag':g==='habilidad'?'t-hab':g==='mítico'?'t-cor':g==='reliquia'?'t-cor':g==='material'?'t-cra':'t-out'; Out.line(`${g.toUpperCase()} (${items.length}):`,col); items.forEach(i=>Out.line(`  ${i.nombre||i.blueprint}${i.imprint?' #'+i.imprint.hash.slice(0,4):''}${i.atk?' ATK+'+i.atk:''}${i.def?' DEF+'+i.def:''}${i.durabilidad!=null&&i.tipo==='arma'?' Dur:'+i.durabilidad+'%':''}`,col));}); if(p.equipped?.arma||p.equipped?.armadura||p.equipped?.reliquia||p.equipped?.mitico){Out.sp();Out.line('Equipado:','t-acc');if(p.equipped.arma)Out.line(`  Arma: ${p.equipped.arma.nombre||p.equipped.arma.blueprint}`,'t-pel');if(p.equipped.armadura)Out.line(`  Armadura: ${p.equipped.armadura.nombre||p.equipped.armadura.blueprint}`,'t-sis');if(p.equipped.reliquia)Out.line(`  Reliquia: ${p.equipped.reliquia.nombre||p.equipped.reliquia.blueprint}`,'t-cor');if(p.equipped.mitico)Out.line(`  Mítico: ${p.equipped.mitico.nombre||p.equipped.mitico.blueprint}`,'t-cor');} Out.sp(); }
+function cmdInv() { Out.sp(); Out.line('— INVENTARIO —','t-acc'); const p=Player.get(); const inv=p.inventory; if(!inv.length){Out.line('Vacío.','t-dim');Out.sp();return;} const grupos={}; inv.forEach(i=>{const g=i.tipo||'misc';if(!grupos[g])grupos[g]=[];grupos[g].push(i);}); Object.entries(grupos).forEach(([g,items])=>{const col=g==='arma'?'t-pel':g==='armadura'||['casco','guantes','peto','botas'].includes(g)?'t-sis':g==='magia'?'t-mag':g==='habilidad'?'t-hab':g==='mítico'?'t-cor':g==='reliquia'||g==='accesorio'?'t-cor':g==='material'?'t-cra':'t-out'; Out.line(`${g.toUpperCase()} (${items.length}):`,col); items.forEach(i=>Out.line(`  ${i.nombre||i.blueprint}${i.imprint?' #'+i.imprint.hash.slice(0,4):''}${i.atk?' ATK+'+i.atk:''}${i.def?' DEF+'+i.def:''}${i.durabilidad!=null&&i.tipo==='arma'?' Dur:'+i.durabilidad+'%':''}${i.efecto_accesorio?`  +${i.efecto_accesorio.valor} ${i.efecto_accesorio.stat}`:''}`,col));}); if(p.equipped){Out.sp();Out.line('Equipado:','t-acc'); const eq=p.equipped; const slots=[['Casco','casco'],['Guantes','guantes'],['Peto','peto'],['Botas','botas'],['Mano I','mano_izquierda'],['Mano D','mano_derecha'],['Accesorio 1','accesorio_1'],['Accesorio 2','accesorio_2']]; slots.forEach(([label,key])=>{if(eq[key])Out.line(`  ${label}: ${eq[key].nombre||eq[key].blueprint}`,'t-dim');}); if(eq.mitico)Out.line(`  Mítico: ${eq.mitico.nombre||eq.mitico.blueprint}`,'t-cor'); if((p._resonance?.habilidades||[]).length){Out.line('Resonancias ocultas:','t-mag'); p._resonance.habilidades.forEach(h=>Out.line(`  ✦ ${h}`,'t-mag'));}} Out.sp(); }
 function cmdRecoger(q) { const n=World.node(Player.pos()); if(!n){return;} const lootStr=n.loot.find(l=>typeof l==='string'&&l.toLowerCase().includes((q||'').toLowerCase())); const lootItem=n.loot._items?.find(i=>(i.nombre||i.blueprint).toLowerCase().includes((q||'').toLowerCase())); if(!lootStr&&!lootItem){Out.line(`No hay "${q||'nada'}" aquí.`,'t-dim');const lootNames=n.loot.filter(l=>typeof l==='string');if(lootNames.length)Out.line(`Objetos: ${lootNames.join(', ')}`,'t-cra');return;} if(lootItem){Player.addItem({...lootItem,id:U.uid()});n.loot._items=n.loot._items.filter(i=>i!==lootItem);World.rmLoot(Player.pos(),lootItem.blueprint);Out.line(`Recoges: ${lootItem.nombre}`,'t-cra');}else{const mat=D.mat(lootStr);Player.addItem({id:U.uid(),blueprint:lootStr,nombre:lootStr.replace(/_/g,' '),tipo:'material',tags:D.matTags(lootStr),estado:'nativo',desc:mat?.desc});World.rmLoot(Player.pos(),lootStr);Out.line(`Recoges: ${lootStr.replace(/_/g,' ')}`,'t-cra');} if(Player.get()._duplicar_loot){const dup={...Player.get().inventory.slice(-1)[0],id:U.uid()};Player.addItem(dup);Player.get()._duplicar_loot=false;Out.line('Duplicado.','t-mag');} if(typeof XP!=='undefined')XP.ganar('exploración',3,'objeto recogido'); refreshStatus();save(); }
 function cmdSoltar(q) { const item=Player.findItem(q); if(!item){Out.line(`No tienes "${q}".`,'t-dim');return;} Player.rmItem(item.id); const n=World.node(Player.pos()); if(n){n.loot=n.loot||[];n.loot.push(item.blueprint);} Out.line(`Sueltas: ${item.nombre||item.blueprint}`,'t-dim'); save(); }
-function cmdEquipar(q) { const item=Player.findItem(q); if(!item){Out.line(`No tienes "${q}".`,'t-dim');return;} Player.equip(item); Out.line(`Equipas: ${item.nombre||item.blueprint}  [${item.tipo}]${item.atk?' ATK+'+item.atk:''}${item.def?' DEF+'+item.def:''}`, item.tipo==='arma'?'t-pel':item.tipo==='armadura'?'t-sis':'t-cor'); refreshStatus(); save(); }
+function cmdEquipar(q) {
+  const raw=(q||'').trim();
+  if(!raw){Out.line('equipar [item] o equipar [slot] [item]','t-dim');return;}
+  const tokens=raw.split(/\s+/);
+  const posiblesSlots=['casco','guantes','peto','botas','mano_izquierda','mano_derecha','mh','md','accesorio_1','accesorio_2','acc1','acc2'];
+  const isSlot=posiblesSlots.includes(tokens[0].toLowerCase());
+  const slot = isSlot ? tokens[0] : null;
+  const query = isSlot ? tokens.slice(1).join(' ') : raw;
+  const item=Player.findItem(query);
+  if(!item){Out.line(`No tienes "${query}".`,'t-dim');return;}
+  Player.equip(item, slot);
+  Out.line(`Equipas: ${item.nombre||item.blueprint}  [${item.tipo}]${item.atk?' ATK+'+item.atk:''}${item.def?' DEF+'+item.def:''}`, item.tipo==='arma'?'t-pel':['armadura','casco','guantes','peto','botas'].includes(item.tipo)?'t-sis':'t-cor');
+  const res = Player.get()._resonance?.habilidades || [];
+  if(res.length) Out.line(`Resonancia activa: ${res[res.length-1]}`, 't-mag');
+  refreshStatus(); save();
+}
 function cmdUsar(q) { const item=Player.findItem(q); if(!item){Out.line(`No tienes "${q}".`,'t-dim');return;} if(typeof ItemSystem!=='undefined'&&ItemSystem.CATALOGO[item.blueprint]){ItemSystem.aplicar(item,null);save();return;} if(item.tipo==='material'&&(item.hunger||item.hp)){if(item.hunger)Player.feed(item.hunger);if(item.hp)Player.heal(item.hp);Player.rmItem(item.id);Out.line(`Usas ${item.nombre||item.blueprint}.`,'t-cra');refreshStatus();save();return;} Out.line(`No puedes usar "${item.nombre||item.blueprint}" directamente.`,'t-dim'); }
 
 function cmdAtacar(q) {
@@ -486,7 +553,9 @@ function cmdEstado() {
   Out.line(`Hambre: ${p.hunger}/${p.maxHunger||100}  Stamina: ${p.stamina??100}/${p.maxStamina||100}  Maná: ${p.mana??60}/${p.maxMana||60}`, 't-dim');
   Out.line(`Nodo: ${n?.name||'?'}  [${n?.tipo||'?'}]  Ciclo: ${c.cycle} ${c.name}`, 't-dim');
   if((p.heridas||[]).length) Out.line(`Heridas: ${p.heridas.join(', ')}`, 't-pel');
-  if(p.equipped?.arma) Out.line(`Arma: ${p.equipped.arma.nombre||p.equipped.arma.blueprint}  Dur:${p.equipped.arma.durabilidad??100}%`, 't-pel');
+  if(p.equipped?.mano_derecha||p.equipped?.mano_izquierda) Out.line(`Manos: ${p.equipped.mano_izquierda?(p.equipped.mano_izquierda.nombre||p.equipped.mano_izquierda.blueprint):'—'} / ${p.equipped.mano_derecha?(p.equipped.mano_derecha.nombre||p.equipped.mano_derecha.blueprint):'—'}`, 't-pel');
+  if(p.equipped?.casco||p.equipped?.peto||p.equipped?.guantes||p.equipped?.botas) Out.line(`Armadura: ${p.equipped.casco?'casco ':''}${p.equipped.peto?'peto ':''}${p.equipped.guantes?'guantes ':''}${p.equipped.botas?'botas':''}`.trim(), 't-sis');
+  if((p._resonance?.habilidades||[]).length) Out.line(`Resonancias: ${p._resonance.habilidades.join(' · ')}`, 't-mag');
   if(p.stats) Out.line(`Kills: ${p.stats.kills}  Pasos: ${p.stats.steps}  Forjado: ${p.stats.crafted}`, 't-dim');
   Out.sp();
 }
