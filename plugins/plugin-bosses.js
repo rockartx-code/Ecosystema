@@ -3,6 +3,16 @@
 // Monstruos mundiales que se mueven, amenazan y dejan loot mítico.
 // ════════════════════════════════════════════════════════════════
 const BossSystem = (() => {
+  const BOSS_ASCII = [
+    '              /\\',
+    '         /\\  //\\\\  /\\',
+    '        /__\\ |||| /__\\',
+    '       /____\\||||/____\\',
+    '          /\\  ||  /\\',
+    '         /  \\ || /  \\',
+    '            \\_||_/',
+    '             /__\\',
+  ];
 
   const BOSSES_DEF = [
     { id:'leviatán_grieta',    nombre:'Leviatán de la Grieta',     titulo:'El Primer Colapso',           desc:'Una fractura del mundo que aprendió a moverse.',            hp:800, atk:45, def:20, tags:['vacío','corrupto','antiguo'],    elemento:'VACÍO',     poise_max:400, color:'t-cor', icon:'◈', xp_base:2000, frase_cerca:'El vacío se expande. Algo sin nombre está muy cerca.',        frase_lejos:'Una tensión extraña desde esa dirección. El mundo se estira.',        loot_especial:['reliquia_fragmento_origen','cristal_vacío_puro','armadura_grieta','arma_colapso','magia_aniquilación','habilidad_ruptura','eco_condensado_mayor','sello_primer_ciclo'], ataques_especiales:['colapso_area','rotura_poise_total','vacío_absoluto'] },
@@ -109,6 +119,7 @@ const BossSystem = (() => {
     const p   = Player.get();
     const def = boss.def;
     Out.sp(); Out.sep('═');
+    BOSS_ASCII.forEach(line => Out.line(line, def.color));
     Out.line(`${def.icon} ${def.nombre.toUpperCase()}`, def.color, true);
     Out.line(`"${def.titulo}"`, def.color);
     Out.line(def.desc, 't-out');
