@@ -83,7 +83,10 @@
     "guardián_dormido":  {"nombre":"Guardián Dormido",   "tags":["antiguo","mineral"],    "hp":25,"atk":8,"def":4,"desc":"Estructura de defensa que despertó.","anclas":["ancla_antigua"]},
     "bifurcado":         {"nombre":"Bifurcado",          "tags":["inestable","vacío"],    "hp":8, "atk":5,"def":0,"desc":"Existe en dos estados.",            "anclas":["ancla_inestable"]},
     "vacío_animado":     {"nombre":"Vacío Animado",      "tags":["vacío","inestable"],    "hp":9, "atk":4,"def":1,"desc":"Forma que tomó el espacio.",         "anclas":["ancla_inestable","ancla_corrupta"]},
-    "antiguo_menor":     {"nombre":"Antiguo Menor",      "tags":["antiguo","resonante"],  "hp":20,"atk":6,"def":3,"desc":"Superviviente de un ciclo anterior.","anclas":["ancla_antigua","ancla_resonante"]}
+    "antiguo_menor":     {"nombre":"Antiguo Menor",      "tags":["antiguo","resonante"],  "hp":20,"atk":6,"def":3,"desc":"Superviviente de un ciclo anterior.","anclas":["ancla_antigua","ancla_resonante"]},
+    "hidra_liminal":     {"nombre":"Hidra Liminal",      "tags":["vacío","corrupto"],      "hp":34,"atk":10,"def":4,"desc":"Bestia de múltiples pulsos de vacío.","anclas":["ancla_inestable","ancla_corrupta"]},
+    "ciervo_oracular":   {"nombre":"Ciervo Oracular",    "tags":["antiguo","resonante"],   "hp":24,"atk":9,"def":3,"desc":"Rastrea ecos del futuro cercano.","anclas":["ancla_antigua","ancla_resonante"]},
+    "mantis_fractal":    {"nombre":"Mantis Fractal",     "tags":["inestable","mineral"],   "hp":19,"atk":11,"def":2,"desc":"Su filo vibra entre planos.","anclas":["ancla_inestable","ancla_resonante"]}
   },
   "criatura_familias":{"resonante":["eco_encarnado","resonante_bestia","antiguo_menor"],"corrupto":["corrupto_menor","fragmento_vivo","bifurcado"],"antiguo":["guardián_dormido","antiguo_menor","eco_encarnado"],"vacío":["vacío_animado","bifurcado"]},
   "criatura_nombres":{"prefijos":["Eco","Sombra","Grieta","Velo","Forma","Nexo","Pulso","Marca"],"sufijos":["Profundo","Olvidado","Resonante","Bifurcado","Antiguo","Inestable","Sellado","Corrupto"]},
@@ -93,7 +96,69 @@
     {"id":"guardian_oxidado", "nombre":"Guardián Oxidado", "hp":20,"atk":8,"def":3,"desc":"Estructura de defensa degradada.",   "loot":["hierro_roto","piedra_eco"]},
     {"id":"resonante_hueco",  "nombre":"Resonante Hueco",  "hp":8, "atk":5,"def":0,"desc":"Vibra en frecuencias dañinas.",     "loot":["eco_condensado"]},
     {"id":"grieta_animada",   "nombre":"Grieta Animada",   "hp":28,"atk":11,"def":2,"desc":"Una fisura que aprendió a moverse.","loot":["vacío_cristalizado"]},
-    {"id":"antiguo_menor_e",  "nombre":"Antiguo Menor",    "hp":22,"atk":7,"def":4,"desc":"Superviviente de un ciclo.",        "loot":["fragmento_origen","tejido_antiguo"]}
+    {"id":"antiguo_menor_e",  "nombre":"Antiguo Menor",    "hp":22,"atk":7,"def":4,"desc":"Superviviente de un ciclo.",        "loot":["fragmento_origen","tejido_antiguo"]},
+    {"id":"templario_hueco",  "nombre":"Templario Hueco",  "hp":30,"atk":12,"def":5,"desc":"Guardián de armadura fracturada.",  "loot":["hierro_roto","mineral_oscuro","ancla_antigua"]},
+    {"id":"bruja_umbra",      "nombre":"Bruja de Umbra",   "hp":18,"atk":14,"def":2,"desc":"Canaliza maldiciones de fase.",     "loot":["susurro_corrupto","eco_condensado"]},
+    {"id":"quimera_fulgor",   "nombre":"Quimera de Fulgor","hp":26,"atk":13,"def":3,"desc":"Combina llama, rayo y eco.",        "loot":["llama_sin_fuente","cristal_grieta","nervio_resonante"]}
+  ],
+  "tag_afinidades":{
+    "metal:mineral":{"resultado":"arma","fuerza":0.78},
+    "metal:resonante":{"resultado":"arma","fuerza":0.72},
+    "orgánico:tendón":{"resultado":"arma","fuerza":0.68},
+    "orgánico:antiguo":{"resultado":"armadura","fuerza":0.7},
+    "corrupto:vacío":{"resultado":"magia","fuerza":0.84},
+    "resonante:mineral":{"resultado":"magia","fuerza":0.76},
+    "nervio:resonante":{"resultado":"habilidad","fuerza":0.8},
+    "hueso:mineral":{"resultado":"habilidad","fuerza":0.66},
+    "antiguo:resonante":{"resultado":"reliquia","fuerza":0.73},
+    "inestable:vacío":{"resultado":"anomalía","fuerza":0.82}
+  },
+  "tag_opuestos":[["metal","orgánico"],["corrupto","básico"],["antiguo","inestable"],["resonante","vacío"],["fuego","hielo"]],
+  "arquetipos_forja":{
+    "arma":{
+      "adjetivos":["Bifurcada","Rúnica","Voraz","Liminal","Solar","Abisal"],
+      "sustantivos":["Lanza","Mandoble","Alabarda","Maza","Guja","Espadón"],
+      "stats":{"atk":{"base":7,"escala":12,"rng":4,"min":5,"max":38},"def":{"base":0,"escala":2,"rng":2,"min":0,"max":8}}
+    },
+    "habilidad":{
+      "adjetivos":["Instinto","Ritmo","Golpe","Pulso","Fase","Vínculo"],
+      "sustantivos":["Cinético","Mutante","Roto","Afilado","Somático","Ascendente"],
+      "stats":{"valor":{"base":2,"escala":4,"rng":3,"min":1,"max":22}}
+    },
+    "magia":{
+      "adjetivos":["Cántico","Hex","Órbita","Sello","Nexo","Convergencia"],
+      "sustantivos":["Arcano","Sombrío","Resonante","Fractal","Abyecto","Radiante"],
+      "stats":{"poder":{"base":7,"escala":9,"rng":5,"min":4,"max":40}}
+    },
+    "armadura":{
+      "adjetivos":["Malla","Peto","Guarda","Custodia","Égida","Costra"],
+      "sustantivos":["Resonante","Férrea","Aural","Vacía","Telúrica","Bastión"],
+      "stats":{"def":{"base":3,"escala":6,"rng":3,"min":1,"max":20},"hp":{"base":0,"escala":7,"rng":4,"min":0,"max":28}}
+    },
+    "reliquia":{
+      "adjetivos":["Ídolo","Reliquia","Símbolo","Catalizador","Talismán"],
+      "sustantivos":["Ancestral","Roto","Umbral","de Eco","Bifásico"],
+      "stats":{"crit":{"base":0,"escala":6,"rng":3,"min":0,"max":20},"mana_max":{"base":4,"escala":8,"rng":4,"min":0,"max":35}}
+    },
+    "anomalía":{
+      "adjetivos":["Espiral","Brote","Quiebre","Eco"],
+      "sustantivos":["Ilegal","Liminal","Incierto","de Ruptura"],
+      "stats":{"atk":{"base":4,"escala":8,"rng":6,"min":2,"max":28},"poder":{"base":4,"escala":8,"rng":6,"min":2,"max":28}}
+    }
+  },
+  "habilidades_pool":[
+    {"nombre":"Embate Sísmico","efecto":"atk_mult","valor":2.1,"desc":"Descarga física de corto alcance.","evolucion_umbral":8},
+    {"nombre":"Corte de Tendón","efecto":"atk_drain","valor":1.7,"desc":"Ataque brutal con coste corporal.","evolucion_umbral":10},
+    {"nombre":"Piel de Basalto","efecto":"def_pasiva","valor":4,"desc":"Endurece temporalmente la defensa.","evolucion_umbral":9},
+    {"nombre":"Paso Fantasma","efecto":"evasion","valor":0.35,"desc":"Reduce drásticamente la probabilidad de impacto.","evolucion_umbral":11},
+    {"nombre":"Rugido de Ruptura","efecto":"poise_break","valor":999,"desc":"Colapsa la postura enemiga.","evolucion_umbral":14}
+  ],
+  "magias_pool":[
+    {"nombre":"Astilla Prisma","efecto":"dmg_dist","poder":10,"cargas":3,"fragilidad_base":4,"desc":"Proyectil resonante de alta precisión."},
+    {"nombre":"Velo Quiral","efecto":"invisibilidad","poder":0,"cargas":2,"fragilidad_base":8,"desc":"Distorsiona tu presencia en combate."},
+    {"nombre":"Sifón Nulo","efecto":"mana_drain","poder":14,"cargas":2,"fragilidad_base":15,"desc":"Drena energía arcana del objetivo."},
+    {"nombre":"Maleficio de Hiedra","efecto":"maldicion","poder":9,"cargas":2,"fragilidad_base":11,"desc":"Maldición persistente de daño gradual."},
+    {"nombre":"Pacto de Derrumbe","efecto":"corrupcion_total","poder":18,"cargas":1,"fragilidad_base":28,"desc":"Descarga total de vacío y corrosión."}
   ],
   "items_inicio":["hierro_roto","fibra_oscura","carne_seca","eco_condensado","tendón_templado"],
   "ciclo_hunger_perdida":3,

@@ -265,6 +265,38 @@ function _tickInvisibilidadEnemigo(actor) {
   if(actor._invisible_turnos<=0) actor._invisible=false;
 }
 
+function _initProgMag(mag) {
+  mag.evolucion = mag.evolucion || { contador:0, umbral:6, nivel:1, max_nivel:5 };
+  mag.maestria  = mag.maestria  || { xp:0, umbral:10, nivel:0, max_nivel:10 };
+}
+
+function _progresarMagJugador(mag, actor, battle) {
+  _initProgMag(mag);
+  mag.evolucion.contador = (mag.evolucion.contador||0) + 1;
+  mag.maestria.xp        = (mag.maestria.xp||0) + 1;
+
+  if(mag.evolucion.contador >= mag.evolucion.umbral && (mag.evolucion.nivel||1) < (mag.evolucion.max_nivel||5)) {
+    mag.evolucion.contador = 0;
+    mag.evolucion.nivel    = (mag.evolucion.nivel||1) + 1;
+    mag.evolucion.umbral   = Math.floor((mag.evolucion.umbral||6) * 1.35);
+    mag.poder              = Math.max(1, Math.floor((mag.poder||8) * 1.15));
+    mag.cargas_max         = Math.min(9, (mag.cargas_max||2) + 1);
+    mag.cargas             = Math.min(mag.cargas_max, (mag.cargas||0) + 1);
+    battleLog(battle, `✦ ⟨${mag.nombre}⟩ evoluciona a nivel ${mag.evolucion.nivel}. Poder:${mag.poder} Cargas:${mag.cargas_max}`,'t-mag');
+    if(typeof XP!=='undefined') XP.ganar('mente', 30 + mag.evolucion.nivel*5, 'magia evolucionada');
+  }
+
+  if(mag.maestria.xp >= mag.maestria.umbral && (mag.maestria.nivel||0) < (mag.maestria.max_nivel||10)) {
+    mag.maestria.xp      = 0;
+    mag.maestria.nivel   = (mag.maestria.nivel||0) + 1;
+    mag.maestria.umbral  = Math.floor((mag.maestria.umbral||10) * 1.2);
+    mag.fragilidad       = Math.max(0, (mag.fragilidad||0) - 8);
+    actor._resonancia_arcana = (actor._resonancia_arcana||0) + 1;
+    battleLog(battle, `◎ Maestría de ⟨${mag.nombre}⟩ sube a ${mag.maestria.nivel}. Fragilidad −8%.`,'t-acc');
+    if(typeof XP!=='undefined') XP.ganar('mente', 12 + mag.maestria.nivel*2, 'maestría de magia');
+  }
+}
+
 function _aplicarDanoJugadorMag(target, dmg, battle) {
   if(target.tipo!=='player') return;
   const p = Player.get();
@@ -339,6 +371,8 @@ function cmdCanalizar(args) {
     desc:        (def?.desc||magUsada.desc) + `  [canalizada de ${fuente.name}]`,
     tags:        magUsada.tags||[],
     corrompida:  false,
+    evolucion:   { contador:0, umbral:6, nivel:1, max_nivel:5 },
+    maestria:    { xp:0, umbral:10, nivel:0, max_nivel:10 },
     origen:      'canalizada',
     canalizada_de: fuente.name,
   };
@@ -364,10 +398,11 @@ function cmdMagias() {
   Out.line(`— MAGIAS CONJURADAS (${mags.length}/${max}) —`,'t-mag');
   if(!mags.length){ Out.line('Sin magias. Usa "conjurar [materiales]" o "canalizar" en batalla.','t-dim'); Out.sp(); return; }
   mags.forEach(m=>{
+    _initProgMag(m);
     const frag    = m.fragilidad||0;
     const fragCol = frag>=60?'t-pel':frag>=30?'t-mem':'t-cra';
     const ori     = m.origen==='canalizada'?` [canalizada·${m.canalizada_de}]`:'';
-    Out.line(`  ${m.nombre}${ori}  [${m.efecto}]  cargas:${m.cargas}/${m.cargas_max}  frag:${frag}%`,'t-mag');
+    Out.line(`  ${m.nombre}${ori}  [${m.efecto}]  cargas:${m.cargas}/${m.cargas_max}  frag:${frag}%  evol:N${m.evolucion.nivel} ${m.evolucion.contador}/${m.evolucion.umbral}  maest:N${m.maestria.nivel} ${m.maestria.xp}/${m.maestria.umbral}`,'t-mag');
     Out.line(`    ${m.desc||'—'}`,'t-dim');
     if(frag>=80) Out.line('    ⚠ Próxima a corromperse.','t-pel');
   });
@@ -471,6 +506,7 @@ function _ejecutarMagiaJugadorBatalla(payload){
     case 'corrupcion_total':{ if(!target)break; const dmg=Math.max(1,(mag.poder||20)-(target.poise_roto?0:target.def||0)); const red=Math.max(1,Math.floor((target.atk||4)*0.4)); target.hp=Math.max(0,target.hp-dmg); target.atk=Math.max(1,(target.atk||4)-red); if(typeof Tactics!=='undefined')Tactics.aplicarElemento(target,'VACÍO',battle); log=`⟨${mag.nombre}⟩ → ${target.name}  −${dmg}HP  ATK−${red}  [VACÍO]`; battleLog(battle,log,'t-cor'); if(target.hp<=0){target.vivo=false;battleLog(battle,`${target.name} cae.`,'t-cor');} break;}
   }
   if(isMyTurn && typeof XP!=='undefined') XP.ganar('mente',12,'magia en batalla');
+  _progresarMagJugador(mag, actor, battle);
   if(mag.fragilidad>=100){mag.corrompida=true;battleLog(battle,`☠ ⟨${mag.nombre}⟩ se corrompe.`,'t-pel');Player.removeFromSlot('magias',mag.id);}
   payload.handled=true; payload.logEntry=log;
   return payload;
