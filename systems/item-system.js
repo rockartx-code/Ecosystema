@@ -11,6 +11,7 @@ const ItemSystem = (() => {
     agua_claridad:   { nombre:'Agua de Claridad',  tipo:'medicina',   efecto:'curar_herida', herida:'CONMOCION',     hp:3,  desc:'Disipa desorientación.', tags:['medicina','mental'] },
     bálsamo_piel:    { nombre:'Bálsamo de Piel',   tipo:'medicina',   efecto:'curar_herida', herida:'QUEMADURA',     hp:6,  desc:'Regenera piel dañada.', tags:['medicina','fuego'] },
     medicina_mayor:  { nombre:'Medicina Mayor',    tipo:'medicina',   efecto:'curar_todas',  hp:15, desc:'Trata todas las heridas.', tags:['medicina','reliquia'] },
+    suero_quimera:   { nombre:'Suero de Quimera',   tipo:'medicina',   efecto:'curar_todas',  hp:22, desc:'Sella heridas complejas y regenera tejido.', tags:['medicina','quimera','élite'] },
     // CONSUMIBLES
     polvo_vitalidad: { nombre:'Polvo de Vitalidad',tipo:'consumible', efecto:'stamina',      valor:40, desc:'Recupera stamina rápido.', tags:['energía','polvo'] },
     esencia_mente:   { nombre:'Esencia de Mente',  tipo:'consumible', efecto:'mana',         valor:25, desc:'Restaura concentración mágica.', tags:['energía','mental'] },
@@ -18,16 +19,21 @@ const ItemSystem = (() => {
     cristal_maná:    { nombre:'Cristal de Maná',   tipo:'consumible', efecto:'mana_max',     valor:15, desc:'Expande capacidad mental.', tags:['energía','cristal'] },
     fragmento_cura:  { nombre:'Fragmento de Cura', tipo:'consumible', efecto:'hp',           valor:15, desc:'Cura básica instantánea.', tags:['curación','fragmento'] },
     néctar_antiguo:  { nombre:'Néctar Antiguo',    tipo:'consumible', efecto:'hp',           valor:30, desc:'Restauración profunda.', tags:['curación','antiguo'] },
+    brebaje_meteorico:{nombre:'Brebaje Meteórico', tipo:'consumible', efecto:'stamina',      valor:55, desc:'Impulso explosivo de energía corporal.', tags:['energía','élite'] },
+    foco_lucido:     { nombre:'Foco Lúcido',       tipo:'consumible', efecto:'mana',         valor:35, desc:'Claridad mental prolongada.', tags:['mental','foco'] },
     // ELEMENTALES
     aceite_llama:    { nombre:'Aceite de Llama',   tipo:'consumible', efecto:'elemento_arma', elemento:'ARDIENDO',    dur:3, desc:'Unta el arma con fuego.', tags:['fuego','aceite'] },
     polvo_hielo:     { nombre:'Polvo de Hielo',    tipo:'consumible', efecto:'elemento_arma', elemento:'CONGELADO',   dur:3, desc:'Cristales que congelan.', tags:['hielo','polvo'] },
     resina_rayo:     { nombre:'Resina de Rayo',    tipo:'consumible', efecto:'elemento_arma', elemento:'ELECTRIZADO', dur:3, desc:'Conduce electricidad.', tags:['rayo','resina'] },
     esencia_vacío:   { nombre:'Esencia de Vacío',  tipo:'consumible', efecto:'elemento_arma', elemento:'VACÍO',       dur:2, desc:'Ignora parte de la defensa.', tags:['vacío','esencia'] },
     agua_eco:        { nombre:'Agua de Eco',       tipo:'consumible', efecto:'elemento_arma', elemento:'MOJADO',      dur:4, desc:'Facilita reacciones.', tags:['agua','eco'] },
+    tinta_abisal:    { nombre:'Tinta Abisal',      tipo:'consumible', efecto:'elemento_arma', elemento:'VACÍO',       dur:4, desc:'Sello umbral sobre el filo.', tags:['vacío','abismo'] },
+    ceniza_fulgor:   { nombre:'Ceniza de Fulgor',  tipo:'consumible', efecto:'elemento_arma', elemento:'ARDIENDO',    dur:5, desc:'Ignición de alta persistencia.', tags:['fuego','élite'] },
     // REPARACIÓN
     kit_reparacion:  { nombre:'Kit de Reparación', tipo:'reparacion', efecto:'reparar',       valor:40,  desc:'Restaura 40% durabilidad.', tags:['herramienta','metal'] },
     kit_maestro:     { nombre:'Kit Maestro',       tipo:'reparacion', efecto:'reparar_total', valor:100, desc:'Restaura 100% + mejora.', tags:['herramienta','maestra'] },
     lima_afilado:    { nombre:'Lima de Afilado',   tipo:'reparacion', efecto:'afilar',        valor:10,  desc:'ATK del arma +2 permanente.', tags:['herramienta','filo'] },
+    piedra_calibrada:{ nombre:'Piedra Calibrada',  tipo:'reparacion', efecto:'afilar',        valor:14,  desc:'Rebalancea el arma para golpes críticos.', tags:['herramienta','precisión'] },
     // POTENCIADORES
     piedra_poise:    { nombre:'Piedra de Poise',   tipo:'potenciador',efecto:'poise_shield',     valor:30,  desc:'El próximo golpe no rompe postura.', tags:['defensa','poise'] },
     talismán_reac:   { nombre:'Talismán Reactivo', tipo:'potenciador',efecto:'reaccion_boost',   valor:1.5, desc:'Próxima reacción elemental ×1.5.', tags:['elemental','talismán'] },
@@ -38,6 +44,7 @@ const ItemSystem = (() => {
     runa_escama:     { nombre:'Runa de Escama',    tipo:'potenciador',efecto:'poise_shield',   valor:40, desc:'Encantamiento defensivo de postura.', tags:['encantamiento','defensa'] },
     esfera_resonante:{ nombre:'Esfera Resonante',  tipo:'potenciador',efecto:'reaccion_boost',  valor:1.8,desc:'Amplifica reacciones elementales.', tags:['resonante','encantamiento'] },
     sello_umbral:    { nombre:'Sello de Umbral',   tipo:'potenciador',efecto:'niebla_personal', desc:'Niebla de desvío para evasión temporal.', tags:['vacío','umbral'] },
+    espejo_de_fase:  { nombre:'Espejo de Fase',    tipo:'potenciador',efecto:'niebla_personal', desc:'Distorsiona presencia y postura.', tags:['fase','evasión'] },
     // RAROS
     ampolla_fenix:   { nombre:'Ampolla Fénix',     tipo:'consumible', efecto:'hp',             valor:50, desc:'Curación extrema de emergencia.', tags:['legendario','curación'] },
     polvo_astrolito: { nombre:'Polvo Astrolito',   tipo:'consumible', efecto:'mana',           valor:45, desc:'Inyección de maná cristalino.', tags:['legendario','mental'] },
@@ -138,15 +145,15 @@ const ItemSystem = (() => {
 
   function genLootTactico(nodeType, rng) {
     const pools = {
-      hub:    ['fragmento_cura','polvo_vitalidad','kit_reparacion'],
-      ruina:  ['kit_reparacion','lima_afilado','piedra_poise','agua_eco'],
-      bosque: ['venda_burda','raíz_resistente','aceite_llama','agua_eco','runa_filo'],
-      caverna:['tintura_amarga','polvo_hielo','piedra_poise','kit_reparacion','runa_escama'],
-      abismo: ['esencia_vacío','talismán_reac','medicina_mayor','cristal_poise','sello_umbral'],
+      hub:    ['fragmento_cura','polvo_vitalidad','kit_reparacion','foco_lucido'],
+      ruina:  ['kit_reparacion','lima_afilado','piedra_poise','agua_eco','piedra_calibrada'],
+      bosque: ['venda_burda','raíz_resistente','aceite_llama','agua_eco','runa_filo','brebaje_meteorico'],
+      caverna:['tintura_amarga','polvo_hielo','piedra_poise','kit_reparacion','runa_escama','suero_quimera'],
+      abismo: ['esencia_vacío','talismán_reac','medicina_mayor','cristal_poise','sello_umbral','tinta_abisal'],
       pantano:['tintura_amarga','venda_burda','esencia_mente','polvo_humo'],
       yermo:  ['bálsamo_piel','aceite_llama','resina_rayo','polvo_vitalidad','esfera_resonante'],
       templo: ['agua_claridad','talismán_reac','cristal_maná','medicina_mayor','polvo_astrolito'],
-      umbral: ['esencia_vacío','néctar_antiguo','cristal_poise','medicina_mayor','ampolla_fenix','prisma_dual'],
+      umbral: ['esencia_vacío','néctar_antiguo','cristal_poise','medicina_mayor','ampolla_fenix','prisma_dual','espejo_de_fase','ceniza_fulgor'],
     };
     const pool = pools[nodeType] || pools.hub;
     const id   = U.pick(pool, rng);

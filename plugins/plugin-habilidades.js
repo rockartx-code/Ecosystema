@@ -231,6 +231,36 @@ function _aplicarDanoJugador(target, dmg, battle) {
   }
 }
 
+function _initProgHab(hab) {
+  hab.evolucion = hab.evolucion || { contador:0, umbral:hab.evolucion_umbral||10, nivel:1, max_nivel:5 };
+  hab.maestria  = hab.maestria  || { xp:0, umbral:8, nivel:0, max_nivel:10 };
+}
+
+function _progresarHabJugador(hab, actor, battle) {
+  _initProgHab(hab);
+  hab.evolucion.contador = (hab.evolucion.contador||0) + 1;
+  hab.maestria.xp        = (hab.maestria.xp||0) + 1;
+
+  if(hab.evolucion.contador >= hab.evolucion.umbral && (hab.evolucion.nivel||1) < (hab.evolucion.max_nivel||5)) {
+    hab.evolucion.contador = 0;
+    hab.evolucion.nivel    = (hab.evolucion.nivel||1) + 1;
+    hab.evolucion.umbral   = Math.floor((hab.evolucion.umbral||10) * 1.35);
+    hab.valor              = +((hab.valor||1) * 1.18).toFixed(2);
+    battleLog(battle, `✦ ⟨${hab.nombre}⟩ evoluciona a nivel ${hab.evolucion.nivel}. Valor → ${hab.valor}`,'t-cor');
+    if(typeof XP!=='undefined') XP.ganar('cuerpo', 25 + hab.evolucion.nivel*5, 'habilidad evolucionada');
+  }
+
+  if(hab.maestria.xp >= hab.maestria.umbral && (hab.maestria.nivel||0) < (hab.maestria.max_nivel||10)) {
+    hab.maestria.xp      = 0;
+    hab.maestria.nivel   = (hab.maestria.nivel||0) + 1;
+    hab.maestria.umbral  = Math.floor((hab.maestria.umbral||8) * 1.2);
+    actor.atk            = (actor.atk||0) + 1;
+    if(actor.playerId===Player.get().id) Player.get().atk = actor.atk;
+    battleLog(battle, `◎ Maestría de ⟨${hab.nombre}⟩ sube a ${hab.maestria.nivel}. ATK +1 este combate.`,'t-acc');
+    if(typeof XP!=='undefined') XP.ganar('cuerpo', 10 + hab.maestria.nivel*2, 'maestría de habilidad');
+  }
+}
+
 // ── Tick de buffs temporales del enemigo ──────────────────────────
 function _tickBuffsEnemigo(actor) {
   if(actor._def_bonus_t > 0) {
@@ -362,17 +392,7 @@ function _ejecutarHabilidadJugador(payload) {
     }
   }
 
-  // Evolución automática
-  if(hab.evolucion && hab.efecto!=='evol'){
-    hab.evolucion.contador=(hab.evolucion.contador||0)+1;
-    if(hab.evolucion.contador>=hab.evolucion.umbral){
-      hab.evolucion.contador=0;
-      hab.evolucion.umbral=Math.floor(hab.evolucion.umbral*1.5);
-      hab.valor=(hab.valor||1)+1;
-      battleLog(battle,`✦ ⟨${hab.nombre}⟩ evoluciona. Valor → ${hab.valor}`,'t-cor');
-      if(typeof XP!=='undefined') XP.ganar('cuerpo',25,'habilidad evolucionada');
-    }
-  }
+  _progresarHabJugador(hab, actor, battle);
 
   if(isMyTurn && typeof XP!=='undefined') XP.ganar('cuerpo',8,'habilidad en batalla');
 
@@ -435,7 +455,8 @@ function cmdCopiar(args) {
     valor:            habUsada._valor_base ?? def?.valor ?? habUsada.valor,
     desc:             (def?.desc || habUsada.desc) + `  [copiada de ${fuente.name}]`,
     evolucion_umbral: def?.evolucion_umbral || 10,
-    evolucion:        { contador:0, umbral: def?.evolucion_umbral || 10 },
+    evolucion:        { contador:0, umbral: def?.evolucion_umbral || 10, nivel:1, max_nivel:5 },
+    maestria:         { xp:0, umbral:8, nivel:0, max_nivel:10 },
     origen:           'copiada',
     copiada_de:       fuente.name,
   };
@@ -465,10 +486,13 @@ function cmdHabilidades() {
   }
   const COLS = { atk_mult:'t-pel', def_pasiva:'t-sis', atk_bonus:'t-cra', evasion:'t-mem', scan:'t-eco', aoe:'t-cor', evol:'t-acc', poise_break:'t-twi', lifesteal:'t-cor', counter:'t-acc', atk_debuff_area:'t-twi', atk_drain:'t-pel' };
   habs.forEach(h => {
+    _initProgHab(h);
     const evo    = h.evolucion;
-    const evoBar = evo ? `  evol:${evo.contador}/${evo.umbral}` : '';
+    const ms     = h.maestria;
+    const evoBar = evo ? `  evol:N${evo.nivel} ${evo.contador}/${evo.umbral}` : '';
+    const msBar  = ms  ? `  maest:N${ms.nivel} ${ms.xp}/${ms.umbral}` : '';
     const ori    = h.origen==='copiada' ? ` [copiada·${h.copiada_de}]` : '';
-    Out.line(`  ${h.nombre}${ori}  [${h.efecto}]  val:${h.valor??'—'}${evoBar}`, COLS[h.efecto]||'t-hab');
+    Out.line(`  ${h.nombre}${ori}  [${h.efecto}]  val:${h.valor??'—'}${evoBar}${msBar}`, COLS[h.efecto]||'t-hab');
     Out.line(`    ${h.desc||'—'}`, 't-dim');
   });
   Out.sp();
