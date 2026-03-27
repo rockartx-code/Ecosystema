@@ -38,6 +38,9 @@ function loadSave() {
 }
 
 function die(causa = 'desconocida') {
+  if(die._autoRestarting) return;
+  die._autoRestarting = true;
+
   Player.get().causa_muerte = causa;
   EventBus.emit('player:die', { player:Player.get(), causa });
   if(typeof RunMem !== 'undefined') RunMem.registrar(Player.get(), GS.aliveNPCs(), GS.allMisiones(), World.seed);
@@ -60,9 +63,24 @@ function die(causa = 'desconocida') {
 
   if(PluginLoader.order.length) Out.line(`Plugins activos: ${PluginLoader.order.join(', ')}`, 't-eco');
   Out.sep('─');
+  Out.line('           .-""""-.', 't-dim');
+  Out.line('          /  RIP   \\', 't-dim');
+  Out.line('          |        |', 't-dim');
+  Out.line('          |        |', 't-dim');
+  Out.line('        \\|\\|/\\/\\|/|/', 't-dim');
+  Out.sep('─');
   if(typeof RunMem !== 'undefined') Out.line(`Run ${RunMem.count()} registrada.`, 't-eco');
-  Out.line('Escribe "nuevo" para continuar.', 't-dim');
+  Out.line('Iniciando nueva run automáticamente...', 't-eco');
   Out.sep('═');
+
+  setTimeout(async () => {
+    try {
+      Out.clear();
+      await init();
+    } finally {
+      die._autoRestarting = false;
+    }
+  }, 1200);
 }
 
 // ── Exportar partida como archivo .ecohex ─────────────────────
