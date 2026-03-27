@@ -96,6 +96,7 @@ function _registerCoreSystems() {
   if(typeof pluginInvocaciones !== 'undefined') PluginLoader.register(pluginInvocaciones);
   if(typeof pluginCultos !== 'undefined') PluginLoader.register(pluginCultos);
   if(typeof pluginReinoPesadilla !== 'undefined') PluginLoader.register(pluginReinoPesadilla);
+  if(typeof pluginConcentracion !== 'undefined') PluginLoader.register(pluginConcentracion);
 
   // ── Plugin: Supervivencia (hambre, heridas fuera de combate) ──
   // Antes era Player.hungerTick() inline en cmdIr.
