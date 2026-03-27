@@ -4,6 +4,18 @@
 // ════════════════════════════════════════════════════════════════
 const SombraHerrante = (() => {
   const ENEMY_ID = 'sombra_del_herrante';
+  const SOMBRA_ASCII = [
+    '           .-.',
+    '          (   )',
+    '           \\ /',
+    '      .-"""""""-.',
+    '     /  .===.    \\',
+    '    /  / 6 6 \\    \\',
+    '    |  \\  ^  /    |',
+    '    |   `---\'     |',
+    '     \\  .___,    /',
+    '      `-._____.-\'',
+  ];
 
   function _clone(v) {
     return JSON.parse(JSON.stringify(v));
@@ -64,6 +76,7 @@ const SombraHerrante = (() => {
 
     Out.sp();
     Out.sep('═');
+    SOMBRA_ASCII.forEach(line => Out.line(line, 't-cor'));
     Out.line('☠ SOMBRA DEL HERRANTE', 't-cor', true);
     Out.line(`Te encuentra la run anterior de ${sombra?.sombra_data?.player_name || 'alguien'}.`, 't-dim');
     Out.line('Si la derrotas, recuperas su inventario completo.', 't-cra');

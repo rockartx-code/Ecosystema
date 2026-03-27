@@ -3,6 +3,17 @@
 // Seres caóticos que aparecen al azar según la suerte del jugador.
 // ════════════════════════════════════════════════════════════════
 const TricksterSystem = (() => {
+  const TRICKSTER_ASCII = [
+    "      .-\"\"\"\"-.",
+    "    .'  .--.  `.",
+    "   /   (o  o)   \\",
+    "  |   .-`--'-.   |",
+    "  |  /  /\\_/\\ \\  |",
+    "   \\  \\ \\___/ /  /",
+    "    `._`-.__.-'_.`",
+    "       `--..--'",
+  ];
+
   const ESTADOS = ['ARDIENDO', 'MOJADO', 'ELECTRIZADO', 'CONGELADO', 'RESONANTE', 'VACÍO'];
 
   const TRICKSTERS = [
@@ -103,6 +114,7 @@ const TricksterSystem = (() => {
 
     Out.sp();
     Out.sep('═');
+    TRICKSTER_ASCII.forEach(line => Out.line(line, 't-mag'));
     Out.line(`✶ TRICKSTER — ${def.nombre}`, 't-mag', true);
     Out.line(def.desc, 't-dim');
     Out.line(`HP:${def.hp}  DEF:${def.def}  (Aparece con suerte alta)`, 't-mag');
