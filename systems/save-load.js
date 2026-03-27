@@ -42,7 +42,13 @@ function die(causa = 'desconocida') {
   die._autoRestarting = true;
 
   Player.get().causa_muerte = causa;
-  EventBus.emit('player:die', { player:Player.get(), causa });
+  const diePayload = EventBus.emit('player:die', { player:Player.get(), causa, cancelled:false });
+  if(diePayload?.cancelled) {
+    die._autoRestarting = false;
+    refreshStatus();
+    if(typeof cmdMirar === 'function') cmdMirar();
+    return;
+  }
   if(typeof RunMem !== 'undefined') RunMem.registrar(Player.get(), GS.aliveNPCs(), GS.allMisiones(), World.seed);
   localStorage.removeItem('eco_v12');
 

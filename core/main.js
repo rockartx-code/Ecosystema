@@ -90,6 +90,7 @@ function _registerCoreSystems() {
   if(typeof pluginBosses !== 'undefined')    PluginLoader.register(pluginBosses);
   if(typeof pluginTricksters !== 'undefined')PluginLoader.register(pluginTricksters);
   if(typeof pluginSombraHerrante !== 'undefined') PluginLoader.register(pluginSombraHerrante);
+  if(typeof pluginArbolVida !== 'undefined') PluginLoader.register(pluginArbolVida);
   if(typeof pluginTransformaciones !== 'undefined') PluginLoader.register(pluginTransformaciones);
   if(typeof pluginGuarida !== 'undefined') PluginLoader.register(pluginGuarida);
   if(typeof pluginInvocaciones !== 'undefined') PluginLoader.register(pluginInvocaciones);
