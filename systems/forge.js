@@ -94,7 +94,11 @@ const Forge = {
     const nou     = arc?.sustantivos?.length  ? U.pick(arc.sustantivos, rng) : '?';
     const nombre  = `${adj} ${nou}`;
     const blueprint = nombre.toLowerCase().replace(/ /g,'_');
-    const tipoMap   = { habilidad:'habilidad', magia:'magia', arma:'arma', armadura:'armadura', consumible:'consumible', reliquia:'reliquia', anomalía:'anomalía', mítico:'mítico', híbrido:'arma', corrupto:'arma', resonante:'reliquia' };
+    const tipoMap   = {
+      habilidad:'habilidad', magia:'magia', arma:'arma', armadura:'armadura', consumible:'consumible',
+      reliquia:'reliquia', anomalía:'anomalía', mítico:'mítico', híbrido:'arma', corrupto:'arma', resonante:'reliquia',
+      casco:'casco', guantes:'guantes', peto:'peto', botas:'botas', accesorio:'accesorio',
+    };
     const tipo    = tipoMap[rType] || 'reliquia';
 
     let habData = null, magData = null;
@@ -110,14 +114,49 @@ const Forge = {
     const imp = Imprint.gen(blueprint, matIds, ctx, tension);
     let item = { id:U.uid(), blueprint, nombre, tipo, tags:allTagsPlus.slice(0,5), imprint:imp, estado:'nativo', ...baseStats, forjado:true, tension_origen:tension };
     if(habData) item.evolucion = { contador:0, umbral:habData.evolucion_umbral||10 };
+    item.encantamientos = [];
+    item.encarnaciones  = [];
 
     if(['arma','híbrido','corrupto'].includes(tipo) || tipo === 'arma') {
       item.durabilidad  = Math.round(U.clamp(100 - tension*30, 40, 100));
       item.mellada      = false;
       item.poise_dmg    = Math.floor((item.atk||0) * 0.3);
       item.tension_bonus= Math.floor(tension * 4);
+      item.equip_slot   = dom.includes('dual') ? 'mano_izquierda' : 'mano_derecha';
     }
-    if(tipo === 'armadura') item.durabilidad = Math.round(U.clamp(100 - tension*20, 50, 100));
+    if(tipo === 'armadura') {
+      item.durabilidad = Math.round(U.clamp(100 - tension*20, 50, 100));
+      const slotDef = dom.includes('cabeza') ? 'casco'
+        : dom.includes('mano') ? 'guantes'
+        : dom.includes('pierna') ? 'botas'
+        : 'peto';
+      item.tipo = slotDef;
+      item.equip_slot = slotDef;
+      item.def = Math.max(1, item.def || Math.floor(2 + strength*6));
+    }
+    if(['casco','guantes','peto','botas'].includes(tipo)) {
+      item.equip_slot = tipo;
+      item.def = Math.max(1, item.def || Math.floor(2 + strength*5));
+    }
+    if(tipo === 'reliquia' && (dom.includes('resonante') || dom.includes('antiguo') || tension > 0.45)) {
+      item.tipo = 'accesorio';
+      item.equip_slot = rng() < 0.5 ? 'accesorio_1' : 'accesorio_2';
+      const rareRoll = rng();
+      item.raridad = rareRoll > 0.92 ? 'mítico' : rareRoll > 0.72 ? 'épico' : rareRoll > 0.45 ? 'raro' : 'común';
+      const pool = [
+        { stat:'atk', valor:2 }, { stat:'def', valor:2 }, { stat:'crit', valor:5 }, { stat:'evasion', valor:5 },
+        { stat:'mana_max', valor:8 }, { stat:'stamina_max', valor:10 },
+      ];
+      const rarePool = [{ stat:'crit', valor:8 }, { stat:'evasion', valor:9 }, { stat:'atk', valor:4 }, { stat:'def', valor:4 }];
+      item.efecto_accesorio = item.raridad === 'mítico' ? U.pick(rarePool, rng) : U.pick(pool, rng);
+    }
+
+    // Encantamientos + encarnaciones básicos
+    if(dom.includes('resonante')) item.encantamientos.push('latido resonante');
+    if(dom.includes('corrupto'))  item.encantamientos.push('sello corrupto');
+    if(dom.includes('antiguo'))   item.encarnaciones.push('instinto antiguo');
+    if(dom.includes('vacío'))     item.encarnaciones.push('núcleo vacío');
+    if(tension > 0.5)             item.encantamientos.push('cicatriz inestable');
 
     // Anclas
     const hayAncla = matIds.some(id => D.mat(id)?.categoria === 'ancla');

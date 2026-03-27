@@ -33,6 +33,15 @@ const ItemSystem = (() => {
     talismán_reac:   { nombre:'Talismán Reactivo', tipo:'potenciador',efecto:'reaccion_boost',   valor:1.5, desc:'Próxima reacción elemental ×1.5.', tags:['elemental','talismán'] },
     polvo_humo:      { nombre:'Polvo de Humo',     tipo:'potenciador',efecto:'niebla_personal',  desc:'40% fallo en ataques contra ti, 2 turnos.', tags:['evasión','polvo'] },
     cristal_poise:   { nombre:'Cristal de Poise',  tipo:'potenciador',efecto:'romper_poise',     desc:'Rompe postura del enemigo más cercano.', tags:['poise','cristal'] },
+    // ENCANTAMIENTOS / RESONANCIA
+    runa_filo:       { nombre:'Runa de Filo',      tipo:'potenciador',efecto:'afilar',        valor:12, desc:'Encantamiento físico: ATK del arma +2.', tags:['encantamiento','metal'] },
+    runa_escama:     { nombre:'Runa de Escama',    tipo:'potenciador',efecto:'poise_shield',   valor:40, desc:'Encantamiento defensivo de postura.', tags:['encantamiento','defensa'] },
+    esfera_resonante:{ nombre:'Esfera Resonante',  tipo:'potenciador',efecto:'reaccion_boost',  valor:1.8,desc:'Amplifica reacciones elementales.', tags:['resonante','encantamiento'] },
+    sello_umbral:    { nombre:'Sello de Umbral',   tipo:'potenciador',efecto:'niebla_personal', desc:'Niebla de desvío para evasión temporal.', tags:['vacío','umbral'] },
+    // RAROS
+    ampolla_fenix:   { nombre:'Ampolla Fénix',     tipo:'consumible', efecto:'hp',             valor:50, desc:'Curación extrema de emergencia.', tags:['legendario','curación'] },
+    polvo_astrolito: { nombre:'Polvo Astrolito',   tipo:'consumible', efecto:'mana',           valor:45, desc:'Inyección de maná cristalino.', tags:['legendario','mental'] },
+    prisma_dual:     { nombre:'Prisma Dual',       tipo:'consumible', efecto:'elemento_arma',  elemento:'RESONANTE', dur:5, desc:'Infusión resonante prolongada.', tags:['legendario','resonante'] },
   };
 
   function aplicar(item, battle) {
@@ -131,13 +140,13 @@ const ItemSystem = (() => {
     const pools = {
       hub:    ['fragmento_cura','polvo_vitalidad','kit_reparacion'],
       ruina:  ['kit_reparacion','lima_afilado','piedra_poise','agua_eco'],
-      bosque: ['venda_burda','raíz_resistente','aceite_llama','agua_eco'],
-      caverna:['tintura_amarga','polvo_hielo','piedra_poise','kit_reparacion'],
-      abismo: ['esencia_vacío','talismán_reac','medicina_mayor','cristal_poise'],
+      bosque: ['venda_burda','raíz_resistente','aceite_llama','agua_eco','runa_filo'],
+      caverna:['tintura_amarga','polvo_hielo','piedra_poise','kit_reparacion','runa_escama'],
+      abismo: ['esencia_vacío','talismán_reac','medicina_mayor','cristal_poise','sello_umbral'],
       pantano:['tintura_amarga','venda_burda','esencia_mente','polvo_humo'],
-      yermo:  ['bálsamo_piel','aceite_llama','resina_rayo','polvo_vitalidad'],
-      templo: ['agua_claridad','talismán_reac','cristal_maná','medicina_mayor'],
-      umbral: ['esencia_vacío','néctar_antiguo','cristal_poise','medicina_mayor'],
+      yermo:  ['bálsamo_piel','aceite_llama','resina_rayo','polvo_vitalidad','esfera_resonante'],
+      templo: ['agua_claridad','talismán_reac','cristal_maná','medicina_mayor','polvo_astrolito'],
+      umbral: ['esencia_vacío','néctar_antiguo','cristal_poise','medicina_mayor','ampolla_fenix','prisma_dual'],
     };
     const pool = pools[nodeType] || pools.hub;
     const id   = U.pick(pool, rng);
@@ -182,5 +191,5 @@ const ItemSystem = (() => {
     Out.sp();
   }
 
-  return { aplicar, genLootTactico, crear, CATALOGO };
+  return { aplicar, genLootTactico, crear, cmdItems, CATALOGO };
 })();
