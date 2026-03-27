@@ -45,6 +45,9 @@ const ItemSystem = (() => {
     esfera_resonante:{ nombre:'Esfera Resonante',  tipo:'potenciador',efecto:'reaccion_boost',  valor:1.8,desc:'Amplifica reacciones elementales.', tags:['resonante','encantamiento'] },
     sello_umbral:    { nombre:'Sello de Umbral',   tipo:'potenciador',efecto:'niebla_personal', desc:'Niebla de desvío para evasión temporal.', tags:['vacío','umbral'] },
     espejo_de_fase:  { nombre:'Espejo de Fase',    tipo:'potenciador',efecto:'niebla_personal', desc:'Distorsiona presencia y postura.', tags:['fase','evasión'] },
+    talisman_enfoque:{ nombre:'Talismán de Enfoque', tipo:'potenciador', efecto:'concentracion_boost', valor:0.14, conc:8, desc:'Aumenta concentración y estabiliza cadenas por 1 combate.', tags:['concentración','mental'] },
+    incienso_calma:  { nombre:'Incienso de Calma', tipo:'potenciador', efecto:'concentracion_boost', valor:0.08, conc:4, desc:'Reduce la inestabilidad de combinaciones complejas.', tags:['concentración','ritual'] },
+    núcleo_lucidez:  { nombre:'Núcleo de Lucidez', tipo:'potenciador', efecto:'concentracion_boost', valor:0.20, conc:12, desc:'Foco extremo para ejecutar cadenas largas.', tags:['concentración','élite'] },
     // RAROS
     ampolla_fenix:   { nombre:'Ampolla Fénix',     tipo:'consumible', efecto:'hp',             valor:50, desc:'Curación extrema de emergencia.', tags:['legendario','curación'] },
     polvo_astrolito: { nombre:'Polvo Astrolito',   tipo:'consumible', efecto:'mana',           valor:45, desc:'Inyección de maná cristalino.', tags:['legendario','mental'] },
@@ -124,6 +127,16 @@ const ItemSystem = (() => {
         battleLog(battle, `⚡ ${target.name} POSTURA ROTA por ${item.nombre||item.blueprint}!`, 't-cor');
         break;
       }
+      case 'concentracion_boost': {
+        p.ext = p.ext || {};
+        const cmax = p.ext.concentracion_max || 100;
+        const bonusConc = def.conc || 5;
+        const before = p.ext.concentracion || 0;
+        p.ext.concentracion = Math.min(cmax, before + bonusConc);
+        p._concentracion_focus = Math.max(p._concentracion_focus||0, def.valor||0.1);
+        Out.line(`Concentración +${p.ext.concentracion-before} (${p.ext.concentracion}/${cmax}) · enfoque táctico activo.`, 't-acc');
+        break;
+      }
       default:
         if(def.hp||item.hp) { const v=def.hp||item.hp; p.hp=Math.min(p.maxHp,p.hp+v); Out.line(`+${v}HP`, 't-cra'); }
         else Out.line(`Usas ${item.nombre||item.blueprint}.`, 't-dim');
@@ -145,15 +158,15 @@ const ItemSystem = (() => {
 
   function genLootTactico(nodeType, rng) {
     const pools = {
-      hub:    ['fragmento_cura','polvo_vitalidad','kit_reparacion','foco_lucido'],
-      ruina:  ['kit_reparacion','lima_afilado','piedra_poise','agua_eco','piedra_calibrada'],
-      bosque: ['venda_burda','raíz_resistente','aceite_llama','agua_eco','runa_filo','brebaje_meteorico'],
-      caverna:['tintura_amarga','polvo_hielo','piedra_poise','kit_reparacion','runa_escama','suero_quimera'],
-      abismo: ['esencia_vacío','talismán_reac','medicina_mayor','cristal_poise','sello_umbral','tinta_abisal'],
-      pantano:['tintura_amarga','venda_burda','esencia_mente','polvo_humo'],
-      yermo:  ['bálsamo_piel','aceite_llama','resina_rayo','polvo_vitalidad','esfera_resonante'],
-      templo: ['agua_claridad','talismán_reac','cristal_maná','medicina_mayor','polvo_astrolito'],
-      umbral: ['esencia_vacío','néctar_antiguo','cristal_poise','medicina_mayor','ampolla_fenix','prisma_dual','espejo_de_fase','ceniza_fulgor'],
+      hub:    ['fragmento_cura','polvo_vitalidad','kit_reparacion','foco_lucido','incienso_calma'],
+      ruina:  ['kit_reparacion','lima_afilado','piedra_poise','agua_eco','piedra_calibrada','talisman_enfoque'],
+      bosque: ['venda_burda','raíz_resistente','aceite_llama','agua_eco','runa_filo','brebaje_meteorico','incienso_calma'],
+      caverna:['tintura_amarga','polvo_hielo','piedra_poise','kit_reparacion','runa_escama','suero_quimera','talisman_enfoque'],
+      abismo: ['esencia_vacío','talismán_reac','medicina_mayor','cristal_poise','sello_umbral','tinta_abisal','núcleo_lucidez'],
+      pantano:['tintura_amarga','venda_burda','esencia_mente','polvo_humo','incienso_calma'],
+      yermo:  ['bálsamo_piel','aceite_llama','resina_rayo','polvo_vitalidad','esfera_resonante','talisman_enfoque'],
+      templo: ['agua_claridad','talismán_reac','cristal_maná','medicina_mayor','polvo_astrolito','núcleo_lucidez'],
+      umbral: ['esencia_vacío','néctar_antiguo','cristal_poise','medicina_mayor','ampolla_fenix','prisma_dual','espejo_de_fase','ceniza_fulgor','núcleo_lucidez'],
     };
     const pool = pools[nodeType] || pools.hub;
     const id   = U.pick(pool, rng);

@@ -181,7 +181,7 @@ const Net = (() => {
     Out.line('⚔ BATALLA INICIADA', 't-pel', true);
     Out.line(`${cola.filter(c=>c.tipo==='player').map(c=>c.name).join(', ')} vs ${cola.filter(c=>c.tipo!=='player').map(c=>c.name).join(', ')}`, 't-dim');
     Out.sep('─');
-    Out.line('Tu turno: atacar · defender · magia · habilidad · interiorizar · transformar · huir · examinar', 't-dim');
+    Out.line('Tu turno: atacar [variante] · defender [variante] · magia [variante] · habilidad [variante] · concentración ... | ... · interiorizar · transformar · huir · examinar', 't-dim');
 
     renderBattle(battle);
     EventBus.emit('combat:start', { battle, nodeId });
@@ -196,7 +196,7 @@ const Net = (() => {
     renderBattle(battle);
   }
 
-  function sendBattleAction(battleId, playerId, verb, arg) {
+  function sendBattleAction(battleId, playerId, verb, arg, opts = {}) {
     const battle = battles[battleId];
     if(!battle || battle.estado !== 'activo') return;
     const actor = actorActual(battle);
@@ -208,7 +208,10 @@ const Net = (() => {
 
     switch(verb) {
       case 'atacar': {
-        const query = String(arg || '').toLowerCase().replace(/_/g,' ').trim();
+        const parsedArg = (typeof ConcentracionSystem !== 'undefined' && ConcentracionSystem.parseVariantArg)
+          ? ConcentracionSystem.parseVariantArg(arg)
+          : { raw:String(arg||''), variant:'base', variantLabel:'' };
+        const query = String(parsedArg.raw || '').toLowerCase().replace(/_/g,' ').trim();
         const qHash = query.replace(/^#/, '');
         const target = query
           ? battle.cola.find(c => {
@@ -248,7 +251,7 @@ const Net = (() => {
         dmg = beforeApply?.dmg ?? dmg;
 
         target.hp = Math.max(0, target.hp - dmg);
-        let log = `${actor.name} → ${target.name}  −${dmg}HP  (${target.hp}/${target.maxHp})`;
+        let log = `${actor.name}${parsedArg.variantLabel||''} → ${target.name}  −${dmg}HP  (${target.hp}/${target.maxHp})`;
         if(reaccion) {
           log += `  ⚗${reaccion.nombre}!`;
           if(typeof Tactics !== 'undefined') {
@@ -277,10 +280,14 @@ const Net = (() => {
         if(typeof Tactics !== 'undefined') Tactics.consumirStamina(-5);
         break;
       case 'magia': {
-        const magName = arg?.toLowerCase();
+        const parsedArg = (typeof ConcentracionSystem !== 'undefined' && ConcentracionSystem.parseVariantArg)
+          ? ConcentracionSystem.parseVariantArg(arg)
+          : { raw:String(arg||''), variant:'base', variantLabel:'' };
+        const magName = parsedArg.raw?.toLowerCase();
         const mags    = (p.ext?.magias || p.magias || []).filter(m=>!m.corrompida&&m.cargas>0);
         const mag     = magName ? mags.find(m=>m.nombre.toLowerCase().includes(magName)) : mags[0];
         if(!mag) { battleLog(battle,'Sin magia disponible.','t-dim'); break; }
+        if(parsedArg.variantLabel) battleLog(battle, `${actor.name} canaliza ${parsedArg.variantLabel}.`, 't-mag');
         const target  = battle.cola.find(c=>c.vivo&&c.tipo!=='player');
         const payload = { actor, mag, target, battle, isMyTurn:true };
         const result  = EventBus.emit('combat:resolve_magia', payload);
@@ -288,14 +295,58 @@ const Net = (() => {
         break;
       }
       case 'habilidad': {
-        const habName = arg?.toLowerCase();
+        const parsedArg = (typeof ConcentracionSystem !== 'undefined' && ConcentracionSystem.parseVariantArg)
+          ? ConcentracionSystem.parseVariantArg(arg)
+          : { raw:String(arg||''), variant:'base', variantLabel:'' };
+        const habName = parsedArg.raw?.toLowerCase();
         const habs    = p.ext?.habilidades || p.habilidades || [];
         const hab     = habName ? habs.find(h=>h.nombre.toLowerCase().includes(habName)) : habs[0];
         if(!hab) { battleLog(battle,'Sin habilidad disponible.','t-dim'); break; }
+        if(parsedArg.variantLabel) battleLog(battle, `${actor.name} usa ${parsedArg.variantLabel}.`, 't-hab');
         const target  = battle.cola.find(c=>c.vivo&&c.tipo!=='player');
         const payload = { actor, hab, target, battle, isMyTurn:true };
         const result  = EventBus.emit('combat:resolve_habilidad', payload);
         if(!result?.handled) battleLog(battle,'Habilidad sin efecto.','t-dim');
+        break;
+      }
+      case 'concentracion': {
+        if(typeof ConcentracionSystem === 'undefined') {
+          battleLog(battle, 'Sistema de concentración no disponible.', 't-dim');
+          break;
+        }
+        const plan = ConcentracionSystem.buildPlan(arg, actor, battle);
+        if(!plan.ok) {
+          battleLog(battle, plan.error || 'No se pudo preparar la secuencia.', 't-dim');
+          consumeTurn = false;
+          break;
+        }
+        const roll = Math.random();
+        if(roll > plan.successChance) {
+          actor._concentracion_pendiente = {
+            acciones: plan.actions,
+            varianteCadena: plan.variantChain,
+            turnos: 1,
+          };
+          battleLog(battle, `⧖ Concentración inestable (${Math.round(plan.successChance*100)}%): la cadena queda diferida 1 turno.`, 't-acc');
+          battleLog(battle, `   Cadena: ${plan.actions.map(a=>`${a.verb}${a.variantLabel||''}${a.arg?` ${a.arg}`:''}`).join(' | ')}`, 't-dim');
+          break;
+        }
+        battleLog(battle, `◎ Concentración perfecta (${Math.round(plan.successChance*100)}%): ejecutas toda la cadena ahora.`, 't-cor');
+        for(const step of plan.actions) {
+          sendBattleAction(battleId, playerId, step.verb, `${step.variantRaw||''}${step.arg?` ${step.arg}`:''}`.trim(), { skipTurnAdvance:true, silentRender:true });
+          if(battle.estado !== 'activo') break;
+        }
+        break;
+      }
+      case 'concentracion_resolver': {
+        const pending = actor._concentracion_pendiente;
+        if(!pending?.acciones?.length) { consumeTurn = false; break; }
+        battleLog(battle, `◎ Cadena de concentración liberada: ${pending.acciones.length} acción(es).`, 't-cor');
+        for(const step of pending.acciones) {
+          sendBattleAction(battleId, playerId, step.verb, `${step.variantRaw||''}${step.arg?` ${step.arg}`:''}`.trim(), { skipTurnAdvance:true, silentRender:true });
+          if(battle.estado !== 'activo') break;
+        }
+        actor._concentracion_pendiente = null;
         break;
       }
       case 'huir':
@@ -327,8 +378,8 @@ const Net = (() => {
     // Actualizar HP del jugador local
     actor.hp = p.hp;
     _checkBattleEnd(battle);
-    if(battle.estado === 'activo' && consumeTurn) { _advanceTurn(battle); _advanceTurnIfAI(battle); }
-    renderBattle(battle);
+    if(battle.estado === 'activo' && consumeTurn && !opts.skipTurnAdvance) { _advanceTurn(battle); _advanceTurnIfAI(battle); }
+    if(!opts.silentRender) renderBattle(battle);
     refreshStatus();
   }
 
