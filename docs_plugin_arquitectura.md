@@ -229,6 +229,22 @@ Si no hay provider para un verbo:
 - usar diccionario base de comandos + últimos objetivos usados + inventario simple.
 - nunca fallar por ausencia de plugin (degrada, no rompe).
 
+### Política de precedencia configurable (runtime)
+El agregador de autocomplete soporta `cli_autocomplete.precedence` con estos valores:
+
+- `base_first` (default): primero sugerencias base, luego providers.
+- `providers_first`: primero providers, luego base.
+- `providers_only`: usar sólo providers.
+- `base_only`: usar sólo base.
+
+Esto permite migraciones graduales por entorno sin romper comandos legacy.
+
+Estrategia sugerida de migración para plugins:
+1. Empezar en `base_first` para asegurar compatibilidad con comandos legacy.
+2. Mover verbos de alto valor a providers y validar UX con `providers_first`.
+3. Cuando un dominio esté 100% provider-driven, activar `providers_only` por entorno.
+4. Mantener `base_only` como modo de contingencia/debug ante regresiones.
+
 ---
 
 ## C.2 ¿Cómo desacoplar SFX/Music del core y habilitar nuevos engines de control/salida?
