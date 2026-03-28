@@ -1,6 +1,6 @@
 # Checklist de implementación — Desacoplamiento Core/Plugins
 
-**Etapa actual:** **9** (Funcionalidad primero)
+**Etapa actual:** **10** (Consolidación de políticas runtime)
 
 ## ✅ Tareas terminadas (con etapa aplicada)
 
@@ -27,7 +27,7 @@
 
 ### Pendientes de E3
 - [ ] **[E3]** Endurecer resolución topológica para dependencias por servicio dinámico y ciclos complejos multi-batch.
-- [ ] **[E3]** Añadir soporte semver más completo (`^`, `~`, rangos OR).
+- [x] **[E3]** Añadir soporte semver más completo (`^`, `~`, rangos OR).
 
 ### Pendientes de E4
 - [ ] **[E4]** Migrar autocomplete totalmente a providers (reducir switches hardcodeados por verbo).
@@ -42,16 +42,20 @@
 
 ### Pendientes de E7
 - [ ] **[E7]** Completar `EventSpec` para más eventos de combate, narrativa, inventario y red.
-- [ ] **[E7]** Convertir warnings de validación en política configurable por entorno (dev/strict/prod).
-- [ ] **[E7]** Añadir tests de validación `validateIn/validateOut` sobre eventos reales del runtime.
+- [x] **[E7]** Convertir warnings de validación en política configurable por entorno (dev/strict/prod).
+- [x] **[E7]** Añadir tests de validación `validateIn/validateOut` sobre eventos reales del runtime.
 
 ### Pendientes de E8
-- [ ] **[E8]** Documentar matriz de compatibilidad de manifiestos JSON (válidos/inválidos) y errores esperados.
-- [ ] **[E8]** Integrar ejecución de smoke tests en CI/local standard (sin depender de ejecución manual).
+- [x] **[E8]** Documentar matriz de compatibilidad de manifiestos JSON (válidos/inválidos) y errores esperados.
+- [x] **[E8]** Integrar ejecución de smoke tests en CI/local standard (sin depender de ejecución manual).
 
 ### Pendientes de E9 (etapa actual)
-- [ ] **[E9]** Migrar comandos contextuales de `preguntar/atacar/examinar` a providers para reducir switch hardcodeado.
-- [ ] **[E9]** Añadir política configurable de precedencia (providers primero vs base primero) en autocomplete.
+- [x] **[E9]** Migrar comandos contextuales de `preguntar/atacar/examinar` a providers para reducir switch hardcodeado.
+- [x] **[E9]** Añadir política configurable de precedencia (providers primero vs base primero) en autocomplete.
+
+### Pendientes de E10 (etapa actual)
+- [x] **[E10]** Añadir tests de regresión para política `cli_autocomplete.precedence` (`base_first`, `providers_first`, `providers_only`, `base_only`).
+- [x] **[E10]** Documentar configuración de precedencia y estrategia de migración para plugins existentes.
 
 ### Transversales
 - [ ] Definir y aplicar `EventSpec` completos para eventos críticos (schema `in/out` real por evento).

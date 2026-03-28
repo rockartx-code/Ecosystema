@@ -53,6 +53,41 @@ const AC = (() => {
     return out;
   }
 
+  function registerCoreProviders() {
+    registerProvider({
+      id: 'core.autocomplete.preguntar',
+      triggers: ['preguntar'],
+      priority: 20,
+      pluginId: 'core',
+      provide(ctx = {}) {
+        const args = Array.isArray(ctx.args) ? ctx.args : [];
+        const nargs = Number.isFinite(ctx.nargs) ? ctx.nargs : args.length;
+        const endsSpace = !!ctx.endsSpace;
+        if(nargs <= 1 || (!endsSpace && nargs === 1)) return getNPCsAqui();
+        return _cfg('cli_autocomplete.temas_preguntar', ['deseo', 'miedo', 'secreto', 'pasado', 'anterior', 'vínculo'])
+          .map(t => ({ label: t, value: t, hint: 'tema', color: 't-dim', group: 'tema' }));
+      },
+    });
+    registerProvider({
+      id: 'core.autocomplete.atacar',
+      triggers: ['atacar'],
+      priority: 20,
+      pluginId: 'core',
+      provide() {
+        return [...getNPCsAqui(), ...getEnemigosNodo(), ...getCriaturasNodo()];
+      },
+    });
+    registerProvider({
+      id: 'core.autocomplete.examinar',
+      triggers: ['examinar', 'ex'],
+      priority: 20,
+      pluginId: 'core',
+      provide() {
+        return [...getInventario(), ...getHabilidades(), ...getMagias(), ...getCompañeros(), ...getNPCsAqui()];
+      },
+    });
+  }
+
   function getVerbs() {
     const base = [
       { v:'ir', h:'norte/sur/este/oeste' }, { v:'n', h:'ir norte' }, { v:'s', h:'ir sur' },
@@ -140,8 +175,45 @@ const AC = (() => {
       return Array.isArray(v) ? v : fallback;
     } catch { return fallback; }
   }
+  function _cfgScalar(path, fallback) {
+    try {
+      const v = ModuleLoader?.get?.(path);
+      return v == null ? fallback : v;
+    } catch { return fallback; }
+  }
   const TAGS_ENCARNAR = _cfg('cli_autocomplete.tags_encarnar', ['tendón', 'nervio', 'hueso', 'sangre', 'tejido', 'médula']);
   const TAGS_CONJURAR = _cfg('cli_autocomplete.tags_conjurar', ['resonante', 'corrupto', 'cristal', 'susurro', 'llama', 'vacío']);
+  const PRECEDENCE_DEFAULT = String(_cfgScalar('cli_autocomplete.precedence', 'base_first'));
+
+  function getPrecedencePolicy() {
+    const raw = String(_cfgScalar('cli_autocomplete.precedence', PRECEDENCE_DEFAULT)).trim().toLowerCase();
+    if(['providers_first', 'base_first', 'providers_only', 'base_only'].includes(raw)) return raw;
+    return 'base_first';
+  }
+
+  function mergeSuggestions(baseList, providerList, policy) {
+    if(policy === 'providers_only') return providerList;
+    if(policy === 'base_only') return baseList;
+    if(!baseList.length) return providerList;
+    if(!providerList.length) return baseList;
+
+    // Merge evitando duplicados por value/label.
+    const seen = new Set();
+    const merged = [];
+    const pushUnique = (item) => {
+      if(!item) return;
+      const k = `${_normToken(item.value || item.label)}::${item.group || ''}`;
+      if(seen.has(k)) return;
+      seen.add(k);
+      merged.push(item);
+    };
+
+    const first = policy === 'providers_first' ? providerList : baseList;
+    const second = policy === 'providers_first' ? baseList : providerList;
+    first.forEach(pushUnique);
+    second.forEach(pushUnique);
+    return merged;
+  }
 
   function getMaterialesModo(modo, yaEscritos) {
     const tagsObjetivo = modo === 'corporal' ? TAGS_ENCARNAR : TAGS_CONJURAR;
@@ -299,75 +371,107 @@ const AC = (() => {
 
     let result = null;
     switch(verb) {
-      case 'ir': case 'go': return { list: getSalidas() };
-      case 'hablar': case 'observar': case 'traicionar': return { list: getNPCsAqui() };
+      case 'ir': case 'go':
+        result = { list: getSalidas() };
+        break;
+      case 'hablar': case 'observar': case 'traicionar':
+        result = { list: getNPCsAqui() };
+        break;
       case 'preguntar':
-        if(nargs <= 1 || (!endsSpace && nargs === 1)) return { list: getNPCsAqui() };
-        return { list: _cfg('cli_autocomplete.temas_preguntar', ['deseo', 'miedo', 'secreto', 'pasado', 'anterior', 'vínculo']).map(t => ({ label: t, value: t, hint: 'tema', color: 't-dim', group: 'tema' })) };
-      case 'atacar': return { list: [...getNPCsAqui(), ...getEnemigosNodo(), ...getCriaturasNodo()] };
-      case 'capturar': return { list: getCriaturasNodo() };
-      case 'vincular': return { list: getAnclas() };
-      case 'recoger': case 'tomar': return { list: getSuelo() };
-      case 'soltar': case 'drop': return { list: getInventario() };
-      case 'equipar': return { list: getEquipables() };
-      case 'usar': return { list: getUsables() };
-      case 'examinar': case 'ex': return { list: [...getInventario(), ...getHabilidades(), ...getMagias(), ...getCompañeros(), ...getNPCsAqui()] };
-      case 'forjar': return { list: getMaterialesInv(yaEscritos) };
-      case 'encarnar': return { list: getMaterialesModo('corporal', yaEscritos) };
-      case 'conjurar': return { list: getMaterialesModo('mágico', yaEscritos) };
+      case 'atacar':
+      case 'examinar':
+      case 'ex':
+        result = { list: [] };
+        break;
+      case 'capturar':
+        result = { list: getCriaturasNodo() };
+        break;
+      case 'vincular':
+        result = { list: getAnclas() };
+        break;
+      case 'recoger': case 'tomar':
+        result = { list: getSuelo() };
+        break;
+      case 'soltar': case 'drop':
+        result = { list: getInventario() };
+        break;
+      case 'equipar':
+        result = { list: getEquipables() };
+        break;
+      case 'usar':
+        result = { list: getUsables() };
+        break;
+      case 'forjar':
+        result = { list: getMaterialesInv(yaEscritos) };
+        break;
+      case 'encarnar':
+        result = { list: getMaterialesModo('corporal', yaEscritos) };
+        break;
+      case 'conjurar':
+        result = { list: getMaterialesModo('mágico', yaEscritos) };
+        break;
       case 'fusionar': {
         const usedSet = new Set(yaEscritos);
-        return { list: [...getInventario(i => !usedSet.has((i.nombre || i.blueprint || '').toLowerCase().replace(/\s+/g, '_'))), ...getHabilidades().filter(h => !usedSet.has(h.value)), ...getMagias().filter(m => !usedSet.has(m.value))] };
+        result = { list: [...getInventario(i => !usedSet.has((i.nombre || i.blueprint || '').toLowerCase().replace(/\s+/g, '_'))), ...getHabilidades().filter(h => !usedSet.has(h.value)), ...getMagias().filter(m => !usedSet.has(m.value))] };
+        break;
       }
-      case 'lanzar': return { list: getMagias(true) };
+      case 'lanzar':
+        result = { list: getMagias(true) };
+        break;
       case 'recargar':
-        if(nargs <= 1 || (!endsSpace && nargs === 1)) return { list: getMagias() };
-        return { list: getMatRecarga() };
-      case 'liberar': case 'nombrar': return { list: getCompañeros() };
+        if(nargs <= 1 || (!endsSpace && nargs === 1)) result = { list: getMagias() };
+        else result = { list: getMatRecarga() };
+        break;
+      case 'liberar': case 'nombrar':
+        result = { list: getCompañeros() };
+        break;
       case 'modo':
-        if(nargs <= 1 || (!endsSpace && nargs === 1)) return { list: getCompañeros() };
-        return { list: MODOS.map(m => ({ label: m, value: m, hint: 'modo de IA', color: 't-cri', group: 'modo' })) };
+        if(nargs <= 1 || (!endsSpace && nargs === 1)) result = { list: getCompañeros() };
+        else result = { list: MODOS.map(m => ({ label: m, value: m, hint: 'modo de IA', color: 't-cri', group: 'modo' })) };
+        break;
       case 'criar': {
         const ya = new Set(yaEscritos);
-        return { list: getCompañeros(c => c.afinidad >= 60 && !ya.has(c.nombre.split('-')[0].toLowerCase())) };
+        result = { list: getCompañeros(c => c.afinidad >= 60 && !ya.has(c.nombre.split('-')[0].toLowerCase())) };
+        break;
       }
-      case 'aceptar': return { list: getMisiones(false).filter(m => !GS.mision(m.value)?.aceptada) };
-      case 'rechazar': return { list: getMisiones(false) };
-      case 'completar': return { list: getMisiones(true) };
-      case 'ayuda': case 'help': case '?': return { list: getTemasAyuda() };
-      case 'descargar_plugin': return { list: getPlugins() };
+      case 'aceptar':
+        result = { list: getMisiones(false).filter(m => !GS.mision(m.value)?.aceptada) };
+        break;
+      case 'rechazar':
+        result = { list: getMisiones(false) };
+        break;
+      case 'completar':
+        result = { list: getMisiones(true) };
+        break;
+      case 'ayuda': case 'help': case '?':
+        result = { list: getTemasAyuda() };
+        break;
+      case 'descargar_plugin':
+        result = { list: getPlugins() };
+        break;
       case 'nombre':
-        return { list: [{ label: Player.get().name, value: Player.get().name.replace(/\s+/g, '_'), hint: 'nombre actual', color: 't-npc', group: 'nombre' }] };
+        result = { list: [{ label: Player.get().name, value: Player.get().name.replace(/\s+/g, '_'), hint: 'nombre actual', color: 't-npc', group: 'nombre' }] };
+        break;
       case 'asignar': case 'assign':
-        if(typeof XP === 'undefined') return { list: [] };
-        return { list: Object.entries(XP.ATRIBUTOS || {}).map(([k, def]) => ({ label: k, value: k, hint: def.desc, color: def.color, group: 'atributo' })) };
-      default: result = { list: [] };
+        if(typeof XP === 'undefined') result = { list: [] };
+        else result = { list: Object.entries(XP.ATRIBUTOS || {}).map(([k, def]) => ({ label: k, value: k, hint: def.desc, color: def.color, group: 'atributo' })) };
+        break;
+      default:
+        result = { list: [] };
     }
     const fromProviders = requestProviders({
       verb, args, partial,
+      nargs,
+      endsSpace,
+      precedence: getPrecedencePolicy(),
       mode: (typeof Net!=='undefined' && Net.getMyBattle?.()) ? 'battle' : 'world',
       player: _safe(()=>Player.get(), null),
       nodeId: _safe(()=>Player.pos(), null),
     });
 
     const baseList = (result && Array.isArray(result.list)) ? result.list : [];
-    if(!baseList.length) return { list: fromProviders };
-    if(!fromProviders.length) return result;
-
-    // Merge base + providers evitando duplicados por value/label.
-    const seen = new Set();
-    const merged = [];
-    const pushUnique = (item) => {
-      if(!item) return;
-      const k = `${_normToken(item.value || item.label)}::${item.group || ''}`;
-      if(seen.has(k)) return;
-      seen.add(k);
-      merged.push(item);
-    };
-
-    baseList.forEach(pushUnique);
-    fromProviders.forEach(pushUnique);
-    return { list: merged };
+    const policy = getPrecedencePolicy();
+    return { list: mergeSuggestions(baseList, fromProviders, policy) };
   }
 
   function filter(list, partial) {
@@ -457,6 +561,8 @@ const AC = (() => {
     sel = -1;
     render(endsWithSpace ? list : filter(list, lastArg));
   }
+
+  registerCoreProviders();
 
   return {
     hide,

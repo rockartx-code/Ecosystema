@@ -37,16 +37,45 @@ function _semverCmp(a,b) {
   for(let i=0;i<3;i++){ if(A[i] > B[i]) return 1; if(A[i] < B[i]) return -1; }
   return 0;
 }
+function _semverBumpMajor(v='0.0.0') {
+  const [a] = _semverParse(v);
+  return `${a+1}.0.0`;
+}
+function _semverBumpMinor(v='0.0.0') {
+  const [a,b] = _semverParse(v);
+  return `${a}.${b+1}.0`;
+}
+function _expandSemverToken(tok='') {
+  const t = String(tok || '').trim();
+  if(!t) return [];
+  if(t.startsWith('^')) {
+    const base = t.slice(1) || '0.0.0';
+    const [maj,min] = _semverParse(base);
+    const upper = maj > 0 ? _semverBumpMajor(base) : `0.${min+1}.0`;
+    return [`>=${base}`, `<${upper}`];
+  }
+  if(t.startsWith('~')) {
+    const base = t.slice(1) || '0.0.0';
+    const [maj] = _semverParse(base);
+    const upper = maj > 0 || base.includes('.') ? _semverBumpMinor(base) : _semverBumpMajor(base);
+    return [`>=${base}`, `<${upper}`];
+  }
+  return [t];
+}
 function _satisfiesVersion(version='0.0.0', req='') {
   if(!req || req==='*') return true;
-  const chunks = String(req).split(/\s+/).filter(Boolean);
-  return chunks.every(tok => {
-    if(tok.startsWith('>=')) return _semverCmp(version, tok.slice(2)) >= 0;
-    if(tok.startsWith('<=')) return _semverCmp(version, tok.slice(2)) <= 0;
-    if(tok.startsWith('>'))  return _semverCmp(version, tok.slice(1)) > 0;
-    if(tok.startsWith('<'))  return _semverCmp(version, tok.slice(1)) < 0;
-    if(tok.startsWith('='))  return _semverCmp(version, tok.slice(1)) === 0;
-    return _semverCmp(version, tok) === 0;
+  const groups = String(req).split(/\s*\|\|\s*/).map(g => g.trim()).filter(Boolean);
+  return groups.some(group => {
+    const chunks = group.split(/\s+/).filter(Boolean).flatMap(_expandSemverToken);
+    return chunks.every(tok => {
+      if(tok === '*') return true;
+      if(tok.startsWith('>=')) return _semverCmp(version, tok.slice(2)) >= 0;
+      if(tok.startsWith('<=')) return _semverCmp(version, tok.slice(2)) <= 0;
+      if(tok.startsWith('>'))  return _semverCmp(version, tok.slice(1)) > 0;
+      if(tok.startsWith('<'))  return _semverCmp(version, tok.slice(1)) < 0;
+      if(tok.startsWith('='))  return _semverCmp(version, tok.slice(1)) === 0;
+      return _semverCmp(version, tok) === 0;
+    });
   });
 }
 
@@ -59,6 +88,7 @@ const EventBus = {
   _traces:    [],
   _specs:     {},
   _dispatchId: 0,
+  _validationPolicy: 'dev',
 
   on(event, handler, pluginId='core', opts={}) {
     if(!this._listeners[event]) this._listeners[event]=[];
@@ -92,13 +122,23 @@ const EventBus = {
   defineEvents(specs={}) {
     for(const [ev, spec] of Object.entries(specs||{})) this.defineEvent(ev, spec);
   },
+  setValidationPolicy(policy='dev') {
+    const p = String(policy || '').toLowerCase();
+    this._validationPolicy = ['dev', 'strict', 'prod'].includes(p) ? p : 'dev';
+  },
+  validationPolicy() { return this._validationPolicy; },
+  _validationIssue(event, phase, detail='') {
+    const msg = `[EventBus] validate${phase}(${event}) ${detail}`.trim();
+    if(this._validationPolicy === 'strict') throw new Error(msg);
+    if(this._validationPolicy === 'dev') console.warn(msg);
+  },
   _validateIn(event, payload) {
     const spec = this._specs[event];
     if(typeof spec?.validateIn === 'function') {
       try {
         const ok = spec.validateIn(payload);
-        if(ok===false) console.warn(`[EventBus] payload inválido de entrada en ${event}`);
-      } catch(e) { console.warn(`[EventBus] validateIn(${event}) falló:`, e); }
+        if(ok===false) this._validationIssue(event, 'In', '→ payload inválido de entrada');
+      } catch(e) { this._validationIssue(event, 'In', `falló: ${String(e?.message||e)}`); }
     }
   },
   _validateOut(event, payload) {
@@ -106,8 +146,8 @@ const EventBus = {
     if(typeof spec?.validateOut === 'function') {
       try {
         const ok = spec.validateOut(payload);
-        if(ok===false) console.warn(`[EventBus] payload inválido de salida en ${event}`);
-      } catch(e) { console.warn(`[EventBus] validateOut(${event}) falló:`, e); }
+        if(ok===false) this._validationIssue(event, 'Out', '→ payload inválido de salida');
+      } catch(e) { this._validationIssue(event, 'Out', `falló: ${String(e?.message||e)}`); }
     }
   },
 
