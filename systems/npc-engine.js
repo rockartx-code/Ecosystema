@@ -247,7 +247,35 @@ const NPCEngine = {
       }
     });
   },
+
+  poblarMundo(payload = {}) {
+    const nodes = payload?.nodes || {};
+    const nodeIds = Object.keys(nodes);
+    if(!nodeIds.length) return payload;
+
+    const rng        = U.rng(`${payload?.seed || World.seed}:${Clock.cycle}:npc-pop`);
+    const npcChance  = payload?.npcChance ?? D.world?.npc_chance ?? 0.55;
+    const permitidos = Array.isArray(payload?.npcNodes) ? payload.npcNodes : (D.world?.npc_nodos_permitidos || []);
+    const ecos       = payload?.context?.ecos || (typeof RunMem !== 'undefined' ? RunMem.ecos() : []);
+
+    nodeIds.forEach((nodeId, idx) => {
+      const node = nodes[nodeId];
+      if(!node || node.destruido) return;
+      if(Array.isArray(permitidos) && permitidos.length && !permitidos.includes(node.tipo)) return;
+      if(!U.chance(npcChance, rng)) return;
+
+      const yaEnNodo = GS.allNPCs().filter(n => n.nodeId === nodeId && n.estado !== 'muerto');
+      if(yaEnNodo.length >= 3) return;
+
+      const npc = this.gen(nodeId, payload?.seed || World.seed, idx, ecos, yaEnNodo);
+      GS.addNPC(npc);
+      if(Array.isArray(node.npc_ids) && !node.npc_ids.includes(npc.id)) node.npc_ids.push(npc.id);
+    });
+
+    return payload;
+  },
 };
 
 // Enganchar tick al EventBus
+EventBus.on('world:request_npcs', (payload) => NPCEngine.poblarMundo(payload), 'npc_spawn');
 EventBus.on('world:tick', () => NPCEngine.tickNPCs(), 'npc_tick');

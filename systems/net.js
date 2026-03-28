@@ -403,15 +403,32 @@
 
   function _advanceTurnIfAI(battle) {
     if(battle.estado !== 'activo') return;
+    if(battle._aiThinking) return;
     const actor = actorActual(battle);
     if(!actor || actor.tipo === 'player') return;
     battle._aiThinking = true;
     setTimeout(() => {
       if(battle.estado !== 'activo') { battle._aiThinking=false; return; }
-      EventBus.emit('combat:enemy_turn_announce', { actor, battle });
-      if(typeof Tactics !== 'undefined') Tactics.tickTurno(actor, battle);
-      const payload = EventBus.emit('combat:resolve_ia', { actor, battle });
-      if(!payload?.handled) _execSimpleAI(actor, battle);
+      const actorTurno = actorActual(battle);
+      if(!actorTurno || actorTurno.tipo === 'player') { battle._aiThinking=false; return; }
+      if(actorTurno.skipping) {
+        battleLog(battle, `${actorTurno.name} pierde el turno.`, 't-dim');
+        actorTurno.skipping = false;
+        battle._aiThinking = false;
+        _checkBattleEnd(battle);
+        if(battle.estado === 'activo') { _advanceTurn(battle); _advanceTurnIfAI(battle); }
+        renderBattle(battle);
+        refreshStatus();
+        return;
+      }
+      EventBus.emit('combat:enemy_turn_announce', { actor: actorTurno, battle });
+      if(typeof Tactics !== 'undefined') Tactics.tickTurno(actorTurno, battle);
+      if(actorTurno.skipping) {
+        battleLog(battle, `${actorTurno.name} no puede actuar este turno.`, 't-dim');
+      } else {
+        const payload = EventBus.emit('combat:resolve_ia', { actor: actorTurno, battle });
+        if(!payload?.handled) _execSimpleAI(actorTurno, battle);
+      }
       battle._aiThinking = false;
       _checkBattleEnd(battle);
       if(battle.estado === 'activo') { _advanceTurn(battle); _advanceTurnIfAI(battle); }
