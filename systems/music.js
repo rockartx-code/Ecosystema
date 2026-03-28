@@ -2,16 +2,45 @@
 // MUSIC ENGINE Logic — motor desacoplado de datos
 // ════════════════════════════════════════════════════════════════
 (function initMusicLogic(global) {
+  function isThemeShapeValid(theme) {
+    return !!(
+      theme &&
+      typeof theme === 'object' &&
+      typeof theme.lead === 'string' &&
+      typeof theme.bass === 'string' &&
+      typeof theme.drums === 'string' &&
+      Number.isFinite(Number(theme.bpm))
+    );
+  }
+
+  function collectInvalidThemes(themes = {}) {
+    return Object.entries(themes)
+      .filter(([, t]) => !isThemeShapeValid(t))
+      .map(([k]) => k);
+  }
+
   function create({ data, deps }) {
     const { ModuleLoader, Out, EventBus } = deps;
   const THEMES = (data && data.themes && typeof data.themes === 'object') ? data.themes : {};
+  const invalidBaseThemes = collectInvalidThemes(THEMES);
+  if(invalidBaseThemes.length) {
+    console.warn('[MusicEngine] Temas base inválidos detectados:', invalidBaseThemes.join(', '));
+  }
+
   const _themes = () => {
     try {
       const ext = ModuleLoader?.get?.('audio.music.themes');
       if(ext && typeof ext === 'object' && !Array.isArray(ext)) {
+        const invalidExtThemes = collectInvalidThemes(ext);
+        if(invalidExtThemes.length) {
+          console.warn('[MusicEngine] Extensión con temas inválidos (audio.music.themes):', invalidExtThemes.join(', '));
+        }
         // Las extensiones pueden aportar solo un subconjunto de pistas.
         // Mezclamos sobre el set base para no romper temas por defecto.
         return { ...THEMES, ...ext };
+      }
+      if(ext != null) {
+        console.warn('[MusicEngine] audio.music.themes ignorado: se esperaba objeto y llegó', typeof ext);
       }
       return THEMES;
     } catch { return THEMES; }
@@ -127,8 +156,7 @@
   function scheduler() {
     if(!state.enabled || !state.isPlaying || !audioCtx) return;
 
-    const themes = _themes();
-    const theme = themes[state.theme] || themes.MAIN_THEME;
+    const theme = getActiveThemeData();
     if(!theme || !theme.lead || !theme.bass || !theme.drums) {
       stop();
       log(`Tema inválido o no cargado: ${state.theme}.`, 't-pel');
@@ -161,6 +189,11 @@
     schedulerTimer = setTimeout(scheduler, 25);
   }
 
+  function getActiveThemeData() {
+    const themes = _themes();
+    return themes[state.theme] || themes.MAIN_THEME || null;
+  }
+
   function start() {
     if(!state.enabled) {
       log('Música desactivada. Usa "musica on" para habilitarla.', 't-dim');
@@ -169,6 +202,11 @@
     const ctx = ensureAudio();
     if(ctx.state === 'suspended') ctx.resume();
     if(state.isPlaying) return;
+    const theme = getActiveThemeData();
+    if(!theme || !theme.lead || !theme.bass || !theme.drums) {
+      log(`Tema inválido o no cargado: ${state.theme}.`, 't-pel');
+      return;
+    }
 
     state.isPlaying = true;
     state.currentStep = 0;
@@ -376,10 +414,35 @@
 const MusicEngine = (() => {
   const MUSIC_DATA_FALLBACK = { themes: {} };
 
+  function validateMusicDataPayload(payload) {
+    const themes = payload?.themes;
+    if(!themes || typeof themes !== 'object' || Array.isArray(themes)) {
+      console.warn('[MusicEngine] module.json -> music.themes inválido; usando fallback vacío.');
+      return MUSIC_DATA_FALLBACK;
+    }
+    const invalid = Object.entries(themes)
+      .filter(([, t]) => !(t && typeof t === 'object' && typeof t.lead === 'string' && typeof t.bass === 'string' && typeof t.drums === 'string'))
+      .map(([k]) => k);
+    if(invalid.length) {
+      console.warn(`[MusicEngine] module.json contiene ${invalid.length} tema(s) con forma inválida: ${invalid.join(', ')}`);
+    }
+    const hasMain = !!themes.MAIN_THEME;
+    if(!hasMain) {
+      console.warn('[MusicEngine] module.json no define MAIN_THEME; dependerá de extensiones o track explícito.');
+    }
+    console.info(`[MusicEngine] Carga de temas desde module.json: ${Object.keys(themes).length} tema(s), MAIN_THEME=${hasMain ? 'sí' : 'no'}.`);
+    return payload;
+  }
+
   function loadMusicData() {
     // Fuente consolidada en data/module.json
-    try { return ModuleLoader?.getSystemData?.('music', MUSIC_DATA_FALLBACK) || MUSIC_DATA_FALLBACK; }
-    catch {}
+    try {
+      const payload = ModuleLoader?.getSystemData?.('music', MUSIC_DATA_FALLBACK) || MUSIC_DATA_FALLBACK;
+      return validateMusicDataPayload(payload);
+    } catch (err) {
+      console.warn('[MusicEngine] Error cargando datos de music desde module.json:', err);
+    }
+    console.warn('[MusicEngine] Usando fallback de música vacío tras fallo de carga.');
     return MUSIC_DATA_FALLBACK;
   }
 
