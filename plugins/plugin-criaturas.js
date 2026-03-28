@@ -238,7 +238,7 @@ function cmdCapturar(args) {
     { tipo:'creature', id:cre.id, name:cre.nombre, hp:cre.hp_current, maxHp:cre.maxHp||cre.hp, atk:cre.atk, def:cre.def||0, nodeId:n.id, tags:cre.tags||[], vivo:true, _cre_ref:cre },
   ];
   if(typeof startBattle === 'function') startBattle(n.id, actors);
-  else Net.startBattle(n.id, actors);
+  else Out.line('Servicio runtime.battle.start no disponible para captura.', 't-dim');
 }
 
 function cmdVincular(args, battle) {
@@ -302,7 +302,8 @@ function cmdVincular(args, battle) {
   }
 
   p.stats.capturas = (p.stats.capturas || 0) + 1;
-  if(typeof XP !== 'undefined') XP.ganar('criaturas', 35, 'captura exitosa');
+  const gainXp = ServiceRegistry?.get?.('runtime.xp.gain');
+  if(typeof gainXp === 'function') gainXp('criaturas', 35, 'captura exitosa');
 
   Out.sp();
   Out.line(`✦ ${cre.nombre} vinculado. [${cre.arquetipo}]`, 't-cri', true);
@@ -315,7 +316,7 @@ function cmdVincular(args, battle) {
   if(battle) {
     const escapeBattle = ServiceRegistry?.get?.('runtime.battle.escape') || ServiceRegistry?.get?.('gameplay.combat.escape');
     if(typeof escapeBattle === 'function') escapeBattle(battle, p.id);
-    else Net.sendBattleAction(battle.id, p.id, 'huir', null);
+    else Out.line('Servicio runtime.battle.escape no disponible para cerrar combate de captura.', 't-dim');
   }
   save();
 }
@@ -421,7 +422,8 @@ function cmdCriar(args) {
   };
   Player.addItem(huevo);
   Player.get().stats.breeding = (Player.get().stats.breeding||0)+1;
-  if(typeof XP !== 'undefined') XP.ganar('criaturas', 40+genHijo*15, `breeding gen.${genHijo}`);
+  const gainXp = ServiceRegistry?.get?.('runtime.xp.gain');
+  if(typeof gainXp === 'function') gainXp('criaturas', 40+genHijo*15, `breeding gen.${genHijo}`);
 
   Out.sp();
   Out.line(`BREEDING — ${a.nombre} × ${b.nombre}`, 't-cri', true);

@@ -39,23 +39,21 @@ function _svc(name) {
 function _xpGanar(attr, amount, reason) {
   const gain = _svc('runtime.xp.gain');
   if(typeof gain === 'function') return !!gain(attr, amount, reason);
-  if(typeof XP !== 'undefined' && typeof XP.ganar === 'function') { XP.ganar(attr, amount, reason); return true; }
   return false;
 }
 function _tactCalcWound(dmg, maxHp) {
   const calc = _svc('runtime.tactics.calc_wound');
   if(typeof calc === 'function') return calc(dmg, maxHp);
-  return (typeof Tactics !== 'undefined' && typeof Tactics.calcularHerida === 'function') ? Tactics.calcularHerida(dmg, maxHp) : null;
+  return null;
 }
 function _tactWoundMeta(key) {
   const meta = _svc('runtime.tactics.wound_meta');
   if(typeof meta === 'function') return meta(key);
-  return typeof Tactics !== 'undefined' ? Tactics.HERIDAS?.[key] : null;
+  return null;
 }
 function _tactConsumeStamina(delta=0) {
   const fn = _svc('runtime.tactics.consume_stamina');
   if(typeof fn === 'function') return !!fn(delta);
-  if(typeof Tactics !== 'undefined' && typeof Tactics.consumirStamina === 'function') { Tactics.consumirStamina(delta); return true; }
   return false;
 }
 
@@ -426,7 +424,7 @@ function _ejecutarHabilidadJugador(payload) {
 function cmdCopiar(args) {
   const q      = args.join(' ').trim().toLowerCase();
   const battleSvc = (typeof ServiceRegistry!=='undefined' && ServiceRegistry.get) ? ServiceRegistry.get('gameplay.battle.current') : null;
-  const battle = battleSvc ? battleSvc() : (typeof Net!=='undefined' ? Net.getMyBattle?.() : null);
+  const battle = battleSvc ? battleSvc() : null;
 
   if(!battle || battle.estado!=='activo') {
     Out.line('Solo puedes copiar durante una batalla activa.','t-dim'); return;

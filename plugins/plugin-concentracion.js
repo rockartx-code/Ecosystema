@@ -123,14 +123,15 @@ const ConcentracionSystem = (() => {
   }
 
   function cmdConcentracion(args) {
-    const battle = typeof Net !== 'undefined' ? Net.getMyBattle?.() : null;
+    const getBattle = ServiceRegistry?.get?.('gameplay.battle.current');
+    const battle = typeof getBattle === 'function' ? getBattle() : null;
     const inBattle = battle && battle.estado === 'activo';
     const txt = String(args||'').trim();
 
     if(inBattle && txt) {
       const combatAction = ServiceRegistry?.get?.('gameplay.combat.action');
       if(typeof combatAction === 'function') combatAction(battle.id, Player.get().id, 'concentracion', txt);
-      else Net.sendBattleAction(battle.id, Player.get().id, 'concentracion', txt);
+      else Out.line('Servicio gameplay.combat.action no disponible para concentración en batalla.', 't-dim');
       return;
     }
 

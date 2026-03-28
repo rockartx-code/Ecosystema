@@ -89,7 +89,7 @@ const pluginReinoPesadilla = (() => {
   function _spawnNextNightmare() {
     if(!state.activa || state.vencidos >= TOTAL_MONSTRUOS) return;
     const getCurrentBattle = ServiceRegistry?.get?.('gameplay.battle.current');
-    if((typeof getCurrentBattle === 'function' ? getCurrentBattle() : Net.getMyBattle?.())) return;
+    if(typeof getCurrentBattle === 'function' && getCurrentBattle()) return;
 
     const idx = state.vencidos + 1;
     const p = Player.get();
@@ -114,7 +114,7 @@ const pluginReinoPesadilla = (() => {
       enemy,
     ];
     if(typeof startBattle === 'function') startBattle(Player.pos(), actors);
-    else Net.startBattle(Player.pos(), actors);
+    else Out.line('Servicio gameplay.battle.start no disponible para Reino Pesadilla.', 't-dim');
   }
 
   function _onEnemyDefeat(payload) {
@@ -139,17 +139,17 @@ const pluginReinoPesadilla = (() => {
     if(!battle?.estado || battle.estado !== 'activo') return payload;
 
     const getBattleActor = ServiceRegistry?.get?.('gameplay.battle.actor');
-    const actor = typeof getBattleActor === 'function' ? getBattleActor(battle) : Net.getBattleActor?.(battle);
+    const actor = typeof getBattleActor === 'function' ? getBattleActor(battle) : null;
     const me = Player.get();
     if(!actor || actor.tipo !== 'player' || actor.playerId !== me.id) return payload;
 
     setTimeout(() => {
       const getCurrentBattle = ServiceRegistry?.get?.('gameplay.battle.current');
-      const current = typeof getCurrentBattle === 'function' ? getCurrentBattle() : Net.getMyBattle?.();
+      const current = typeof getCurrentBattle === 'function' ? getCurrentBattle() : null;
       if(!current || current.id !== battle.id || current.estado !== 'activo') return;
       const combatAction = ServiceRegistry?.get?.('gameplay.combat.action');
       if(typeof combatAction === 'function') combatAction(current.id, me.id, 'atacar', null);
-      else Net.sendBattleAction(current.id, me.id, 'atacar', null);
+      else Out.line('Servicio gameplay.combat.action no disponible para autoplay en Reino Pesadilla.', 't-dim');
     }, 140);
 
     return payload;

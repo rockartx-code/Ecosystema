@@ -122,7 +122,7 @@ const FactionSystem = (() => {
           ? (ServiceRegistry.get('runtime.battle.start') || ServiceRegistry.get('gameplay.battle.start'))
           : null;
         if(startBattleSvc) startBattleSvc(nodeId, combatants);
-        else if(typeof Net !== 'undefined') Net.startBattle(nodeId, combatants);
+        else Out.line('Servicio runtime.battle.start no disponible para emboscada de facción.', 't-dim');
       }, 800);
     }
     modRep(facId, -5);
