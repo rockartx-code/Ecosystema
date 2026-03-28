@@ -2,6 +2,13 @@
 // MUSIC ENGINE Logic — motor desacoplado de datos
 // ════════════════════════════════════════════════════════════════
 (function initMusicLogic(global) {
+  function normalizeThemeKey(input) {
+    return String(input || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toUpperCase();
+  }
+
   function isThemeShapeValid(theme) {
     return !!(
       theme &&
@@ -30,19 +37,24 @@
   const _themes = () => {
     try {
       const ext = ModuleLoader?.get?.('audio.music.themes');
+      const merged = (ext && typeof ext === 'object' && !Array.isArray(ext))
+        ? { ...THEMES, ...ext }
+        : THEMES;
       if(ext && typeof ext === 'object' && !Array.isArray(ext)) {
         const invalidExtThemes = collectInvalidThemes(ext);
         if(invalidExtThemes.length) {
           console.warn('[MusicEngine] Extensión con temas inválidos (audio.music.themes):', invalidExtThemes.join(', '));
         }
-        // Las extensiones pueden aportar solo un subconjunto de pistas.
-        // Mezclamos sobre el set base para no romper temas por defecto.
-        return { ...THEMES, ...ext };
       }
       if(ext != null) {
         console.warn('[MusicEngine] audio.music.themes ignorado: se esperaba objeto y llegó', typeof ext);
       }
-      return THEMES;
+      const aliases = {};
+      Object.keys(merged).forEach((k) => {
+        const normalized = normalizeThemeKey(k);
+        if(normalized && !merged[normalized]) aliases[normalized] = merged[k];
+      });
+      return { ...merged, ...aliases };
     } catch { return THEMES; }
   };
 
@@ -223,9 +235,11 @@
 
   function setTheme(themeKey) {
     const themes = _themes();
-    if(!themes[themeKey]) return false;
-    state.theme = themeKey;
-    state.tempo = themes[themeKey].bpm;
+    const requested = String(themeKey || '').toUpperCase();
+    const resolved = themes[requested] ? requested : normalizeThemeKey(requested);
+    if(!themes[resolved]) return false;
+    state.theme = resolved;
+    state.tempo = themes[resolved].bpm;
     return true;
   }
 
