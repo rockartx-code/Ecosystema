@@ -36,7 +36,7 @@
 
   const _themes = () => {
     try {
-      const ext = ModuleLoader?.get?.('audio.music.themes');
+      const ext = ModuleLoader?.getSystemData?.('music', { themes: {} });
       const merged = (ext && typeof ext === 'object' && !Array.isArray(ext))
         ? { ...THEMES, ...ext }
         : THEMES;
@@ -45,9 +45,6 @@
         if(invalidExtThemes.length) {
           console.warn('[MusicEngine] Extensión con temas inválidos (audio.music.themes):', invalidExtThemes.join(', '));
         }
-      }
-      if(ext != null) {
-        console.warn('[MusicEngine] audio.music.themes ignorado: se esperaba objeto y llegó', typeof ext);
       }
       const aliases = {};
       Object.keys(merged).forEach((k) => {
@@ -450,6 +447,7 @@ const MusicEngine = (() => {
 
   function loadMusicData() {
     // Fuente consolidada en data/module.json
+    
     try {
       const payload = ModuleLoader?.getSystemData?.('music', MUSIC_DATA_FALLBACK) || MUSIC_DATA_FALLBACK;
       return validateMusicDataPayload(payload);
