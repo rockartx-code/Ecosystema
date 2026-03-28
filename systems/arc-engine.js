@@ -11,16 +11,9 @@ const ArcEngine = (() => {
   };
 
   function loadArcData() {
-    try {
-      if (typeof XMLHttpRequest === 'undefined') return ARC_DATA_FALLBACK;
-      const req = new XMLHttpRequest();
-      req.open('GET', 'systems/arc-engine/data.json', false);
-      req.send(null);
-      if (req.status >= 200 && req.status < 300 && req.responseText) {
-        const parsed = JSON.parse(req.responseText);
-        if (parsed && typeof parsed === 'object') return parsed;
-      }
-    } catch {}
+    // Fuente consolidada en data/module.json (legacy: systems/arc-engine/data.json)
+    try { return ModuleLoader?.getSystemData?.('arc-engine', ARC_DATA_FALLBACK) || ARC_DATA_FALLBACK; }
+    catch {}
     return ARC_DATA_FALLBACK;
   }
 
