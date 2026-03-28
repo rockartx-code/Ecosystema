@@ -71,7 +71,8 @@ const SombraHerrante = (() => {
   }
 
   function _battleSombra(nodeId, sombra) {
-    if(!sombra || Net.getMyBattle?.()) return;
+    const getCurrentBattle = ServiceRegistry?.get?.('gameplay.battle.current');
+    if(!sombra || (typeof getCurrentBattle === 'function' && getCurrentBattle())) return;
     const p = Player.get();
 
     Out.sp();
@@ -82,7 +83,8 @@ const SombraHerrante = (() => {
     Out.line('Si la derrotas, recuperas su inventario completo.', 't-cra');
     Out.sep('═');
 
-    Net.startBattle(nodeId, [
+    const startBattle = ServiceRegistry?.get?.('gameplay.battle.start');
+    const actors = [
       {
         tipo: 'player', id: p.id, name: p.name,
         hp: p.hp, maxHp: p.maxHp, atk: Player.getAtk(), def: Player.getDef(),
@@ -102,7 +104,9 @@ const SombraHerrante = (() => {
         es_sombra_herrante: true,
         sombra_data: _clone(sombra.sombra_data || {}),
       },
-    ]);
+    ];
+    if(typeof startBattle === 'function') startBattle(nodeId, actors);
+    else Out.line('Servicio gameplay.battle.start no disponible para Sombra del Herrante.', 't-dim');
   }
 
   function _lootToNode(nodeId, items = []) {
@@ -162,7 +166,8 @@ const SombraHerrante = (() => {
 
   function _wander(payload) {
     const found = _findSombra();
-    if(!found || Net.getMyBattle?.()) return payload;
+    const getCurrentBattle = ServiceRegistry?.get?.('gameplay.battle.current');
+    if(!found || (typeof getCurrentBattle === 'function' && getCurrentBattle())) return payload;
 
     const exits = World.exits(found.nodeId);
     const nextId = U.pick(Object.values(exits), U.rng(`${Clock.cycle}:${found.enemy.id}`));

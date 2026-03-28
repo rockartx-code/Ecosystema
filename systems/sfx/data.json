@@ -1,0 +1,7 @@
+{
+  "sfx_list": [
+    "accept", "fail", "move", "talk", "trade", "map",
+    "attack", "damage", "hurt", "poison", "burn", "flee",
+    "cast", "skill", "upgrade", "levelup", "forge", "enchant", "train", "catch", "execute"
+  ]
+}

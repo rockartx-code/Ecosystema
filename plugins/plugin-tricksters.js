@@ -121,7 +121,8 @@ const TricksterSystem = (() => {
     Out.sep('═');
     Out.sp();
 
-    Net.startBattle(nodeId, [
+    const startBattle = ServiceRegistry?.get?.('gameplay.battle.start');
+    const actors = [
       {
         tipo: 'player', id: p.id, name: p.name,
         hp: p.hp, maxHp: p.maxHp, atk: Player.getAtk(), def: Player.getDef(),
@@ -141,7 +142,9 @@ const TricksterSystem = (() => {
         es_trickster: true,
         trickster: { ...def },
       },
-    ]);
+    ];
+    if(typeof startBattle === 'function') startBattle(nodeId, actors);
+    else Out.line('Servicio gameplay.battle.start no disponible para Tricksters.', 't-dim');
   }
 
   function _tryEscape(actor, battle) {
@@ -263,8 +266,8 @@ const pluginTricksters = {
     'world:node_enter': {
       fn(payload) {
         const { nodeId } = payload;
-        if(typeof Net === 'undefined') return payload;
-        if(Net.getMyBattle?.()) return payload;
+        const getCurrentBattle = ServiceRegistry?.get?.('gameplay.battle.current');
+        if(typeof getCurrentBattle === 'function' && getCurrentBattle()) return payload;
         if(Math.random() > TricksterSystem.chance()) return payload;
         setTimeout(() => TricksterSystem.spawn(nodeId), 180);
         return payload;
