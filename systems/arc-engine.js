@@ -32,9 +32,11 @@
     if(sesg) sesg.forEach(t => { pool.push(t); pool.push(t); });
     const tema       = U.pick(pool, rng);
     const def        = TEMAS[tema];
-    const plantillas = PLANTILLAS_ACTO[tema] || PLANTILLAS_ACTO.venganza;
+    const plantillas = Array.isArray(PLANTILLAS_ACTO[tema]) ? PLANTILLAS_ACTO[tema] : (Array.isArray(PLANTILLAS_ACTO.venganza) ? PLANTILLAS_ACTO.venganza : []);
     const secNPCs    = npcs.filter(n=>n.id!==npc.id&&n.estado==='vivo');
     const antagonista= secNPCs.find(n=>(D.npcs?.arquetipos_hostiles||[]).includes(n.arq_ocu)) || U.pick(secNPCs,rng) || npc;
+
+    if(!plantillas.length) return null;
 
     const actos = plantillas.map((ptpl,i) => ({
       id:          ptpl.id || `acto_${i}`,

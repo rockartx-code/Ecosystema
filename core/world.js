@@ -301,5 +301,44 @@ const GS = {
   arcsActivos()   { return Object.values(this.arcs).filter(a=>a.estado==='activo'); },
 
   ser()  { return { npcs:this.npcs, misiones:this.misiones, twists:this.twists, destruidos:this.destruidos, arcs:this.arcs }; },
-  load(d){ this.npcs=d.npcs||{}; this.misiones=d.misiones||{}; this.twists=d.twists||[]; this.destruidos=d.destruidos||[]; this.arcs=d.arcs||{}; },
+  load(d){
+    const npcDefaults = {
+      nombre:'Forastero',
+      arq_vis:'errante',
+      arq_ocu:'vacío',
+      deseo:'—',
+      necesidad:'—',
+      miedo:'—',
+      secreto:'—',
+      trauma:'—',
+      lealtad:30,
+      corrupcion:15,
+      desesperacion:25,
+      estado:'vivo',
+      secreto_expuesto:false,
+      arq_ocu_expuesto:false,
+      fragmentos:[],
+      vinculos:[],
+      misiones_ofrecidas:[],
+      interacciones:0,
+      twists_activados:[],
+    };
+    const rawNpcs = d.npcs || {};
+    this.npcs = Object.fromEntries(Object.entries(rawNpcs).map(([id, npc]) => {
+      const base = { ...npcDefaults, ...(npc || {}) };
+      return [id, {
+        ...base,
+        id: base.id || id,
+        nombre: base.nombre || `Forastero ${String(id).slice(-4)}`,
+        fragmentos: Array.isArray(base.fragmentos) ? base.fragmentos : [],
+        vinculos: Array.isArray(base.vinculos) ? base.vinculos : [],
+        misiones_ofrecidas: Array.isArray(base.misiones_ofrecidas) ? base.misiones_ofrecidas : [],
+        twists_activados: Array.isArray(base.twists_activados) ? base.twists_activados : [],
+      }];
+    }));
+    this.misiones=d.misiones||{};
+    this.twists=d.twists||[];
+    this.destruidos=d.destruidos||[];
+    this.arcs=d.arcs||{};
+  },
 };
