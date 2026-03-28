@@ -292,7 +292,8 @@ const DjinnInvocaciones = (() => {
   }
 
   function _inBattle() {
-    const b = Net.getMyBattle?.();
+    const battleSvc = (typeof ServiceRegistry!=='undefined' && ServiceRegistry.get) ? ServiceRegistry.get('gameplay.battle.current') : null;
+    const b = battleSvc ? battleSvc() : Net.getMyBattle?.();
     return b && b.estado === 'activo' ? b : null;
   }
 

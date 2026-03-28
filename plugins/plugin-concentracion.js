@@ -128,7 +128,9 @@ const ConcentracionSystem = (() => {
     const txt = String(args||'').trim();
 
     if(inBattle && txt) {
-      Net.sendBattleAction(battle.id, Player.get().id, 'concentracion', txt);
+      const combatAction = ServiceRegistry?.get?.('gameplay.combat.action');
+      if(typeof combatAction === 'function') combatAction(battle.id, Player.get().id, 'concentracion', txt);
+      else Net.sendBattleAction(battle.id, Player.get().id, 'concentracion', txt);
       return;
     }
 

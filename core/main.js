@@ -100,9 +100,34 @@ EventBus.defineEvents({
     kind:'command', phase:'post',
     validateIn: (p)=>_isObj(p) && _isStr(p.track || p.theme || ''),
   },
+  'audio:sfx.played': {
+    kind:'domain', phase:'observe',
+    validateIn: (p)=>_isObj(p) && (_isStr(p.cue || '') || p.cue == null),
+  },
+  'audio:music.changed': {
+    kind:'domain', phase:'observe',
+    validateIn: (p)=>_isObj(p) && (_isStr(p.track || '') || p.track == null),
+  },
+  'audio:error': {
+    kind:'domain', phase:'observe',
+    validateIn: (p)=>_isObj(p),
+  },
   'control:action': {
     kind:'command', phase:'pre',
     validateIn: (p)=>_isObj(p) && _isStr(p.verb || ''),
+  },
+  'control:binding.request': {
+    kind:'query', phase:'pre',
+    validateIn: (p)=>_isObj(p),
+    validateOut: (p)=>_isObj(p) || p == null,
+  },
+  'control:binding.changed': {
+    kind:'domain', phase:'post',
+    validateIn: (p)=>_isObj(p),
+  },
+  'module:loaded': {
+    kind:'domain', phase:'post',
+    validateIn: (p)=>_isObj(p) && (_isObj(p.meta || {}) || p.meta == null),
   },
   'plugin:loaded': {
     kind:'domain', phase:'post',
@@ -130,6 +155,112 @@ EventBus.defineEvents({
   'world:tick': {
     kind:'domain', phase:'post',
     validateIn: (p)=>_isObj(p) && (_isNum(p.cycle) || p.cycle == null),
+  },
+  'combat:start': {
+    kind:'domain', phase:'main',
+    validateIn: (p)=>_isObj(p) && _isObj(p.battle || {}) && (_isObj(p.enemy || {}) || p.enemy == null),
+  },
+  'combat:before_attack': {
+    kind:'query', phase:'pre',
+    validateIn: (p)=>_isObj(p) && _isObj(p.attacker || {}),
+    validateOut: (p)=>_isObj(p),
+  },
+  'combat:before_damage_apply': {
+    kind:'query', phase:'pre',
+    validateIn: (p)=>_isObj(p) && (_isNum(p.dmg) || p.dmg == null),
+    validateOut: (p)=>_isObj(p) && (_isNum(p.dmg) || p.dmg == null),
+  },
+  'combat:after_attack': {
+    kind:'domain', phase:'post',
+    validateIn: (p)=>_isObj(p) && _isObj(p.attacker || {}),
+  },
+  'combat:after_damage_apply': {
+    kind:'domain', phase:'post',
+    validateIn: (p)=>_isObj(p) && (_isObj(p.actor || {}) || _isObj(p.target || {})),
+  },
+  'combat:enemy_used_magia': {
+    kind:'domain', phase:'post',
+    validateIn: (p)=>_isObj(p) && (_isObj(p.actor || {}) || p.actor == null),
+  },
+  'combat:player_hit': {
+    kind:'domain', phase:'post',
+    validateIn: (p)=>_isObj(p) && (_isNum(p.damage) || p.damage == null),
+  },
+  'combat:enemy_defeat': {
+    kind:'domain', phase:'post',
+    validateIn: (p)=>_isObj(p) && (_isObj(p.enemy || {}) || p.enemy == null),
+  },
+  'combat:loot': {
+    kind:'domain', phase:'post',
+    validateIn: (p)=>_isObj(p) && (Array.isArray(p.items) || p.items == null),
+  },
+  'narrative:npc_gen': {
+    kind:'domain', phase:'main',
+    validateIn: (p)=>_isObj(p) && (_isObj(p.npc || {}) || p.npc == null),
+  },
+  'narrative:npc_speak': {
+    kind:'domain', phase:'main',
+    validateIn: (p)=>_isObj(p) && (_isStr(p.text || '') || p.text == null),
+  },
+  'narrative:npc_interact': {
+    kind:'domain', phase:'main',
+    validateIn: (p)=>_isObj(p) && (_isObj(p.npc || {}) || p.npc == null),
+  },
+  'narrative:npc_death': {
+    kind:'domain', phase:'post',
+    validateIn: (p)=>_isObj(p) && (_isObj(p.npc || {}) || p.npc == null),
+  },
+  'narrative:npc_twist': {
+    kind:'domain', phase:'post',
+    validateIn: (p)=>_isObj(p) && (_isObj(p.twist || {}) || p.twist == null),
+  },
+  'narrative:mission_gen': {
+    kind:'domain', phase:'main',
+    validateIn: (p)=>_isObj(p) && (_isObj(p.mision || {}) || p.mision == null),
+  },
+  'narrative:mission_complete': {
+    kind:'domain', phase:'post',
+    validateIn: (p)=>_isObj(p) && (_isObj(p.mision || {}) || p.mision == null),
+  },
+  'narrative:mission_fail': {
+    kind:'domain', phase:'post',
+    validateIn: (p)=>_isObj(p) && (_isObj(p.mision || {}) || p.mision == null),
+  },
+  'player:stat_change': {
+    kind:'domain', phase:'post',
+    validateIn: (p)=>_isObj(p) && (_isStr(p.stat || '') || p.stat == null),
+  },
+  'player:create': {
+    kind:'domain', phase:'main',
+    validateIn: (p)=>_isObj(p) && (_isObj(p.player || {}) || p.player == null),
+  },
+  'player:item_add': {
+    kind:'domain', phase:'post',
+    validateIn: (p)=>_isObj(p) && (_isObj(p.item || {}) || p.item == null),
+  },
+  'player:item_remove': {
+    kind:'domain', phase:'post',
+    validateIn: (p)=>_isObj(p) && (_isObj(p.item || {}) || p.item == null),
+  },
+  'player:equip': {
+    kind:'domain', phase:'post',
+    validateIn: (p)=>_isObj(p) && (_isObj(p.item || {}) || p.item == null),
+  },
+  'player:tick': {
+    kind:'domain', phase:'post',
+    validateIn: (p)=>_isObj(p) && (_isObj(p.player || {}) || p.player == null),
+  },
+  'player:die': {
+    kind:'domain', phase:'post',
+    validateIn: (p)=>_isObj(p),
+  },
+  'memory:run_start': {
+    kind:'domain', phase:'main',
+    validateIn: (p)=>_isObj(p),
+  },
+  'memory:run_end': {
+    kind:'domain', phase:'post',
+    validateIn: (p)=>_isObj(p),
   },
 });
 

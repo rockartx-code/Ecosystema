@@ -37,16 +37,45 @@ function _semverCmp(a,b) {
   for(let i=0;i<3;i++){ if(A[i] > B[i]) return 1; if(A[i] < B[i]) return -1; }
   return 0;
 }
+function _semverBumpMajor(v='0.0.0') {
+  const [a] = _semverParse(v);
+  return `${a+1}.0.0`;
+}
+function _semverBumpMinor(v='0.0.0') {
+  const [a,b] = _semverParse(v);
+  return `${a}.${b+1}.0`;
+}
+function _expandSemverToken(tok='') {
+  const t = String(tok || '').trim();
+  if(!t) return [];
+  if(t.startsWith('^')) {
+    const base = t.slice(1) || '0.0.0';
+    const [maj,min] = _semverParse(base);
+    const upper = maj > 0 ? _semverBumpMajor(base) : `0.${min+1}.0`;
+    return [`>=${base}`, `<${upper}`];
+  }
+  if(t.startsWith('~')) {
+    const base = t.slice(1) || '0.0.0';
+    const [maj] = _semverParse(base);
+    const upper = maj > 0 || base.includes('.') ? _semverBumpMinor(base) : _semverBumpMajor(base);
+    return [`>=${base}`, `<${upper}`];
+  }
+  return [t];
+}
 function _satisfiesVersion(version='0.0.0', req='') {
   if(!req || req==='*') return true;
-  const chunks = String(req).split(/\s+/).filter(Boolean);
-  return chunks.every(tok => {
-    if(tok.startsWith('>=')) return _semverCmp(version, tok.slice(2)) >= 0;
-    if(tok.startsWith('<=')) return _semverCmp(version, tok.slice(2)) <= 0;
-    if(tok.startsWith('>'))  return _semverCmp(version, tok.slice(1)) > 0;
-    if(tok.startsWith('<'))  return _semverCmp(version, tok.slice(1)) < 0;
-    if(tok.startsWith('='))  return _semverCmp(version, tok.slice(1)) === 0;
-    return _semverCmp(version, tok) === 0;
+  const groups = String(req).split(/\s*\|\|\s*/).map(g => g.trim()).filter(Boolean);
+  return groups.some(group => {
+    const chunks = group.split(/\s+/).filter(Boolean).flatMap(_expandSemverToken);
+    return chunks.every(tok => {
+      if(tok === '*') return true;
+      if(tok.startsWith('>=')) return _semverCmp(version, tok.slice(2)) >= 0;
+      if(tok.startsWith('<=')) return _semverCmp(version, tok.slice(2)) <= 0;
+      if(tok.startsWith('>'))  return _semverCmp(version, tok.slice(1)) > 0;
+      if(tok.startsWith('<'))  return _semverCmp(version, tok.slice(1)) < 0;
+      if(tok.startsWith('='))  return _semverCmp(version, tok.slice(1)) === 0;
+      return _semverCmp(version, tok) === 0;
+    });
   });
 }
 
@@ -59,6 +88,8 @@ const EventBus = {
   _traces:    [],
   _specs:     {},
   _dispatchId: 0,
+  _validationPolicy: 'dev',
+  _health: {},
 
   on(event, handler, pluginId='core', opts={}) {
     if(!this._listeners[event]) this._listeners[event]=[];
@@ -67,6 +98,8 @@ const EventBus = {
       priority: opts.priority ?? 50,
       once:     opts.once    ?? false,
       phase:    opts.phase   ?? 'main',
+      timeoutMs: Number(opts.timeoutMs ?? 0) || 0,
+      onTimeout: ['warn','cancel','error'].includes(opts.onTimeout) ? opts.onTimeout : 'warn',
     });
     this._listeners[event].sort((a,b)=>{
       const phaseOrder = { pre:0, main:1, post:2, observe:3 };
@@ -92,13 +125,37 @@ const EventBus = {
   defineEvents(specs={}) {
     for(const [ev, spec] of Object.entries(specs||{})) this.defineEvent(ev, spec);
   },
+  setValidationPolicy(policy='dev') {
+    const p = String(policy || '').toLowerCase();
+    this._validationPolicy = ['dev', 'strict', 'prod'].includes(p) ? p : 'dev';
+  },
+  validationPolicy() { return this._validationPolicy; },
+  _validationIssue(event, phase, detail='') {
+    const msg = `[EventBus] validate${phase}(${event}) ${detail}`.trim();
+    if(this._validationPolicy === 'strict') throw new Error(msg);
+    if(this._validationPolicy === 'dev') console.warn(msg);
+  },
+  _touchHealth(pluginId='core', patch={}) {
+    const h = this._health[pluginId] || { calls:0, errors:0, timeouts:0, totalMs:0, lastMs:0, lastEvent:null, lastTs:null };
+    const next = { ...h };
+    if(patch.calls) next.calls += patch.calls;
+    if(patch.errors) next.errors += patch.errors;
+    if(patch.timeouts) next.timeouts += patch.timeouts;
+    if(typeof patch.ms === 'number') {
+      next.lastMs = patch.ms;
+      next.totalMs += patch.ms;
+    }
+    if(patch.event) next.lastEvent = patch.event;
+    next.lastTs = Date.now();
+    this._health[pluginId] = next;
+  },
   _validateIn(event, payload) {
     const spec = this._specs[event];
     if(typeof spec?.validateIn === 'function') {
       try {
         const ok = spec.validateIn(payload);
-        if(ok===false) console.warn(`[EventBus] payload inválido de entrada en ${event}`);
-      } catch(e) { console.warn(`[EventBus] validateIn(${event}) falló:`, e); }
+        if(ok===false) this._validationIssue(event, 'In', '→ payload inválido de entrada');
+      } catch(e) { this._validationIssue(event, 'In', `falló: ${String(e?.message||e)}`); }
     }
   },
   _validateOut(event, payload) {
@@ -106,8 +163,8 @@ const EventBus = {
     if(typeof spec?.validateOut === 'function') {
       try {
         const ok = spec.validateOut(payload);
-        if(ok===false) console.warn(`[EventBus] payload inválido de salida en ${event}`);
-      } catch(e) { console.warn(`[EventBus] validateOut(${event}) falló:`, e); }
+        if(ok===false) this._validationIssue(event, 'Out', '→ payload inválido de salida');
+      } catch(e) { this._validationIssue(event, 'Out', `falló: ${String(e?.message||e)}`); }
     }
   },
 
@@ -125,12 +182,23 @@ const EventBus = {
       const t0 = Date.now();
       try {
         const result = l.handler(current, CTX);
+        const elapsed = Date.now()-t0;
+        const timedOut = l.timeoutMs > 0 && elapsed > l.timeoutMs;
         if(result !== undefined) current = result;
         if(l.once) toRemove.push(l);
+        this._touchHealth(l.pluginId, { calls:1, ms:elapsed, event });
+        if(timedOut) {
+          this._touchHealth(l.pluginId, { timeouts:1, event });
+          const msg = `[EventBus] timeout ${l.pluginId} → ${event}: ${elapsed}ms > ${l.timeoutMs}ms`;
+          if(l.onTimeout === 'error') throw new Error(msg);
+          if(l.onTimeout === 'cancel' && current && typeof current === 'object') current.cancelled = true;
+          console.warn(msg);
+        }
         if(current?.cancelled) break;
-        this._traces.push({ id:dispatchId, event, pluginId:l.pluginId, phase:l.phase, ms:(Date.now()-t0), ok:true, ts:Date.now() });
+        this._traces.push({ id:dispatchId, event, pluginId:l.pluginId, phase:l.phase, ms:elapsed, ok:true, timeout:timedOut, ts:Date.now() });
       } catch(e) {
         console.warn(`[EventBus] ${l.pluginId} → ${event}:`, e);
+        this._touchHealth(l.pluginId, { errors:1, ms:(Date.now()-t0), event });
         this._traces.push({ id:dispatchId, event, pluginId:l.pluginId, phase:l.phase, ms:(Date.now()-t0), ok:false, err:String(e?.message||e), ts:Date.now() });
       }
       if(this._traces.length>800) this._traces.shift();
@@ -175,6 +243,10 @@ const EventBus = {
   history(n=20) { return this._history.slice(-n); },
   listeners(event) { return [...(this._listeners[event]||[])].map(l=>({ pluginId:l.pluginId, priority:l.priority, phase:l.phase, once:l.once })); },
   trace(n=50)   { return this._traces.slice(-n); },
+  health(pluginId=null) {
+    if(pluginId) return this._health[pluginId] || null;
+    return Object.entries(this._health).map(([id, h]) => ({ pluginId:id, ...h, avgMs:h.calls ? Number((h.totalMs/h.calls).toFixed(2)) : 0 }));
+  },
   spec(event)   { return this._specs[event]||null; },
 };
 
@@ -245,6 +317,11 @@ const PluginLoader = {
     if(!m) return { id:String(raw), range:'*' };
     return { id:m[1], range:(m[2]||'*').trim() || '*' };
   },
+  _providedServices(def={}) {
+    const fromInline = Object.keys(def.services || {});
+    const fromManifest = (def.provides?.services || []).filter(Boolean);
+    return [...new Set([...fromInline, ...fromManifest])];
+  },
   _dependencyErrors(def) {
     const errs = [];
     const req = def.requires || {};
@@ -270,9 +347,16 @@ const PluginLoader = {
   },
   _dependencyOrder(defs=[]) {
     const map = new Map(defs.filter(Boolean).map(d=>[d.id, d]));
+    const serviceProviders = new Map();
     const indeg = new Map();
     const out = new Map();
     for(const id of map.keys()) { indeg.set(id, 0); out.set(id, new Set()); }
+    for(const d of map.values()) {
+      for(const svc of this._providedServices(d)) {
+        if(!serviceProviders.has(svc)) serviceProviders.set(svc, new Set());
+        serviceProviders.get(svc).add(d.id);
+      }
+    }
 
     const addEdge = (from, to) => {
       if(!map.has(from) || !map.has(to) || from===to) return;
@@ -286,6 +370,10 @@ const PluginLoader = {
       (req.plugins||[]).forEach(raw => {
         const dep = this._parseDep(raw);
         addEdge(dep.id, d.id);
+      });
+      (req.services||[]).forEach(svc => {
+        const providers = [...(serviceProviders.get(svc) || [])];
+        providers.forEach(pid => addEdge(pid, d.id));
       });
       const load = d.load || {};
       (load.after||[]).forEach(afterId => addEdge(afterId, d.id));
@@ -306,7 +394,24 @@ const PluginLoader = {
       }
     }
     const unresolved = [...map.keys()].filter(id => !sorted.find(d=>d.id===id)).map(id => map.get(id));
-    return { sorted, unresolved };
+    const unresolvedSet = new Set(unresolved.map(d=>d.id));
+    const cycles = [];
+    for(const d of unresolved) {
+      const deps = [];
+      const req = d.requires || {};
+      for(const raw of (req.plugins||[])) {
+        const dep = this._parseDep(raw).id;
+        if(unresolvedSet.has(dep)) deps.push(`plugin:${dep}`);
+      }
+      for(const svc of (req.services||[])) {
+        const providers = [...(serviceProviders.get(svc) || [])].filter(pid => unresolvedSet.has(pid));
+        if(providers.length) deps.push(`service:${svc}→[${providers.join(',')}]`);
+      }
+      for(const dep of (d.load?.after||[])) if(unresolvedSet.has(dep)) deps.push(`after:${dep}`);
+      for(const dep of (d.load?.before||[])) if(unresolvedSet.has(dep)) deps.push(`before:${dep}`);
+      if(deps.length) cycles.push({ id:d.id, deps });
+    }
+    return { sorted, unresolved, cycles };
   },
   registerMany(defs=[]) {
     const orderRes = this._dependencyOrder(defs);
@@ -326,9 +431,17 @@ const PluginLoader = {
       }
     }
     if(pending.length) {
-      this._pending = pending.map(d=>({ id:d.id, errors:this._dependencyErrors(d) }));
+      const cycleById = new Map((orderRes.cycles||[]).map(c => [c.id, c]));
+      this._pending = pending.map(d=>{
+        const errors = this._dependencyErrors(d);
+        const cyc = cycleById.get(d.id);
+        if(cyc) errors.push(`Posible ciclo de dependencias: ${cyc.deps.join(' ; ')}`);
+        return { id:d.id, errors };
+      });
       pending.forEach(d=>{
-        const errs = this._dependencyErrors(d);
+        const cyc = cycleById.get(d.id);
+        const errs = [...this._dependencyErrors(d)];
+        if(cyc) errs.push(`Posible ciclo de dependencias: ${cyc.deps.join(' ; ')}`);
         console.warn(`[PluginLoader] pendiente ${d.id}:`, errs.join(' | '));
       });
     } else {

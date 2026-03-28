@@ -184,6 +184,8 @@ function _anclaCompatible(creature) {
 // ── Comandos ──────────────────────────────────────────────────────
 function cmdCapturar(args) {
   const target = args.join(' ').trim();
+  const captureService = ServiceRegistry?.get?.('gameplay.capture.start');
+  if(typeof captureService === 'function') return captureService(target);
   const q      = target.toLowerCase();
   const n      = World.node(Player.pos());
   const cre    = target
@@ -297,7 +299,11 @@ function cmdVincular(args, battle) {
   Out.sep('─'); Out.sp();
 
   EventBus.emit('creature:bound', { creature:cre, player:p });
-  if(battle) Net.sendBattleAction(battle.id, p.id, 'huir', null);
+  if(battle) {
+    const leaveBattle = ServiceRegistry?.get?.('gameplay.combat.escape');
+    if(typeof leaveBattle === 'function') leaveBattle(battle, p.id);
+    else Net.sendBattleAction(battle.id, p.id, 'huir', null);
+  }
   save();
 }
 
