@@ -357,9 +357,10 @@ const Tactics = (() => {
       World,
       Out,
       EventBus,
-      Combat,
+      Combat: typeof globalThis.Combat !== 'undefined' ? globalThis.Combat : undefined,
       ModuleLoader,
     },
   });
 })();
 
+globalThis.Tactics = Tactics;

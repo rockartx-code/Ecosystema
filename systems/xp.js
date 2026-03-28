@@ -227,7 +227,8 @@ const XP = (() => {
     Out,
     Player,
     refreshStatus,
-    save,
+    save: typeof globalThis.save === 'function' ? globalThis.save : () => {},
   });
 })();
 
+globalThis.XP = XP;

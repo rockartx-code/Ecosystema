@@ -609,18 +609,19 @@ const Net = (() => {
       World,
       GS,
       Clock,
-      XP: typeof XP !== 'undefined' ? XP : undefined,
+      XP: typeof globalThis.XP !== 'undefined' ? globalThis.XP : undefined,
       Player,
-      Combat: typeof Combat !== 'undefined' ? Combat : undefined,
-      CombatResolution: typeof CombatResolution !== 'undefined' ? CombatResolution : undefined,
-      Tactics: typeof Tactics !== 'undefined' ? Tactics : undefined,
+      Combat: typeof globalThis.Combat !== 'undefined' ? globalThis.Combat : undefined,
+      CombatResolution: typeof globalThis.CombatResolution !== 'undefined' ? globalThis.CombatResolution : undefined,
+      Tactics: typeof globalThis.Tactics !== 'undefined' ? globalThis.Tactics : undefined,
       refreshStatus,
-      save,
-      ConcentracionSystem: typeof ConcentracionSystem !== 'undefined' ? ConcentracionSystem : undefined,
-      ItemSystem: typeof ItemSystem !== 'undefined' ? ItemSystem : undefined,
-      ArcEngine: typeof ArcEngine !== 'undefined' ? ArcEngine : undefined,
+      save: typeof globalThis.save === 'function' ? globalThis.save : () => {},
+      ConcentracionSystem: typeof globalThis.ConcentracionSystem !== 'undefined' ? globalThis.ConcentracionSystem : undefined,
+      ItemSystem: typeof globalThis.ItemSystem !== 'undefined' ? globalThis.ItemSystem : undefined,
+      ArcEngine: typeof globalThis.ArcEngine !== 'undefined' ? globalThis.ArcEngine : undefined,
       ModuleLoader,
     },
   });
 })();
 
+globalThis.Net = Net;
