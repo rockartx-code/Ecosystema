@@ -225,8 +225,12 @@ async function dispatch(cmd) {
     case 'musica': case 'music': cmdMusica(args); break;
     case 'sfx':                 cmdSfx(args); break;
     case 'plugins':     cmdPlugins(); break;
+    case 'plugins_orden': cmdPluginsOrden(); break;
+    case 'plugins_pendientes': cmdPluginsPendientes(); break;
+    case 'servicios':   cmdServicios(); break;
     case 'modulos':     cmdModulos(); break;
     case 'eventos':     cmdEventos(); break;
+    case 'eventos_trace': cmdEventosTrace(args[0]); break;
     case 'cargar_modulo':  cmdCargarModulo(args.join(' ')); break;
     case 'cargar_plugin':  cmdCargarPlugin(args.join(' ')); break;
     case 'descargar_plugin': PluginLoader.unregister(args[0]); Out.line(`Plugin "${args[0]}" descargado.`,'t-mem'); break;
@@ -251,6 +255,40 @@ async function dispatch(cmd) {
 }
 
 // ── MOVIMIENTO ────────────────────────────────────────────────
+function _enterNode(dest, opts = {}) {
+  const {
+    tick = 1,
+    showLook = true,
+    saveAfter = true,
+    grantXP = true,
+  } = opts;
+
+  Player.setPos(dest);
+  Clock.tick(tick);
+  EventBus.emit('player:tick', { player:Player.get() });
+  World.visit(dest);
+
+  const nodoActual = World.node(dest);
+  if(grantXP) {
+    if(!nodoActual?.visitado_prev) {
+      nodoActual.visitado_prev = true;
+      if(typeof XP!=='undefined') XP.ganar('exploración', 10 + (nodoActual?.seccion||0)*5, 'nodo nuevo');
+      if(nodoActual?.dificultad >= 2.5) Out.line(`⚠ ZONA HOSTIL — Enemigos ×${(nodoActual.dificultad||1).toFixed(1)}`, 't-pel');
+    } else if(typeof XP !== 'undefined') { XP.ganar('exploración', 2, 'movimiento'); }
+  }
+
+  EventBus.emit('world:tick', { cycle:Clock.cycle });
+  GS.aliveNPCs().forEach(n => {
+    if(U.chance(0.12)) n.desesperacion = U.clamp(n.desesperacion + U.rand(1,5), 0, 100);
+    if(U.chance(0.07)) n.corrupcion    = U.clamp(n.corrupcion    + U.rand(1,3), 0, 100);
+    if(n.desesperacion >= 90 && U.chance(0.15)) setTimeout(() => NPCEngine.consecuenciaDesperación(n), 500);
+  });
+
+  if(showLook) cmdMirar();
+  if(saveAfter) save();
+  return dest;
+}
+
 function cmdIr(dir) {
   if(!dir) { Out.line('¿Hacia dónde? norte/sur/este/oeste', 't-dim'); return; }
   const exits = World.exits(Player.pos());
@@ -262,25 +300,7 @@ function cmdIr(dir) {
       if(!dest) { Out.line(`Sin salida al ${dir}.`, 't-dim'); return; }
     } else { Out.line(`Sin salida al ${dir}.`, 't-dim'); return; }
   }
-  Player.setPos(dest); Clock.tick(1);
-  const tickPayload = EventBus.emit('player:tick', { player:Player.get() });
-  World.visit(dest);
-
-  const nodoActual = World.node(dest);
-  if(!nodoActual?.visitado_prev) {
-    nodoActual.visitado_prev = true;
-    if(typeof XP!=='undefined') XP.ganar('exploración', 10 + (nodoActual?.seccion||0)*5, 'nodo nuevo');
-    if(nodoActual?.dificultad >= 2.5) Out.line(`⚠ ZONA HOSTIL — Enemigos ×${(nodoActual.dificultad||1).toFixed(1)}`, 't-pel');
-  } else if(typeof XP !== 'undefined') { XP.ganar('exploración', 2, 'movimiento'); }
-
-  EventBus.emit('world:tick', { cycle:Clock.cycle });
-  GS.aliveNPCs().forEach(n => {
-    if(U.chance(0.12)) n.desesperacion = U.clamp(n.desesperacion + U.rand(1,5), 0, 100);
-    if(U.chance(0.07)) n.corrupcion    = U.clamp(n.corrupcion    + U.rand(1,3), 0, 100);
-    if(n.desesperacion >= 90 && U.chance(0.15)) setTimeout(() => NPCEngine.consecuenciaDesperación(n), 500);
-  });
-
-  cmdMirar(); save();
+  _enterNode(dest, { tick:1, showLook:true, saveAfter:true, grantXP:true });
 }
 
 function cmdMirar() {
@@ -776,8 +796,12 @@ function cmdMapa(args) {
 
 // ── PLUGINS / MÓDULOS ─────────────────────────────────────────
 function cmdPlugins() { Out.sp(); Out.line('— PLUGINS ACTIVOS —','t-mag'); const pl=PluginLoader.list(); if(!pl.length){Out.line('Ninguno.','t-dim');Out.sp();return;} pl.forEach(p=>{if(p){Out.line(`  ${p.id}  v${p.version}  — ${p.descripcion||'—'}`, 't-mag');const cmds=p.comandos?Object.keys(p.comandos):[];if(cmds.length)Out.line(`    Comandos: ${cmds.join(', ')}`,'t-dim');}}); Out.sp(); }
+function cmdPluginsOrden() { Out.sp(); Out.line('— ORDEN DE RESOLUCIÓN (último batch) —','t-acc'); const ids=PluginLoader.lastBatchOrder?.()||[]; if(!ids.length){Out.line('Sin datos de batch aún.','t-dim');Out.sp();return;} ids.forEach((id,i)=>Out.line(`  ${String(i+1).padStart(2,'0')}. ${id}`,'t-dim')); Out.sp(); }
+function cmdPluginsPendientes() { Out.sp(); Out.line('— PLUGINS PENDIENTES —','t-pel'); const pp=PluginLoader.pending?.()||[]; if(!pp.length){Out.line('Sin plugins pendientes por dependencias.','t-dim');Out.sp();return;} pp.forEach(p=>{Out.line(`  ${p.id}`,'t-pel'); (p.errors||[]).forEach(e=>Out.line(`    - ${e}`,'t-dim'));}); Out.sp(); }
+function cmdServicios() { Out.sp(); Out.line('— SERVICIOS RUNTIME —','t-acc'); const sv=typeof ServiceRegistry!=='undefined'?ServiceRegistry.list():[]; if(!sv.length){Out.line('Sin servicios registrados.','t-dim');Out.sp();return;} sv.forEach(s=>Out.line(`  ${s.name}  [${s.pluginId}]  v${s.version||'0.0.0'}`,'t-dim')); Out.sp(); }
 function cmdModulos() { Out.sp(); Out.line('— MÓDULOS CARGADOS —','t-acc'); ModuleLoader.list().forEach(id=>Out.line(`  ${id}`,'t-dim')); Out.sp(); }
-function cmdEventos() { Out.sp(); Out.line('— EVENTOS EventBus —','t-acc'); const evs=Object.keys(EventBus._listeners||{}); evs.forEach(ev=>{Out.line(`  ${ev}  (${EventBus._listeners[ev]?.length||0} listeners)`,'t-dim');}); Out.sp(); }
+function cmdEventos() { Out.sp(); Out.line('— EVENTOS EventBus —','t-acc'); const evs=EventBus.events?.()||[]; evs.forEach(ev=>{const n=EventBus.listeners?.(ev)?.length||0; Out.line(`  ${ev}  (${n} listeners)`,'t-dim');}); Out.sp(); }
+function cmdEventosTrace(nRaw) { const n=Number(nRaw)||20; Out.sp(); Out.line(`— TRACE EventBus (últimos ${n}) —`,'t-acc'); const rows=EventBus.trace?.(n)||[]; if(!rows.length){Out.line('Sin trazas.','t-dim');Out.sp();return;} rows.forEach(t=>Out.line(`  #${t.id} ${t.event} :: ${t.pluginId} [${t.phase}] ${t.ms}ms ${t.ok?'OK':'ERR'}`,(t.ok?'t-dim':'t-pel'))); Out.sp(); }
 function cmdCargarModulo(jsonStr) { if(!jsonStr){Out.line('cargar_modulo <JSON>','t-dim');return;} try{const def=JSON.parse(jsonStr);ModuleLoader.apply(def);Out.line(`Módulo "${def.meta?.id||'?'}" cargado.`,'t-cra');save();}catch(e){Out.line(`Error: ${e.message}`,'t-pel');} }
 function cmdCargarPlugin(jsonStr) { if(!jsonStr){Out.line('cargar_plugin <JSON>','t-dim');return;} try{const def=JSON.parse(jsonStr);const ok=PluginLoader.registerFromJSON(def);Out.line(ok?`Plugin "${def.id}" cargado.`:`Plugin "${def.id}" ya existe.`,ok?'t-cra':'t-pel');if(ok)save();}catch(e){Out.line(`Error: ${e.message}`,'t-pel');} }
 
@@ -813,7 +837,7 @@ function cmdAyuda(tema) {
       ['MULTIJUGADOR','t-eco',['host · conectar [código] · aceptar_conexion [resp]','jugadores · desconectar','comerciar · ofrecer · confirmar_trade']],
       ['AUDIO','t-mag',['musica estado · musica on · musica off · musica midi · sfx estado · sfx on · sfx off · sfx test']],
       ['SISTEMA','t-dim',['guardar · exportar · importar · nuevo · limpiar · semilla · nombre']],
-      ['PLUGINS','t-mag',['plugins · modulos · eventos · cargar_plugin · descargar_plugin']],
+      ['PLUGINS','t-mag',['plugins · plugins_orden · plugins_pendientes · servicios · modulos · eventos · eventos_trace [n] · cargar_plugin · descargar_plugin']],
     ];
     cats.forEach(([cat,col,cmds]) => { Out.sep('─',24); Out.line(cat, col); Out.line('  '+cmds.join('  ·  '),'t-dim'); });
     Out.sp(); return;
@@ -838,3 +862,11 @@ function _cmdOfrecer(args) { const trade=Net.getTrade(Player.get().id); if(!trad
 function _cmdRetirar(args) { const trade=Net.getTrade(Player.get().id); if(!trade||trade.estado!=='activo'){Out.line('No hay comercio activo.','t-dim');return;} const lado=trade.a.playerId===Player.get().id?trade.a:trade.b; const idx=lado.oferta.findIndex(i=>(i.nombre||i.blueprint).toLowerCase().includes(args.join(' ').toLowerCase())); if(idx<0){Out.line('No está en oferta.','t-dim');return;} lado.oferta.splice(idx,1); Net.sendTradeMsg({type:'TRADE_OFFER',fromId:Player.get().id,tradeId:trade.id,oferta:lado.oferta}); Net.renderTrade(trade); }
 function _cmdConfirmarTrade() { const trade=Net.getTrade(Player.get().id); if(!trade||trade.estado!=='activo'){Out.line('No hay comercio activo.','t-dim');return;} const lado=trade.a.playerId===Player.get().id?trade.a:trade.b; lado.confirmado=true; Net.sendTradeMsg({type:'TRADE_CONFIRM',fromId:Player.get().id,tradeId:trade.id}); if(trade.a.confirmado&&trade.b.confirmado)Net.handleTradeMsg({type:'TRADE_CONFIRM',fromId:Player.get().id,tradeId:trade.id}); else Out.line('Esperando confirmación del otro jugador...','t-mem'); }
 function _cmdCancelarTrade() { const trade=Net.getTrade(Player.get().id); if(!trade){Out.line('Sin comercio.','t-dim');return;} trade.estado='cerrado'; Net.sendTradeMsg({type:'TRADE_CANCEL',fromId:Player.get().id,tradeId:trade.id}); Out.line('Comercio cancelado.','t-dim'); }
+
+if(typeof ServiceRegistry !== 'undefined') {
+  ServiceRegistry.register('gameplay.command.dispatch', (verb, args=[]) => dispatch({ verb:String(verb||'').toLowerCase(), args, raw:[verb, ...args].join(' ') }), { pluginId:'core', version:'2.1.0' });
+  ServiceRegistry.register('gameplay.move', (dir) => cmdIr(dir), { pluginId:'core', version:'2.1.0' });
+  ServiceRegistry.register('gameplay.look', () => cmdMirar(), { pluginId:'core', version:'2.1.0' });
+  ServiceRegistry.register('gameplay.enter_node', (dest, opts={}) => _enterNode(dest, opts), { pluginId:'core', version:'2.1.0' });
+  ServiceRegistry.register('gameplay.move_and_tick', (dir) => cmdIr(dir), { pluginId:'core', version:'2.1.0' });
+}

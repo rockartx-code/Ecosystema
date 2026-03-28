@@ -170,3 +170,11 @@ function _refreshStatus() {
 // Exponer _refreshStatus en CTX para que los comandos lo usen
 // (reemplaza todos los R.upd() esparcidos)
 const refreshStatus = _refreshStatus;
+
+if(typeof ServiceRegistry !== 'undefined') {
+  ServiceRegistry.register('io.out.line',   (text, color='t-out', bold=false)=>Out.line(text, color, bold), { pluginId:'core', version:'2.1.0' });
+  ServiceRegistry.register('io.out.status', (slots)=>Out.status(slots), { pluginId:'core', version:'2.1.0' });
+  ServiceRegistry.register('io.out.clear',  ()=>Out.clear(), { pluginId:'core', version:'2.1.0' });
+  ServiceRegistry.register('io.in.submit',  (raw)=>In.submit(raw), { pluginId:'core', version:'2.1.0' });
+  ServiceRegistry.register('io.status.refresh', ()=>refreshStatus(), { pluginId:'core', version:'2.1.0' });
+}

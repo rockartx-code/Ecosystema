@@ -28,12 +28,37 @@ const U = {
   },
 };
 
+function _semverParse(v='0.0.0') {
+  const [a='0',b='0',c='0'] = String(v).split('.');
+  return [Number(a)||0, Number(b)||0, Number(c)||0];
+}
+function _semverCmp(a,b) {
+  const A = _semverParse(a), B = _semverParse(b);
+  for(let i=0;i<3;i++){ if(A[i] > B[i]) return 1; if(A[i] < B[i]) return -1; }
+  return 0;
+}
+function _satisfiesVersion(version='0.0.0', req='') {
+  if(!req || req==='*') return true;
+  const chunks = String(req).split(/\s+/).filter(Boolean);
+  return chunks.every(tok => {
+    if(tok.startsWith('>=')) return _semverCmp(version, tok.slice(2)) >= 0;
+    if(tok.startsWith('<=')) return _semverCmp(version, tok.slice(2)) <= 0;
+    if(tok.startsWith('>'))  return _semverCmp(version, tok.slice(1)) > 0;
+    if(tok.startsWith('<'))  return _semverCmp(version, tok.slice(1)) < 0;
+    if(tok.startsWith('='))  return _semverCmp(version, tok.slice(1)) === 0;
+    return _semverCmp(version, tok) === 0;
+  });
+}
+
 // ── EventBus ─────────────────────────────────────────────────────
 // Pipeline mutable: cada listener recibe el payload del anterior.
 // Si payload.cancelled === true, la cadena se detiene.
 const EventBus = {
   _listeners: {},
   _history:   [],
+  _traces:    [],
+  _specs:     {},
+  _dispatchId: 0,
 
   on(event, handler, pluginId='core', opts={}) {
     if(!this._listeners[event]) this._listeners[event]=[];
@@ -41,8 +66,15 @@ const EventBus = {
       handler, pluginId,
       priority: opts.priority ?? 50,
       once:     opts.once    ?? false,
+      phase:    opts.phase   ?? 'main',
     });
-    this._listeners[event].sort((a,b)=>a.priority-b.priority);
+    this._listeners[event].sort((a,b)=>{
+      const phaseOrder = { pre:0, main:1, post:2, observe:3 };
+      const pa = phaseOrder[a.phase] ?? 1;
+      const pb = phaseOrder[b.phase] ?? 1;
+      if(pa!==pb) return pa-pb;
+      return a.priority-b.priority;
+    });
   },
 
   once(event, handler, pluginId, opts={}) {
@@ -54,8 +86,35 @@ const EventBus = {
       this._listeners[ev] = this._listeners[ev].filter(l=>l.pluginId!==pluginId);
   },
 
+  defineEvent(event, spec={}) {
+    this._specs[event] = { ...this._specs[event], ...spec, event };
+  },
+  defineEvents(specs={}) {
+    for(const [ev, spec] of Object.entries(specs||{})) this.defineEvent(ev, spec);
+  },
+  _validateIn(event, payload) {
+    const spec = this._specs[event];
+    if(typeof spec?.validateIn === 'function') {
+      try {
+        const ok = spec.validateIn(payload);
+        if(ok===false) console.warn(`[EventBus] payload inválido de entrada en ${event}`);
+      } catch(e) { console.warn(`[EventBus] validateIn(${event}) falló:`, e); }
+    }
+  },
+  _validateOut(event, payload) {
+    const spec = this._specs[event];
+    if(typeof spec?.validateOut === 'function') {
+      try {
+        const ok = spec.validateOut(payload);
+        if(ok===false) console.warn(`[EventBus] payload inválido de salida en ${event}`);
+      } catch(e) { console.warn(`[EventBus] validateOut(${event}) falló:`, e); }
+    }
+  },
+
   emit(event, payload={}) {
-    this._history.push({ event, ts:Date.now() });
+    this._validateIn(event, payload);
+    const dispatchId = ++this._dispatchId;
+    this._history.push({ id:dispatchId, event, ts:Date.now() });
     if(this._history.length>200) this._history.shift();
 
     const listeners = [...(this._listeners[event]||[])];
@@ -63,29 +122,89 @@ const EventBus = {
     const toRemove = [];
 
     for(const l of listeners) {
+      const t0 = Date.now();
       try {
         const result = l.handler(current, CTX);
         if(result !== undefined) current = result;
         if(l.once) toRemove.push(l);
         if(current?.cancelled) break;
+        this._traces.push({ id:dispatchId, event, pluginId:l.pluginId, phase:l.phase, ms:(Date.now()-t0), ok:true, ts:Date.now() });
       } catch(e) {
         console.warn(`[EventBus] ${l.pluginId} → ${event}:`, e);
+        this._traces.push({ id:dispatchId, event, pluginId:l.pluginId, phase:l.phase, ms:(Date.now()-t0), ok:false, err:String(e?.message||e), ts:Date.now() });
       }
+      if(this._traces.length>800) this._traces.shift();
     }
 
     if(toRemove.length && this._listeners[event])
       this._listeners[event] = this._listeners[event].filter(l=>!toRemove.includes(l));
 
+    this._validateOut(event, current);
     return current;
   },
 
   emitCancellable(event, payload={}) {
-    const result = this.emit(event, { ...payload, cancelled:false });
+    const token = payload?.cancelToken || { cancelled:false, reason:null };
+    const result = this.emit(event, { ...payload, cancelToken:token, cancelled:false });
     return { cancelled: result?.cancelled ?? false, payload: result };
+  },
+
+  emitDomain(event, payload={}) {
+    const frozen = (payload && typeof payload==='object') ? Object.freeze({ ...payload }) : payload;
+    return this.emit(event, frozen);
+  },
+  runPipeline(event, state={}) {
+    return this.emit(event, state);
+  },
+  request(event, payload={}, opts={ mode:'first' }) {
+    const listeners = [...(this._listeners[event]||[])];
+    const results = [];
+    for(const l of listeners) {
+      try {
+        const r = l.handler(payload, CTX);
+        if(r !== undefined) results.push(r);
+      } catch(e) {
+        console.warn(`[EventBus] request ${l.pluginId} → ${event}:`, e);
+      }
+    }
+    if(opts?.mode==='all') return results;
+    return results[0];
   },
 
   events()      { return Object.keys(this._listeners); },
   history(n=20) { return this._history.slice(-n); },
+  listeners(event) { return [...(this._listeners[event]||[])].map(l=>({ pluginId:l.pluginId, priority:l.priority, phase:l.phase, once:l.once })); },
+  trace(n=50)   { return this._traces.slice(-n); },
+  spec(event)   { return this._specs[event]||null; },
+};
+
+// ── ServiceRegistry ──────────────────────────────────────────────
+// Registro de capacidades runtime para evitar dependencias globales
+// entre plugins/sistemas.
+const ServiceRegistry = {
+  _services: {},
+
+  register(name, fn, opts={}) {
+    if(!name || typeof fn !== 'function') return false;
+    this._services[name] = {
+      fn,
+      pluginId: opts.pluginId || 'core',
+      version:  opts.version  || '0.0.0',
+      meta:     opts.meta     || {},
+    };
+    return true;
+  },
+  get(name) { return this._services[name]?.fn || null; },
+  info(name){ return this._services[name] || null; },
+  has(name) { return !!this._services[name]; },
+  call(name, ...args) { return this._services[name]?.fn?.(...args); },
+  list() {
+    return Object.entries(this._services).map(([name,s])=>({ name, pluginId:s.pluginId, version:s.version, meta:s.meta }));
+  },
+  unregisterByPlugin(pluginId) {
+    for(const [k,s] of Object.entries(this._services))
+      if(s.pluginId===pluginId) delete this._services[k];
+  },
 };
 
 // ── ModuleLoader ─────────────────────────────────────────────────
@@ -118,9 +237,115 @@ const ModuleLoader = {
 const PluginLoader = {
   plugins: {},
   order:   [],
+  _pending: [],
+  _lastBatchOrder: [],
+
+  _parseDep(raw='') {
+    const m = String(raw).match(/^([^<>=\s]+)\s*(.*)$/);
+    if(!m) return { id:String(raw), range:'*' };
+    return { id:m[1], range:(m[2]||'*').trim() || '*' };
+  },
+  _dependencyErrors(def) {
+    const errs = [];
+    const req = def.requires || {};
+    const reqPlugins = req.plugins || [];
+    for(const depRaw of reqPlugins) {
+      const dep = this._parseDep(depRaw);
+      const p = this.plugins[dep.id]?.def;
+      if(!p) { errs.push(`Falta plugin requerido: ${dep.id}`); continue; }
+      if(dep.range!=='*' && !_satisfiesVersion(p.version||'0.0.0', dep.range))
+        errs.push(`Versión inválida para ${dep.id}: ${p.version||'0.0.0'} !~ ${dep.range}`);
+    }
+    const reqServices = req.services || [];
+    for(const s of reqServices)
+      if(!ServiceRegistry.has(s)) errs.push(`Falta servicio requerido: ${s}`);
+    for(const c of (def.conflicts||[]))
+      if(this.plugins[c]) errs.push(`Conflicto con plugin activo: ${c}`);
+    const load = def.load || {};
+    for(const afterId of (load.after||[]))
+      if(!this.plugins[afterId]) errs.push(`Orden inválido: requiere cargar después de ${afterId}`);
+    for(const beforeId of (load.before||[]))
+      if(this.plugins[beforeId]) errs.push(`Orden inválido: debía cargar antes de ${beforeId}`);
+    return errs;
+  },
+  _dependencyOrder(defs=[]) {
+    const map = new Map(defs.filter(Boolean).map(d=>[d.id, d]));
+    const indeg = new Map();
+    const out = new Map();
+    for(const id of map.keys()) { indeg.set(id, 0); out.set(id, new Set()); }
+
+    const addEdge = (from, to) => {
+      if(!map.has(from) || !map.has(to) || from===to) return;
+      if(out.get(from).has(to)) return;
+      out.get(from).add(to);
+      indeg.set(to, (indeg.get(to)||0) + 1);
+    };
+
+    for(const d of map.values()) {
+      const req = d.requires || {};
+      (req.plugins||[]).forEach(raw => {
+        const dep = this._parseDep(raw);
+        addEdge(dep.id, d.id);
+      });
+      const load = d.load || {};
+      (load.after||[]).forEach(afterId => addEdge(afterId, d.id));
+      (load.before||[]).forEach(beforeId => addEdge(d.id, beforeId));
+    }
+
+    const q = [...map.keys()].filter(id => (indeg.get(id)||0)===0).sort();
+    const sorted = [];
+    while(q.length) {
+      const id = q.shift();
+      sorted.push(map.get(id));
+      for(const to of out.get(id)||[]) {
+        indeg.set(to, indeg.get(to)-1);
+        if(indeg.get(to)===0) {
+          q.push(to);
+          q.sort();
+        }
+      }
+    }
+    const unresolved = [...map.keys()].filter(id => !sorted.find(d=>d.id===id)).map(id => map.get(id));
+    return { sorted, unresolved };
+  },
+  registerMany(defs=[]) {
+    const orderRes = this._dependencyOrder(defs);
+    this._lastBatchOrder = orderRes.sorted.map(d=>d.id);
+    const pending = [...orderRes.sorted, ...orderRes.unresolved];
+    let loaded = 0;
+    let advanced = true;
+    while(pending.length && advanced) {
+      advanced = false;
+      for(let i=pending.length-1; i>=0; i--) {
+        const def = pending[i];
+        if(!this._dependencyErrors(def).length) {
+          if(this.register(def)) loaded++;
+          pending.splice(i,1);
+          advanced = true;
+        }
+      }
+    }
+    if(pending.length) {
+      this._pending = pending.map(d=>({ id:d.id, errors:this._dependencyErrors(d) }));
+      pending.forEach(d=>{
+        const errs = this._dependencyErrors(d);
+        console.warn(`[PluginLoader] pendiente ${d.id}:`, errs.join(' | '));
+      });
+    } else {
+      this._pending = [];
+    }
+    return loaded;
+  },
 
   register(def) {
+    if(!def?.id) { console.warn('Plugin sin id.'); return false; }
     if(this.plugins[def.id]) { console.warn(`Plugin "${def.id}" ya registrado.`); return false; }
+    const depErrs = this._dependencyErrors(def);
+    if(depErrs.length) {
+      console.warn(`[PluginLoader] ${def.id} no cargado por dependencias:`, depErrs.join(' | '));
+      EventBus.emit('plugin:error', { id:def.id, errors:depErrs });
+      return false;
+    }
     const store = {};
     this.plugins[def.id] = { def, store };
     this.order.push(def.id);
@@ -131,13 +356,21 @@ const PluginLoader = {
     // Registrar hooks en EventBus
     for(const [event, hookDef] of Object.entries(def.hooks||{})) {
       const handler = this._buildHandler(def, hookDef);
-      if(handler) EventBus.on(event, handler, def.id, { priority: hookDef.priority ?? 50 });
+      if(handler) EventBus.on(event, handler, def.id, { priority: hookDef.priority ?? 50, phase: hookDef.phase ?? 'main' });
     }
 
     // Registrar comandos con metadatos de ayuda
     for(const [verb, cmdDef] of Object.entries(def.comandos||{})) {
       const handler = this._buildCmdHandler(def, cmdDef);
       CommandRegistry.register(verb, handler, def.id, cmdDef.meta || {});
+    }
+
+    for(const [name, svcDef] of Object.entries(def.services||{})) {
+      if(typeof svcDef === 'function') {
+        ServiceRegistry.register(name, svcDef, { pluginId:def.id, version:def.version||'0.0.0' });
+      } else if(typeof svcDef?.fn === 'function') {
+        ServiceRegistry.register(name, svcDef.fn, { pluginId:def.id, version:svcDef.version||def.version||'0.0.0', meta:svcDef.meta||{} });
+      }
     }
 
     // Montar entradas en la status bar
@@ -155,6 +388,9 @@ const PluginLoader = {
       id: json.id, nombre: json.nombre, version: json.version,
       descripcion: json.descripcion, modulo: json.modulo,
       statusBar: json.statusBar, hooks:{}, comandos:{},
+      requires: json.requires, conflicts: json.conflicts,
+      load: json.load,
+      services: json.services || {},
     };
     for(const [event, hookDef] of Object.entries(json.hooks||{})) {
       const fnStr = handlers[hookDef.fn];
@@ -175,6 +411,7 @@ const PluginLoader = {
     const p = this.plugins[pluginId]; if(!p) return;
     EventBus.off(pluginId);
     CommandRegistry.unregister(pluginId);
+    ServiceRegistry.unregisterByPlugin(pluginId);
     this._unmountStatusBar(pluginId);
     if(typeof p.def.onUnload === 'function') p.def.onUnload(CTX);
     delete this.plugins[pluginId];
@@ -185,6 +422,8 @@ const PluginLoader = {
   get(id)           { return this.plugins[id]||null; },
   list()            { return this.order.map(id=>this.plugins[id]?.def); },
   getStore(pluginId){ return this.plugins[pluginId]?.store||{}; },
+  pending()         { return [...this._pending]; },
+  lastBatchOrder()  { return [...this._lastBatchOrder]; },
 
   ser() {
     const out={};

@@ -9,6 +9,7 @@ const AC = (() => {
   const el = document.getElementById('ac');
   let items = [];
   let sel = -1;
+  const providers = [];
 
   function _inp() {
     return document.getElementById('inp');
@@ -22,6 +23,34 @@ const AC = (() => {
     const raw = String(obj?.imprint?.hash || obj?.hash || obj?.id || '').trim();
     if(!raw) return '';
     return raw.slice(0, 6).toUpperCase();
+  }
+
+  function registerProvider(def = {}) {
+    if(!def?.id || typeof def.provide !== 'function') return false;
+    providers.push({
+      id: def.id,
+      triggers: def.triggers || [],
+      priority: Number(def.priority ?? 50),
+      provide: def.provide,
+      pluginId: def.pluginId || 'externo',
+    });
+    providers.sort((a,b)=>a.priority-b.priority);
+    return true;
+  }
+
+  function requestProviders(ctx = {}) {
+    const out = [];
+    for(const p of providers) {
+      const okTrigger = !p.triggers.length || p.triggers.includes(ctx.verb);
+      if(!okTrigger) continue;
+      try {
+        const res = p.provide(ctx) || [];
+        (Array.isArray(res)?res:[res]).forEach(i => i && out.push(i));
+      } catch(e) {
+        console.warn(`[AC] provider ${p.id} falló:`, e);
+      }
+    }
+    return out;
   }
 
   function getVerbs() {
@@ -45,7 +74,7 @@ const AC = (() => {
       { v:'usar', h:'[objeto]' }, { v:'examinar', h:'[objeto/npc]' }, { v:'atacar', h:'[objetivo]' },
       { v:'estado', h:'ver stats' }, { v:'legados', h:'historial de runs' },
       { v:'atributos', h:'ver atributos' }, { v:'experiencia', h:'ver XP' }, { v:'asignar', h:'[atributo]' },
-      { v:'musica', h:'estado/on/off/midi' }, { v:'plugins', h:'ver plugins' }, { v:'modulos', h:'ver módulos' }, { v:'eventos', h:'ver eventos' },
+      { v:'musica', h:'estado/on/off/midi' }, { v:'plugins', h:'ver plugins' }, { v:'plugins_orden', h:'orden de resolución plugin' }, { v:'plugins_pendientes', h:'plugins pendientes por deps' }, { v:'servicios', h:'ver servicios runtime' }, { v:'modulos', h:'ver módulos' }, { v:'eventos', h:'ver eventos' }, { v:'eventos_trace', h:'[n] ver trazas del EventBus' },
       { v:'guardar', h:'guardar partida' }, { v:'exportar', h:'exportar partida' },
       { v:'importar', h:'importar partida' }, { v:'semilla', h:'ver semilla' },
       { v:'nombre', h:'[nombre]' }, { v:'nuevo', h:'nueva run' },
@@ -105,8 +134,14 @@ const AC = (() => {
       }));
   }
 
-  const TAGS_ENCARNAR = ['tendón', 'nervio', 'hueso', 'sangre', 'tejido', 'médula'];
-  const TAGS_CONJURAR = ['resonante', 'corrupto', 'cristal', 'susurro', 'llama', 'vacío'];
+  function _cfg(path, fallback) {
+    try {
+      const v = ModuleLoader?.get?.(path);
+      return Array.isArray(v) ? v : fallback;
+    } catch { return fallback; }
+  }
+  const TAGS_ENCARNAR = _cfg('cli_autocomplete.tags_encarnar', ['tendón', 'nervio', 'hueso', 'sangre', 'tejido', 'médula']);
+  const TAGS_CONJURAR = _cfg('cli_autocomplete.tags_conjurar', ['resonante', 'corrupto', 'cristal', 'susurro', 'llama', 'vacío']);
 
   function getMaterialesModo(modo, yaEscritos) {
     const tagsObjetivo = modo === 'corporal' ? TAGS_ENCARNAR : TAGS_CONJURAR;
@@ -246,7 +281,7 @@ const AC = (() => {
     }).map(i => ({ ...i, group: 'usable', color: i.blueprint === 'huevo_impronta' ? 't-cri' : 't-cra' }));
   }
 
-  const MODOS = ['activo', 'defensivo', 'caza', 'autónomo', 'latente'];
+  const MODOS = _cfg('cli_autocomplete.modos_compañero', ['activo', 'defensivo', 'caza', 'autónomo', 'latente']);
 
   function resolve(raw) {
     const parts = raw.split(' ');
@@ -254,6 +289,7 @@ const AC = (() => {
     const args = parts.slice(1);
     const nargs = args.length;
     const endsSpace = raw.endsWith(' ');
+    const partial = endsSpace ? '' : (args[args.length-1]||'');
 
     if(nargs === 0 || (nargs === 1 && !endsSpace)) {
       return { list: getVerbs().filter(b => b.v.startsWith(verb)).map(b => ({ label: b.v, value: b.v, hint: b.h, color: 't-acc', group: 'comando' })) };
@@ -261,12 +297,13 @@ const AC = (() => {
 
     const yaEscritos = endsSpace ? args : args.slice(0, -1);
 
+    let result = null;
     switch(verb) {
       case 'ir': case 'go': return { list: getSalidas() };
       case 'hablar': case 'observar': case 'traicionar': return { list: getNPCsAqui() };
       case 'preguntar':
         if(nargs <= 1 || (!endsSpace && nargs === 1)) return { list: getNPCsAqui() };
-        return { list: ['deseo', 'miedo', 'secreto', 'pasado', 'anterior', 'vínculo'].map(t => ({ label: t, value: t, hint: 'tema', color: 't-dim', group: 'tema' })) };
+        return { list: _cfg('cli_autocomplete.temas_preguntar', ['deseo', 'miedo', 'secreto', 'pasado', 'anterior', 'vínculo']).map(t => ({ label: t, value: t, hint: 'tema', color: 't-dim', group: 'tema' })) };
       case 'atacar': return { list: [...getNPCsAqui(), ...getEnemigosNodo(), ...getCriaturasNodo()] };
       case 'capturar': return { list: getCriaturasNodo() };
       case 'vincular': return { list: getAnclas() };
@@ -304,8 +341,33 @@ const AC = (() => {
       case 'asignar': case 'assign':
         if(typeof XP === 'undefined') return { list: [] };
         return { list: Object.entries(XP.ATRIBUTOS || {}).map(([k, def]) => ({ label: k, value: k, hint: def.desc, color: def.color, group: 'atributo' })) };
-      default: return { list: [] };
+      default: result = { list: [] };
     }
+    const fromProviders = requestProviders({
+      verb, args, partial,
+      mode: (typeof Net!=='undefined' && Net.getMyBattle?.()) ? 'battle' : 'world',
+      player: _safe(()=>Player.get(), null),
+      nodeId: _safe(()=>Player.pos(), null),
+    });
+
+    const baseList = (result && Array.isArray(result.list)) ? result.list : [];
+    if(!baseList.length) return { list: fromProviders };
+    if(!fromProviders.length) return result;
+
+    // Merge base + providers evitando duplicados por value/label.
+    const seen = new Set();
+    const merged = [];
+    const pushUnique = (item) => {
+      if(!item) return;
+      const k = `${_normToken(item.value || item.label)}::${item.group || ''}`;
+      if(seen.has(k)) return;
+      seen.add(k);
+      merged.push(item);
+    };
+
+    baseList.forEach(pushUnique);
+    fromProviders.forEach(pushUnique);
+    return { list: merged };
   }
 
   function filter(list, partial) {
@@ -399,6 +461,8 @@ const AC = (() => {
   return {
     hide,
     update,
+    registerProvider,
+    providers: () => providers.map(p=>({ id:p.id, triggers:[...p.triggers], priority:p.priority, pluginId:p.pluginId })),
     moveDown() { if(!items.length) return false; setSel(sel < 0 ? 0 : sel + 1); return true; },
     moveUp() { if(!items.length) return false; setSel(sel <= 0 ? 0 : sel - 1); return true; },
     accept() {
@@ -409,3 +473,8 @@ const AC = (() => {
     isOpen() { return !!el && el.style.display === 'block'; },
   };
 })();
+
+if(typeof ServiceRegistry !== 'undefined') {
+  ServiceRegistry.register('cli.autocomplete.registerProvider', (def)=>AC.registerProvider(def), { pluginId:'core', version:'2.1.0' });
+  ServiceRegistry.register('cli.autocomplete.providers', ()=>AC.providers(), { pluginId:'core', version:'2.1.0' });
+}
