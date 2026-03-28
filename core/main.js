@@ -64,6 +64,7 @@ const CTX = {
 
 CTX.runtime = {
   version: '2.1.0',
+  eventsVersion: '0.1.0',
   events: EventBus,
   modules: ModuleLoader,
   plugins: PluginLoader,
@@ -74,6 +75,7 @@ CTX.runtime = {
     listModules: ()=>ModuleLoader.list(),
   },
 };
+PluginLoader.setEventsVersion?.(CTX.runtime.eventsVersion);
 
 const _isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const _isStr = (v) => typeof v === 'string';

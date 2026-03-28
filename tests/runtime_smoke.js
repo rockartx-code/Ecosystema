@@ -33,6 +33,8 @@ function loadCommandsSandbox() {
     n3: { id:'n3', name:'Nodo 3', tipo:'ruina', estado:'calmo', atmos:'ok', exits:{ sur:'n2' }, loot:[], enemies:[], creatures:[], visitado:false, visitado_prev:false, dificultad:1, seccion:1 },
   };
   const player = { id:'p1', name:'Tester', nodeId:'n1', flags:[], ext:{} };
+  const battleStore = { current:null, sent:[], renders:0, aiTicks:0 };
+  const probe = { xpAssign:0, xpAttrs:0, xpExp:0, rest:0, tactica:0 };
   const sandbox = {
     console,
     globalThis: null,
@@ -92,8 +94,44 @@ function loadCommandsSandbox() {
     exportarPartida: ()=>{},
     importarPartida: ()=>{},
     Combat: { active:false },
-    XP: { ganar: ()=>{} },
+    XP: {
+      ganar: ()=>{},
+      cmdAsignar: ()=>{ probe.xpAssign += 1; },
+      cmdAtributos: ()=>{ probe.xpAttrs += 1; },
+      cmdExperiencia: ()=>{ probe.xpExp += 1; },
+      ATRIBUTOS:{},
+    },
+    Tactics: {
+      cmdDescansar: async ()=>{ probe.rest += 1; },
+      cmdTactica: ()=>{ probe.tactica += 1; },
+    },
+    Net: {
+      isClient: ()=>false,
+      sendAction: ()=>{},
+      getMyBattle: ()=>battleStore.current,
+      getBattleActor: (b)=>b?.cola?.[b.turno || 0] || null,
+      renderBattle: ()=>{ battleStore.renders += 1; },
+      sendBattleAction: (battleId, playerId, action, payload)=>{ battleStore.sent.push({ battleId, playerId, action, payload }); },
+      tickAI: ()=>{ battleStore.aiTicks += 1; },
+      battles: {},
+      joinBattle: ()=>{},
+      connect: async ()=>{},
+      host: async ()=>{},
+      acceptConexion: async ()=>{},
+      disconnect: ()=>{},
+      cmdJugadores: ()=>{},
+      playersEnNodo: ()=>[],
+      getPlayers: ()=>({}),
+      isOnline: ()=>false,
+      getTrade: ()=>null,
+      initTrade: ()=>{},
+      sendTradeMsg: ()=>{},
+      renderTrade: ()=>{},
+      handleTradeMsg: ()=>{},
+    },
     D: {},
+    __battleStore: battleStore,
+    __probe: probe,
   };
   sandbox.globalThis = sandbox;
   vm.createContext(sandbox);
@@ -433,4 +471,61 @@ function withCapturedConsole(fn) {
   }
 })();
 
+
+(function testRuntimeFacadeServicesSprint1() {
+  const { sandbox } = loadCommandsSandbox();
+  const { ServiceRegistry } = sandbox;
+  [
+    'runtime.battle.start',
+    'runtime.battle.action',
+    'runtime.battle.render',
+    'runtime.battle.tick_ai',
+    'runtime.battle.escape',
+    'runtime.player.rest',
+    'runtime.player.tactic',
+    'runtime.xp.read',
+    'runtime.xp.assign',
+    'runtime.xp.show_attrs',
+    'runtime.xp.show_exp',
+    'runtime.xp.gain',
+    'runtime.tactics.consume_stamina',
+    'runtime.tactics.calc_wound',
+    'runtime.tactics.wound_meta',
+    'runtime.tactics.apply_element',
+  ].forEach((name) => assert.strictEqual(ServiceRegistry.has(name), true, `missing service ${name}`));
+})();
+
+(async function testBattleDispatchUsesRuntimeFacades() {
+  const { sandbox } = loadCommandsSandbox();
+  const calls = [];
+  sandbox.__battleStore.current = {
+    id:'b1',
+    estado:'activo',
+    turno:0,
+    cola:[{ tipo:'player', playerId:'p1', name:'Tester', hp:10, maxHp:10, atk:5, def:2, vivo:true }],
+  };
+
+  sandbox.ServiceRegistry.register('runtime.battle.action', (battleId, playerId, action, payload)=>{ calls.push({ battleId, playerId, action, payload }); return true; }, { pluginId:'test', version:'0.0.1' });
+
+  await sandbox.dispatch({ verb:'atacar', args:['enemigo'], raw:'atacar enemigo' });
+  assert.strictEqual(calls.length, 1, 'dispatch debe usar runtime.battle.action');
+  assert.strictEqual(calls[0].action, 'atacar');
+})();
+
+(async function testProgressCommandsUseRuntimeFacades() {
+  const { sandbox } = loadCommandsSandbox();
+  const calls = { assign:0, rest:0, tactica:0 };
+
+  sandbox.ServiceRegistry.register('runtime.xp.assign', () => { calls.assign += 1; return true; }, { pluginId:'test', version:'0.0.1' });
+  sandbox.ServiceRegistry.register('runtime.player.rest', async () => { calls.rest += 1; return true; }, { pluginId:'test', version:'0.0.1' });
+  sandbox.ServiceRegistry.register('runtime.player.tactic', () => { calls.tactica += 1; return true; }, { pluginId:'test', version:'0.0.1' });
+
+  await sandbox.dispatch({ verb:'asignar', args:['combate'], raw:'asignar combate' });
+  await sandbox.dispatch({ verb:'descansar', args:[], raw:'descansar' });
+  await sandbox.dispatch({ verb:'tactica', args:[], raw:'tactica' });
+
+  assert.strictEqual(calls.assign, 1, 'asignar debe usar runtime.xp.assign');
+  assert.strictEqual(calls.rest, 1, 'descansar debe usar runtime.player.rest');
+  assert.strictEqual(calls.tactica, 1, 'tactica debe usar runtime.player.tactic');
+})();
 console.log('OK runtime_smoke');

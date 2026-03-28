@@ -118,7 +118,9 @@ const FactionSystem = (() => {
           { tipo:'player', id:p.id, name:p.name, hp:p.hp, maxHp:p.maxHp, atk:Player.getAtk(), def:Player.getDef(), nodeId, playerId:p.id },
           ...nuevos.map(e => ({ tipo:'enemy', id:e.id, name:e.nombre, hp:e.hp, maxHp:e.hp, atk:e.atk, def:e.def||0, nodeId, tags:[facId] })),
         ];
-        const startBattleSvc = (typeof ServiceRegistry!=='undefined' && ServiceRegistry.get) ? ServiceRegistry.get('gameplay.battle.start') : null;
+        const startBattleSvc = (typeof ServiceRegistry!=='undefined' && ServiceRegistry.get)
+          ? (ServiceRegistry.get('runtime.battle.start') || ServiceRegistry.get('gameplay.battle.start'))
+          : null;
         if(startBattleSvc) startBattleSvc(nodeId, combatants);
         else if(typeof Net !== 'undefined') Net.startBattle(nodeId, combatants);
       }, 800);

@@ -64,6 +64,142 @@ function pickTarget(q, list, opts = {}) {
   return scored[0].t;
 }
 
+function _svc(name) {
+  return (typeof ServiceRegistry !== 'undefined' && typeof ServiceRegistry.get === 'function')
+    ? ServiceRegistry.get(name)
+    : null;
+}
+function _battleCurrent() {
+  const getBattle = _svc('gameplay.battle.current');
+  if(typeof getBattle === 'function') return getBattle();
+  return typeof Net !== 'undefined' ? Net.getMyBattle?.() : null;
+}
+function _battleActor(battle) {
+  const getActor = _svc('gameplay.battle.actor');
+  if(typeof getActor === 'function') return getActor(battle);
+  return typeof Net !== 'undefined' ? Net.getBattleActor?.(battle) : null;
+}
+function _battleRender(battle=null) {
+  const render = _svc('runtime.battle.render');
+  if(typeof render === 'function') return !!render(battle);
+  if(typeof Net === 'undefined') return false;
+  const current = battle || Net.getMyBattle?.();
+  if(!current) return false;
+  Net.renderBattle?.(current);
+  return true;
+}
+function _battleAction(battleId, playerId, action, payload=null) {
+  const send = _svc('runtime.battle.action') || _svc('gameplay.combat.action');
+  if(typeof send === 'function') return !!send(battleId, playerId, action, payload);
+  if(typeof Net === 'undefined') return false;
+  Net.sendBattleAction?.(battleId, playerId, action, payload);
+  return true;
+}
+function _battleTickAI(battle) {
+  const tickAI = _svc('runtime.battle.tick_ai');
+  if(typeof tickAI === 'function') return !!tickAI(battle);
+  if(typeof Net === 'undefined') return false;
+  Net.tickAI?.(battle);
+  return true;
+}
+async function _playerRest() {
+  const rest = _svc('runtime.player.rest');
+  if(typeof rest === 'function') return !!(await rest());
+  if(typeof Tactics === 'undefined' || typeof Tactics.cmdDescansar !== 'function') return false;
+  await Tactics.cmdDescansar();
+  return true;
+}
+function _playerTactic() {
+  const tactica = _svc('runtime.player.tactic');
+  if(typeof tactica === 'function') return !!tactica();
+  if(typeof Tactics === 'undefined' || typeof Tactics.cmdTactica !== 'function') return false;
+  Tactics.cmdTactica();
+  return true;
+}
+function _xpShowAttrs() {
+  const attrs = _svc('runtime.xp.show_attrs');
+  if(typeof attrs === 'function') return !!attrs();
+  if(typeof XP === 'undefined' || typeof XP.cmdAtributos !== 'function') return false;
+  XP.cmdAtributos();
+  return true;
+}
+function _xpShowExp() {
+  const exp = _svc('runtime.xp.show_exp');
+  if(typeof exp === 'function') return !!exp();
+  if(typeof XP === 'undefined' || typeof XP.cmdExperiencia !== 'function') return false;
+  XP.cmdExperiencia();
+  return true;
+}
+function _xpAssign(raw='') {
+  const assign = _svc('runtime.xp.assign');
+  if(typeof assign === 'function') return !!assign(raw);
+  if(typeof XP === 'undefined' || typeof XP.cmdAsignar !== 'function') return false;
+  XP.cmdAsignar(String(raw || ''));
+  if(typeof save === 'function') save();
+  return true;
+}
+function _dispatchDomainMovement(verb, args) {
+  const movement = {
+    'ir': ()=>cmdIr(args[0]),
+    'go': ()=>cmdIr(args[0]),
+    'n': ()=>cmdIr('norte'),
+    's': ()=>cmdIr('sur'),
+    'e': ()=>cmdIr('este'),
+    'o': ()=>cmdIr('oeste'),
+    'mirar': ()=>cmdMirar(),
+    'l': ()=>cmdMirar(),
+    'ver': ()=>cmdMirar(),
+    'mapa': ()=>cmdMapa(args),
+    'map': ()=>cmdMapa(args),
+    'secciones': ()=>cmdMapa(['secciones']),
+  };
+  const fn = movement[verb];
+  if(!fn) return false;
+  fn();
+  return true;
+}
+function _dispatchDomainNarrative(verb, args) {
+  const narrative = {
+    'hablar': ()=>cmdHablar(args.join(' ')),
+    'preguntar': ()=>cmdPreguntar(args[0], args.slice(1).join(' ')),
+    'observar': ()=>cmdObservar(args.join(' ')),
+    'traicionar': ()=>cmdTraicionar(args.join(' ')),
+    'npcs': ()=>cmdNPCs(),
+    'personas': ()=>cmdNPCs(),
+    'misiones': ()=>cmdMisiones(),
+    'mis': ()=>cmdMisiones(),
+    'aceptar': ()=>cmdAceptar(args.join(' ')),
+    'rechazar': ()=>cmdRechazar(args.join(' ')),
+    'completar': ()=>cmdCompletar(args.join(' ')),
+  };
+  const fn = narrative[verb];
+  if(!fn) return false;
+  fn();
+  return true;
+}
+function _dispatchDomainCrafting(verb, args) {
+  const crafting = {
+    'forjar': ()=>cmdForjar(args),
+    'encarnar': ()=>cmdForjar(args, 'corporal'),
+    'conjurar': ()=>cmdForjar(args, 'mágico'),
+    'fusionar': ()=>cmdFusionar(args),
+    'recetas': ()=>cmdRecetas(),
+    'materiales': ()=>cmdMateriales(),
+  };
+  const fn = crafting[verb];
+  if(!fn) return false;
+  fn();
+  return true;
+}
+async function _dispatchDomainProgression(verb, args) {
+  if(['descansar','rest','dormir'].includes(verb)) { await _playerRest(); return true; }
+  if(['tactica','táctica','tac'].includes(verb)) { _playerTactic(); return true; }
+  if(['atributos','attrs'].includes(verb)) { _xpShowAttrs(); return true; }
+  if(['experiencia','xp','exp'].includes(verb)) { _xpShowExp(); return true; }
+  if(['asignar','assign'].includes(verb)) { _xpAssign(args.join(' ')); return true; }
+  return false;
+}
+
 // ── Dispatch principal ────────────────────────────────────────
 async function dispatch(cmd) {
   const { verb, args } = cmd;
@@ -74,12 +210,12 @@ async function dispatch(cmd) {
   if(typeof Net !== 'undefined' && Net.isClient()) Net.sendAction(verb, args);
 
   // ── Batalla por turnos activa ───────────────────────────────
-  const battle = typeof Net !== 'undefined' ? Net.getMyBattle?.() : null;
+  const battle = _battleCurrent();
   if(battle && battle.estado === 'activo') {
-    const actor      = Net.getBattleActor?.(battle);
+    const actor      = _battleActor(battle);
     const esMiTurno  = actor?.playerId === Player.get().id;
 
-    if(verb==='batalla'||verb==='b')    { Net.renderBattle?.(battle); return; }
+    if(verb==='batalla'||verb==='b')    { _battleRender(battle); return; }
     if(verb==='examinar'||verb==='ex')  {
       const q = (args[0]||'').toLowerCase();
       const t = battle.cola.find(c=>!q||c.name.toLowerCase().includes(q));
@@ -89,29 +225,29 @@ async function dispatch(cmd) {
     }
     if(verb==='estado'||verb==='stats') { cmdEstado(); return; }
     if(verb==='ayuda'||verb==='help'||verb==='?') { cmdAyuda(args.join(' ')); return; }
-    if(verb==='tactica'||verb==='táctica') { if(typeof Tactics!=='undefined') Tactics.cmdTactica(); return; }
-    if(verb==='huir'||verb==='h') { Net.sendBattleAction(battle.id,Player.get().id,'huir',null); Combat.active=false; return; }
+    if(verb==='tactica'||verb==='táctica') { _playerTactic(); return; }
+    if(verb==='huir'||verb==='h') { _battleAction(battle.id,Player.get().id,'huir',null); Combat.active=false; return; }
 
     if(!esMiTurno) {
       if(battle._aiThinking) { Out.line(`⏳ ${actor?.name||'IA'} está actuando...`, 't-dim'); return; }
-      if(actor?.tipo !== 'player') { Out.line(`⏳ Turno de ${actor.name} — procesando...`, 't-dim'); setTimeout(()=>Net.tickAI?.(battle),100); return; }
+      if(actor?.tipo !== 'player') { Out.line(`⏳ Turno de ${actor.name} — procesando...`, 't-dim'); setTimeout(()=>_battleTickAI(battle),100); return; }
       Out.line(`⧗ Turno de ${actor?.name||'IA'}. Espera — o escribe "huir".`, 't-dim');
       return;
     }
 
     if(actor?._concentracion_pendiente?.acciones?.length) {
       Out.line('Tu cadena de concentración estaba en espera y se ejecutará ahora.', 't-acc');
-      Net.sendBattleAction(battle.id, Player.get().id, 'concentracion_resolver', null);
+      _battleAction(battle.id, Player.get().id, 'concentracion_resolver', null);
       return;
     }
 
-    if(['atacar','a','atk'].includes(verb))    { Net.sendBattleAction(battle.id,Player.get().id,'atacar',args.join(' ')||null); return; }
-    if(verb==='defender'||verb==='d')           { Net.sendBattleAction(battle.id,Player.get().id,'defender',null); return; }
-    if(['magia','lanzar_b'].includes(verb))     { Net.sendBattleAction(battle.id,Player.get().id,'magia',args.join(' ')||null); return; }
-    if(['habilidad','hab_b'].includes(verb))    { Net.sendBattleAction(battle.id,Player.get().id,'habilidad',args.join(' ')||null); return; }
-    if(verb==='concentracion'||verb==='concentración') { Net.sendBattleAction(battle.id,Player.get().id,'concentracion',args.join(' ')||null); return; }
-    if(verb==='interiorizar')                   { Net.sendBattleAction(battle.id,Player.get().id,'interiorizar',args.join(' ')||null); return; }
-    if(verb==='transformar')                    { Net.sendBattleAction(battle.id,Player.get().id,'transformar',args.join(' ')||null); return; }
+    if(['atacar','a','atk'].includes(verb))    { _battleAction(battle.id,Player.get().id,'atacar',args.join(' ')||null); return; }
+    if(verb==='defender'||verb==='d')           { _battleAction(battle.id,Player.get().id,'defender',null); return; }
+    if(['magia','lanzar_b'].includes(verb))     { _battleAction(battle.id,Player.get().id,'magia',args.join(' ')||null); return; }
+    if(['habilidad','hab_b'].includes(verb))    { _battleAction(battle.id,Player.get().id,'habilidad',args.join(' ')||null); return; }
+    if(verb==='concentracion'||verb==='concentración') { _battleAction(battle.id,Player.get().id,'concentracion',args.join(' ')||null); return; }
+    if(verb==='interiorizar')                   { _battleAction(battle.id,Player.get().id,'interiorizar',args.join(' ')||null); return; }
+    if(verb==='transformar')                    { _battleAction(battle.id,Player.get().id,'transformar',args.join(' ')||null); return; }
     if(verb==='vincular') {
       if(typeof cmdVincular!=='undefined') cmdVincular(args.join(' ') || null, battle);
       else Out.line('No puedes vincular ahora.', 't-dim');
@@ -119,7 +255,7 @@ async function dispatch(cmd) {
     }
     if(verb==='usar') {
       const item = Player.findItem(args.join(' '));
-      if(item && typeof ItemSystem!=='undefined' && ItemSystem.CATALOGO[item.blueprint]) { ItemSystem.aplicar(item,battle); refreshStatus(); Net.sendBattleAction(battle.id,Player.get().id,'defender',null); return; }
+      if(item && typeof ItemSystem!=='undefined' && ItemSystem.CATALOGO[item.blueprint]) { ItemSystem.aplicar(item,battle); refreshStatus(); _battleAction(battle.id,Player.get().id,'defender',null); return; }
       Out.line('No puedes usar eso en batalla.','t-dim'); return;
     }
     if(verb==='copiar')    { if(typeof cmdCopiar!=='undefined')    cmdCopiar(args);    return; }
@@ -131,35 +267,24 @@ async function dispatch(cmd) {
   // Intentar comando de plugin
   if(await CommandRegistry.run(verb, args)) { EventBus.emit('command:after',{verb,args}); return; }
 
+  if(_dispatchDomainMovement(verb, args)) { EventBus.emit('command:after',{verb,args}); return; }
+  if(_dispatchDomainNarrative(verb, args)) { EventBus.emit('command:after',{verb,args}); return; }
+  if(_dispatchDomainCrafting(verb, args)) { EventBus.emit('command:after',{verb,args}); return; }
+  if(await _dispatchDomainProgression(verb, args)) { EventBus.emit('command:after',{verb,args}); return; }
+
   // Comandos del motor
   switch(verb) {
-    case 'ir': case 'go':       cmdIr(args[0]); break;
-    case 'n':                   cmdIr('norte'); break;
-    case 's':                   cmdIr('sur'); break;
-    case 'e':                   cmdIr('este'); break;
-    case 'o':                   cmdIr('oeste'); break;
-    case 'mirar': case 'l': case 'ver': cmdMirar(); break;
-
-    case 'hablar':              cmdHablar(args.join(' ')); break;
-    case 'preguntar':           cmdPreguntar(args[0], args.slice(1).join(' ')); break;
-    case 'observar':            cmdObservar(args.join(' ')); break;
-    case 'traicionar':          cmdTraicionar(args.join(' ')); break;
-    case 'npcs': case 'personas': cmdNPCs(); break;
-
-    case 'misiones': case 'mis': cmdMisiones(); break;
-    case 'aceptar':             cmdAceptar(args.join(' ')); break;
-    case 'rechazar':            cmdRechazar(args.join(' ')); break;
-    case 'completar':           cmdCompletar(args.join(' ')); break;
+    // Movement/Narrative/Crafting/Progression se enrutan en domain dispatchers
     case 'arcos': case 'arcs': case 'arc': if(typeof ArcEngine!=='undefined') ArcEngine.cmdArcs(); break;
 
     case 'facciones': case 'faccion': if(typeof FactionSystem!=='undefined') FactionSystem.cmdFacciones(); break;
     case 'reputacion': case 'rep':    _cmdReputacion(); break;
     case 'bosses': case 'boss':       if(typeof BossSystem!=='undefined') BossSystem.cmdBosses(); break;
-    case 'mapa': case 'map': cmdMapa(args); break;
-    case 'secciones':         cmdMapa(['secciones']); break;
+    case 'mapa': case 'map': cmdMapa(args); break; // fallback legacy
+    case 'secciones':         cmdMapa(['secciones']); break; // fallback legacy
 
-    case 'descansar': case 'rest': case 'dormir': if(typeof Tactics!=='undefined') await Tactics.cmdDescansar(); break;
-    case 'tactica': case 'táctica': case 'tac':   if(typeof Tactics!=='undefined') Tactics.cmdTactica(); break;
+    case 'descansar': case 'rest': case 'dormir': await _playerRest(); break; // fallback legacy
+    case 'tactica': case 'táctica': case 'tac':   _playerTactic(); break; // fallback legacy
     case 'items': case 'ítems':    if(typeof ItemSystem!=='undefined') ItemSystem.cmdItems(); break;
     case 'reparar': {
       const kit = args[0] ? Player.findItem(args[0]) : Player.get().inventory.find(i=>['kit_reparacion','kit_maestro','lima_afilado'].includes(i.blueprint));
@@ -168,12 +293,12 @@ async function dispatch(cmd) {
       break;
     }
 
-    case 'forjar':              cmdForjar(args); break;
-    case 'encarnar':            cmdForjar(args, 'corporal'); break;
-    case 'conjurar':            cmdForjar(args, 'mágico'); break;
-    case 'fusionar':            cmdFusionar(args); break;
-    case 'recetas':             cmdRecetas(); break;
-    case 'materiales':          cmdMateriales(); break;
+    case 'forjar':              cmdForjar(args); break; // fallback legacy
+    case 'encarnar':            cmdForjar(args, 'corporal'); break; // fallback legacy
+    case 'conjurar':            cmdForjar(args, 'mágico'); break; // fallback legacy
+    case 'fusionar':            cmdFusionar(args); break; // fallback legacy
+    case 'recetas':             cmdRecetas(); break; // fallback legacy
+    case 'materiales':          cmdMateriales(); break; // fallback legacy
 
     case 'habilidades': case 'hab': if(typeof cmdHabilidades!=='undefined') cmdHabilidades(); else _cmdHabilidadesBasic(); break;
     case 'magias': case 'mag':      if(typeof cmdMagias!=='undefined') cmdMagias(); else _cmdMagiasBasic(); break;
@@ -201,17 +326,17 @@ async function dispatch(cmd) {
     case 'estado': case 'stats': cmdEstado(); break;
     case 'legados': case 'ecos': cmdLegados(); break;
 
-    case 'atributos': case 'attrs': if(typeof XP!=='undefined') XP.cmdAtributos(); break;
-    case 'experiencia': case 'xp': case 'exp': if(typeof XP!=='undefined') XP.cmdExperiencia(); break;
-    case 'asignar': case 'assign': if(typeof XP!=='undefined') { XP.cmdAsignar(args.join(' ')); save(); } break;
+    case 'atributos': case 'attrs': _xpShowAttrs(); break; // fallback legacy
+    case 'experiencia': case 'xp': case 'exp': _xpShowExp(); break; // fallback legacy
+    case 'asignar': case 'assign': _xpAssign(args.join(' ')); break; // fallback legacy
 
     case 'conectar': case 'host': case 'iniciar':
       if(args.length) await Net.connect(args.join('')); else await Net.host(); break;
     case 'aceptar_conexion': await Net.acceptConexion(args[0], args[1]||null); break;
     case 'desconectar': Net.disconnect(); break;
     case 'jugadores': case 'red': case 'net': Net.cmdJugadores(); break;
-    case 'batalla': { const b=Net.getMyBattle(); if(!b){Out.line('No estás en batalla.','t-dim');break;} Net.renderBattle?.(b); break; }
-    case 'defender': { const b=Net.getMyBattle(); if(!b){Out.line('No estás en batalla.','t-dim');break;} Net.sendBattleAction(b.id,Player.get().id,'defender',null); break; }
+    case 'batalla': { const b=_battleCurrent(); if(!b){Out.line('No estás en batalla.','t-dim');break;} _battleRender(b); break; }
+    case 'defender': { const b=_battleCurrent(); if(!b){Out.line('No estás en batalla.','t-dim');break;} _battleAction(b.id,Player.get().id,'defender',null); break; }
     case 'unirse_batalla': { const b=Object.values(Net.battles).find(x=>x.nodeId===Player.pos()&&x.estado==='activo'); if(!b){Out.line('No hay batalla activa aquí.','t-dim');break;} Net.joinBattle(b.id); break; }
 
     case 'comerciar': _cmdComerciar(args); break;
@@ -1022,4 +1147,79 @@ if(typeof ServiceRegistry !== 'undefined') {
   ServiceRegistry.register('gameplay.trade.withdraw', (args=[]) => _cmdRetirar(args), { pluginId:'core', version:'2.2.0' });
   ServiceRegistry.register('gameplay.trade.confirm', () => _cmdConfirmarTrade(), { pluginId:'core', version:'2.2.0' });
   ServiceRegistry.register('gameplay.trade.cancel', () => _cmdCancelarTrade(), { pluginId:'core', version:'2.2.0' });
+
+  // Sprint 1 facades (runtime.*) — aliases estables para desacoplar callers de gameplay.*
+  ServiceRegistry.register('runtime.battle.start', (nodeId, actors=[]) => ServiceRegistry.call('gameplay.battle.start', nodeId, actors), { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.battle.action', (battleId, playerId, action, payload=null) => ServiceRegistry.call('gameplay.combat.action', battleId, playerId, action, payload), { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.battle.render', (battle=null) => {
+    if(typeof Net==='undefined') return false;
+    const current = battle || Net.getMyBattle?.();
+    if(!current) return false;
+    Net.renderBattle?.(current);
+    return true;
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.battle.tick_ai', (battle=null) => {
+    if(typeof Net==='undefined') return false;
+    const current = battle || Net.getMyBattle?.();
+    if(!current) return false;
+    Net.tickAI?.(current);
+    return true;
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.battle.escape', (battle, playerId) => ServiceRegistry.call('gameplay.combat.escape', battle, playerId), { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.player.rest', async () => {
+    if(typeof Tactics==='undefined' || typeof Tactics.cmdDescansar!=='function') return false;
+    await Tactics.cmdDescansar();
+    return true;
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.player.tactic', () => {
+    if(typeof Tactics==='undefined' || typeof Tactics.cmdTactica!=='function') return false;
+    Tactics.cmdTactica();
+    return true;
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.xp.read', () => {
+    if(typeof XP==='undefined') return null;
+    return {
+      ser: typeof XP.ser === 'function' ? XP.ser() : null,
+      atributos: typeof XP.cmdAtributos === 'function' ? XP.ATRIBUTOS || {} : {},
+    };
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.xp.assign', (raw='') => {
+    if(typeof XP==='undefined' || typeof XP.cmdAsignar!=='function') return false;
+    XP.cmdAsignar(String(raw || ''));
+    if(typeof save === 'function') save();
+    return true;
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.xp.show_attrs', () => {
+    if(typeof XP==='undefined' || typeof XP.cmdAtributos!=='function') return false;
+    XP.cmdAtributos();
+    return true;
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.xp.show_exp', () => {
+    if(typeof XP==='undefined' || typeof XP.cmdExperiencia!=='function') return false;
+    XP.cmdExperiencia();
+    return true;
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.xp.gain', (atributo, amount=0, reason='') => {
+    if(typeof XP==='undefined' || typeof XP.ganar!=='function') return false;
+    XP.ganar(atributo, amount, reason);
+    return true;
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.tactics.consume_stamina', (delta=0) => {
+    if(typeof Tactics==='undefined' || typeof Tactics.consumirStamina!=='function') return false;
+    Tactics.consumirStamina(delta);
+    return true;
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.tactics.calc_wound', (dmg=0, maxHp=1) => {
+    if(typeof Tactics==='undefined' || typeof Tactics.calcularHerida!=='function') return null;
+    return Tactics.calcularHerida(dmg, maxHp);
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.tactics.wound_meta', (key='') => {
+    if(typeof Tactics==='undefined') return null;
+    return Tactics.HERIDAS?.[key] || null;
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.tactics.apply_element', (target, element, battle=null) => {
+    if(typeof Tactics==='undefined' || typeof Tactics.aplicarElemento!=='function') return false;
+    Tactics.aplicarElemento(target, element, battle);
+    return true;
+  }, { pluginId:'core', version:'0.1.0' });
 }

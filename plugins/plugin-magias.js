@@ -28,6 +28,30 @@ function _magBase(pool_id) {
   return elite.find(m=>m.id===pool_id)||null;
 }
 
+
+function _svc(name) {
+  return (typeof ServiceRegistry !== 'undefined' && typeof ServiceRegistry.get === 'function')
+    ? ServiceRegistry.get(name)
+    : null;
+}
+function _xpGanar(attr, amount, reason) {
+  const gain = _svc('runtime.xp.gain');
+  if(typeof gain === 'function') return !!gain(attr, amount, reason);
+  if(typeof XP !== 'undefined' && typeof XP.ganar === 'function') { XP.ganar(attr, amount, reason); return true; }
+  return false;
+}
+function _tactApplyElement(target, element, battle) {
+  const fn = _svc('runtime.tactics.apply_element');
+  if(typeof fn === 'function') return !!fn(target, element, battle);
+  if(typeof Tactics !== 'undefined' && typeof Tactics.aplicarElemento === 'function') { Tactics.aplicarElemento(target, element, battle); return true; }
+  return false;
+}
+function _tactWoundMeta(key) {
+  const meta = _svc('runtime.tactics.wound_meta');
+  if(typeof meta === 'function') return meta(key);
+  return typeof Tactics !== 'undefined' ? Tactics.HERIDAS?.[key] : null;
+}
+
 // ── Asignar magias a un enemigo ───────────────────────────────────
 // Nivel 1: atk <  8 → ninguna
 // Nivel 2: atk  8-14→ 50% de tener 1 magia básica
@@ -82,7 +106,7 @@ function _ejecutarMagiaEnemigo(actor, mag, target, battle) {
       const dmg = Math.max(1, (mag.poder||8)-(target.poise_roto?0:target.def||0));
       target.hp = Math.max(0,target.hp-dmg);
       // Aplicar elemento RESONANTE (base del pool)
-      if(typeof Tactics!=='undefined') Tactics.aplicarElemento(target,'RESONANTE',battle);
+      _tactApplyElement(target,'RESONANTE',battle);
       log = `${actor.name} ⟨${mag.nombre}⟩ → ${target.name}  −${dmg}HP  [RESONANTE]`;
       battleLog(battle,log,'t-mag');
       if(target.hp<=0){target.vivo=false;battleLog(battle,`${target.name} cae.`,'t-cor');}
@@ -132,7 +156,7 @@ function _ejecutarMagiaEnemigo(actor, mag, target, battle) {
         p.heridas=p.heridas||[];
         if(!p.heridas.includes(herida)){
           p.heridas.push(herida);
-          const hi = typeof Tactics!=='undefined' ? Tactics.HERIDAS[herida] : null;
+          const hi = _tactWoundMeta(herida);
           battleLog(battle,`  ${hi?.icon||'⚠'} ¡${herida}! ${hi?.desc||''}`,'t-pel');
         }
       }
@@ -185,7 +209,7 @@ function _ejecutarMagiaEnemigo(actor, mag, target, battle) {
       target.hp  = Math.max(0,target.hp-dmg);
       target.atk = Math.max(1,(target.atk||5)-red);
       // Aplicar VACÍO
-      if(typeof Tactics!=='undefined') Tactics.aplicarElemento(target,'VACÍO',battle);
+      _tactApplyElement(target,'VACÍO',battle);
       // Herida ENVENENAMIENTO fija
       const p = Player.get();
       if(target.tipo==='player'&&target.playerId===p.id) {
@@ -275,7 +299,7 @@ function _progresarMagJugador(mag, actor, battle) {
     mag.cargas_max         = Math.min(9, (mag.cargas_max||2) + 1);
     mag.cargas             = Math.min(mag.cargas_max, (mag.cargas||0) + 1);
     battleLog(battle, `✦ ⟨${mag.nombre}⟩ evoluciona a nivel ${mag.evolucion.nivel}. Poder:${mag.poder} Cargas:${mag.cargas_max}`,'t-mag');
-    if(typeof XP!=='undefined') XP.ganar('mente', 30 + mag.evolucion.nivel*5, 'magia evolucionada');
+    _xpGanar('mente', 30 + mag.evolucion.nivel*5, 'magia evolucionada');
   }
 
   if(mag.maestria.xp >= mag.maestria.umbral && (mag.maestria.nivel||0) < (mag.maestria.max_nivel||10)) {
@@ -285,7 +309,7 @@ function _progresarMagJugador(mag, actor, battle) {
     mag.fragilidad       = Math.max(0, (mag.fragilidad||0) - 8);
     actor._resonancia_arcana = (actor._resonancia_arcana||0) + 1;
     battleLog(battle, `◎ Maestría de ⟨${mag.nombre}⟩ sube a ${mag.maestria.nivel}. Fragilidad −8%.`,'t-acc');
-    if(typeof XP!=='undefined') XP.ganar('mente', 12 + mag.maestria.nivel*2, 'maestría de magia');
+    _xpGanar('mente', 12 + mag.maestria.nivel*2, 'maestría de magia');
   }
 }
 
@@ -371,7 +395,7 @@ function cmdCanalizar(args) {
   };
 
   Player.addToSlot('magias', magAprendida);
-  if(typeof XP!=='undefined') XP.ganar('mente', 35, `magia canalizada: ${magAprendida.nombre}`);
+  _xpGanar('mente', 35, `magia canalizada: ${magAprendida.nombre}`);
 
   Out.sp();
   Out.line(`⟨${magAprendida.nombre}⟩ canalizada.`,'t-mag',true);
@@ -498,9 +522,9 @@ function _ejecutarMagiaJugadorBatalla(payload){
     case 'revelar':{ battle.cola.filter(c=>c.vivo&&(c.tipo==='enemy'||c.tipo==='npc')).forEach(e=>{const habs=(e.habilidades||[]).map(h=>h.nombre).join(', ');const mags_e=(e.magias||[]).map(m=>m.nombre).join(', ');battleLog(battle,`  🔍 ${e.name}: HP ${e.hp}/${e.maxHp}  ATK:${e.atk}${habs?'  Habs:'+habs:''}${mags_e?'  Mags:'+mags_e:''}`,'t-eco');}); log=`⟨${mag.nombre}⟩ — revelar`; break;}
     case 'maldicion':{ if(!target)break; target._maldicion_dmg=Math.max(1,Math.floor((mag.poder||8)*0.4)); target._maldicion_turnos=3; const dmg_i=Math.max(1,Math.floor((mag.poder||8)*0.5)-(target.def||0)); target.hp=Math.max(0,target.hp-dmg_i); log=`⟨${mag.nombre}⟩ → ${target.name}  −${dmg_i}HP  +MALDICIÓN`; battleLog(battle,log,'t-cor'); if(target.hp<=0){target.vivo=false;battleLog(battle,`${target.name} cae.`,'t-cor');} break;}
     case 'mana_drain':{ if(!target)break; const dmg=Math.max(1,(mag.poder||15)-(target.def||0)); target.hp=Math.max(0,target.hp-dmg); log=`⟨${mag.nombre}⟩ → ${target.name}  −${dmg}HP`; battleLog(battle,log,'t-mag'); if(target.hp<=0){target.vivo=false;battleLog(battle,`${target.name} cae.`,'t-cor');} break;}
-    case 'corrupcion_total':{ if(!target)break; const dmg=Math.max(1,(mag.poder||20)-(target.poise_roto?0:target.def||0)); const red=Math.max(1,Math.floor((target.atk||4)*0.4)); target.hp=Math.max(0,target.hp-dmg); target.atk=Math.max(1,(target.atk||4)-red); if(typeof Tactics!=='undefined')Tactics.aplicarElemento(target,'VACÍO',battle); log=`⟨${mag.nombre}⟩ → ${target.name}  −${dmg}HP  ATK−${red}  [VACÍO]`; battleLog(battle,log,'t-cor'); if(target.hp<=0){target.vivo=false;battleLog(battle,`${target.name} cae.`,'t-cor');} break;}
+    case 'corrupcion_total':{ if(!target)break; const dmg=Math.max(1,(mag.poder||20)-(target.poise_roto?0:target.def||0)); const red=Math.max(1,Math.floor((target.atk||4)*0.4)); target.hp=Math.max(0,target.hp-dmg); target.atk=Math.max(1,(target.atk||4)-red); _tactApplyElement(target,'VACÍO',battle); log=`⟨${mag.nombre}⟩ → ${target.name}  −${dmg}HP  ATK−${red}  [VACÍO]`; battleLog(battle,log,'t-cor'); if(target.hp<=0){target.vivo=false;battleLog(battle,`${target.name} cae.`,'t-cor');} break;}
   }
-  if(isMyTurn && typeof XP!=='undefined') XP.ganar('mente',12,'magia en batalla');
+  if(isMyTurn) _xpGanar('mente',12,'magia en batalla');
   _progresarMagJugador(mag, actor, battle);
   if(mag.fragilidad>=100){mag.corrompida=true;battleLog(battle,`☠ ⟨${mag.nombre}⟩ se corrompe.`,'t-pel');Player.removeFromSlot('magias',mag.id);}
   payload.handled=true; payload.logEntry=log;

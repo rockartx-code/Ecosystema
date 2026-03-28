@@ -232,10 +232,13 @@ function cmdCapturar(args) {
   if(cancelled) { Out.line('La captura fue bloqueada.','t-dim'); return; }
 
   const p = Player.get();
-  Net.startBattle(n.id, [
+  const startBattle = ServiceRegistry?.get?.('runtime.battle.start') || ServiceRegistry?.get?.('gameplay.battle.start');
+  const actors = [
     { tipo:'player',   id:p.id,   name:p.name,     hp:p.hp, maxHp:p.maxHp, atk:Player.getAtk(), def:Player.getDef(), nodeId:n.id, playerId:p.id, vivo:true },
     { tipo:'creature', id:cre.id, name:cre.nombre, hp:cre.hp_current, maxHp:cre.maxHp||cre.hp, atk:cre.atk, def:cre.def||0, nodeId:n.id, tags:cre.tags||[], vivo:true, _cre_ref:cre },
-  ]);
+  ];
+  if(typeof startBattle === 'function') startBattle(n.id, actors);
+  else Net.startBattle(n.id, actors);
 }
 
 function cmdVincular(args, battle) {
@@ -310,8 +313,8 @@ function cmdVincular(args, battle) {
 
   EventBus.emit('creature:bound', { creature:cre, player:p });
   if(battle) {
-    const leaveBattle = ServiceRegistry?.get?.('gameplay.combat.escape');
-    if(typeof leaveBattle === 'function') leaveBattle(battle, p.id);
+    const escapeBattle = ServiceRegistry?.get?.('runtime.battle.escape') || ServiceRegistry?.get?.('gameplay.combat.escape');
+    if(typeof escapeBattle === 'function') escapeBattle(battle, p.id);
     else Net.sendBattleAction(battle.id, p.id, 'huir', null);
   }
   save();
