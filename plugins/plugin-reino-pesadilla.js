@@ -88,7 +88,8 @@ const pluginReinoPesadilla = (() => {
 
   function _spawnNextNightmare() {
     if(!state.activa || state.vencidos >= TOTAL_MONSTRUOS) return;
-    if(Net.getMyBattle?.()) return;
+    const getCurrentBattle = ServiceRegistry?.get?.('gameplay.battle.current');
+    if((typeof getCurrentBattle === 'function' ? getCurrentBattle() : Net.getMyBattle?.())) return;
 
     const idx = state.vencidos + 1;
     const p = Player.get();
@@ -96,7 +97,8 @@ const pluginReinoPesadilla = (() => {
 
     Out.line(`☠ Oleada ${idx}/${TOTAL_MONSTRUOS}: ${enemy.name} [boost ${enemy.pesadilla_boost.toUpperCase()}]`, 't-cor', true);
 
-    Net.startBattle(Player.pos(), [
+    const startBattle = ServiceRegistry?.get?.('gameplay.battle.start');
+    const actors = [
       {
         tipo: 'player',
         id: p.id,
@@ -110,7 +112,9 @@ const pluginReinoPesadilla = (() => {
         playerId: p.id,
       },
       enemy,
-    ]);
+    ];
+    if(typeof startBattle === 'function') startBattle(Player.pos(), actors);
+    else Net.startBattle(Player.pos(), actors);
   }
 
   function _onEnemyDefeat(payload) {
@@ -134,14 +138,18 @@ const pluginReinoPesadilla = (() => {
     const battle = payload?.battle;
     if(!battle?.estado || battle.estado !== 'activo') return payload;
 
-    const actor = Net.getBattleActor?.(battle);
+    const getBattleActor = ServiceRegistry?.get?.('gameplay.battle.actor');
+    const actor = typeof getBattleActor === 'function' ? getBattleActor(battle) : Net.getBattleActor?.(battle);
     const me = Player.get();
     if(!actor || actor.tipo !== 'player' || actor.playerId !== me.id) return payload;
 
     setTimeout(() => {
-      const current = Net.getMyBattle?.();
+      const getCurrentBattle = ServiceRegistry?.get?.('gameplay.battle.current');
+      const current = typeof getCurrentBattle === 'function' ? getCurrentBattle() : Net.getMyBattle?.();
       if(!current || current.id !== battle.id || current.estado !== 'activo') return;
-      Net.sendBattleAction(current.id, me.id, 'atacar', null);
+      const combatAction = ServiceRegistry?.get?.('gameplay.combat.action');
+      if(typeof combatAction === 'function') combatAction(current.id, me.id, 'atacar', null);
+      else Net.sendBattleAction(current.id, me.id, 'atacar', null);
     }, 140);
 
     return payload;
@@ -173,7 +181,8 @@ const pluginReinoPesadilla = (() => {
       Clock.tick(1);
       EventBus.emit('player:tick', { player: Player.get() });
       World.visit(dest);
-      if(typeof cmdMirar === 'function') cmdMirar();
+      const look = ServiceRegistry?.get?.('gameplay.look');
+      if(typeof look === 'function') look();
       save();
     }
   }

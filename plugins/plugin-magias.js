@@ -307,7 +307,8 @@ function _aplicarDanoJugadorMag(target, dmg, battle) {
 // ── Comando CANALIZAR ─────────────────────────────────────────────
 function cmdCanalizar(args) {
   const q      = args.join(' ').trim().toLowerCase();
-  const battle = typeof Net!=='undefined' ? Net.getMyBattle?.() : null;
+  const battleSvc = (typeof ServiceRegistry!=='undefined' && ServiceRegistry.get) ? ServiceRegistry.get('gameplay.battle.current') : null;
+  const battle = battleSvc ? battleSvc() : (typeof Net!=='undefined' ? Net.getMyBattle?.() : null);
 
   if(!battle||battle.estado!=='activo') {
     Out.line('Solo puedes canalizar durante una batalla activa.','t-dim'); return;
@@ -450,7 +451,9 @@ function _efectoFueraCombate(mag,p){
       const nodos=Object.keys(World.all()).filter(id=>id!==Player.pos());
       if(!nodos.length) break;
       const dest=nodos[Math.floor(Math.random()*nodos.length)];
-      Player.setPos(dest); Clock.tick(1); World.visit(dest);
+      const enterNodeSvc = (typeof ServiceRegistry!=='undefined' && ServiceRegistry.get) ? ServiceRegistry.get('gameplay.enter_node') : null;
+      if(enterNodeSvc) enterNodeSvc(dest, { tick:1, showLook:false, saveAfter:false, grantXP:false });
+      else { Player.setPos(dest); Clock.tick(1); World.visit(dest); }
       Out.line(`${mag.nombre}: teletransportado a ${World.node(dest)?.name||'?'}`,'t-mag',true);
       break;
     }

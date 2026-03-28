@@ -404,7 +404,8 @@ function _ejecutarHabilidadJugador(payload) {
 // ── Comando COPIAR ────────────────────────────────────────────────
 function cmdCopiar(args) {
   const q      = args.join(' ').trim().toLowerCase();
-  const battle = typeof Net!=='undefined' ? Net.getMyBattle?.() : null;
+  const battleSvc = (typeof ServiceRegistry!=='undefined' && ServiceRegistry.get) ? ServiceRegistry.get('gameplay.battle.current') : null;
+  const battle = battleSvc ? battleSvc() : (typeof Net!=='undefined' ? Net.getMyBattle?.() : null);
 
   if(!battle || battle.estado!=='activo') {
     Out.line('Solo puedes copiar durante una batalla activa.','t-dim'); return;

@@ -23,6 +23,98 @@ function loadCore() {
   return sandbox.__core;
 }
 
+function loadCommandsSandbox() {
+  const { EventBus, ServiceRegistry, PluginLoader, CommandRegistry } = loadCore();
+  const outLines = [];
+  const worldNodes = {
+    n1: { id:'n1', name:'Nodo 1', tipo:'hub', estado:'calmo', atmos:'ok', exits:{ norte:'n2' }, loot:[], enemies:[], creatures:[], visitado:false, visitado_prev:false, dificultad:1, seccion:0 },
+    n2: { id:'n2', name:'Nodo 2', tipo:'bosque', estado:'calmo', atmos:'ok', exits:{ norte:'n3', sur:'n1' }, loot:[], enemies:[], creatures:[], visitado:false, visitado_prev:false, dificultad:1, seccion:1 },
+    n3: { id:'n3', name:'Nodo 3', tipo:'ruina', estado:'calmo', atmos:'ok', exits:{ sur:'n2' }, loot:[], enemies:[], creatures:[], visitado:false, visitado_prev:false, dificultad:1, seccion:1 },
+  };
+  const player = { id:'p1', name:'Tester', nodeId:'n1', flags:[], ext:{} };
+  const sandbox = {
+    console,
+    globalThis: null,
+    setTimeout: (fn)=>{ fn(); return 0; },
+    clearTimeout: ()=>{},
+    EventBus,
+    ServiceRegistry,
+    PluginLoader: {
+      list: () => [{ id:'plugin:a', version:'1.0.0', descripcion:'A' }],
+      lastBatchOrder: () => ['plugin:a', 'plugin:b'],
+      pending: () => [{ id:'plugin:pend', errors:['Falta servicio svc.x'] }],
+      registerFromJSON: () => true,
+    },
+    CommandRegistry,
+    ModuleLoader: { list: () => ['base'], get: () => ({}) },
+    Out: {
+      line: (text)=>{ outLines.push(String(text)); },
+      sp: ()=>{},
+      sep: ()=>{},
+      clear: ()=>{},
+    },
+    Player: {
+      get: ()=>player,
+      pos: ()=>player.nodeId,
+      setPos: (id)=>{ player.nodeId = id; },
+      rename: (name)=>{ player.name = name; },
+      findItem: ()=>null,
+    },
+    World: {
+      seed: 'seed',
+      sectionCount: 1,
+      all: ()=>worldNodes,
+      node: (id)=>worldNodes[id] || null,
+      exits: (id)=>({ ...(worldNodes[id]?.exits || {}) }),
+      visit: (id)=>{ if(worldNodes[id]) worldNodes[id].visitado = true; },
+      isBorder: ()=>false,
+      expandSection: ()=>null,
+    },
+    Clock: { cycle:0, tick:(n=1)=>{ sandbox.Clock.cycle += n; } },
+    GS: {
+      aliveNPCs: ()=>[],
+      npcEnNodo: ()=>[],
+      mision: ()=>null,
+      allMisiones: ()=>[],
+      activas: ()=>[],
+    },
+    U: {
+      chance: ()=>false,
+      clamp: (v,min,max)=>Math.max(min, Math.min(max, v)),
+      rand: (a)=>a,
+    },
+    NPCEngine: { consecuenciaDesperación: ()=>{} },
+    refreshStatus: ()=>{},
+    save: ()=>{},
+    localStorage: { removeItem: ()=>{} },
+    init: async ()=>{},
+    exportarPartida: ()=>{},
+    importarPartida: ()=>{},
+    Combat: { active:false },
+    XP: { ganar: ()=>{} },
+    D: {},
+  };
+  sandbox.globalThis = sandbox;
+  vm.createContext(sandbox);
+  const src = fs.readFileSync('systems/commands.js', 'utf8');
+  vm.runInContext(src, sandbox, { filename:'systems/commands.js' });
+  return { sandbox, outLines };
+}
+
+function withCapturedConsole(fn) {
+  const logs = { warn: [], error: [] };
+  const prevWarn = console.warn;
+  const prevError = console.error;
+  console.warn = (...args) => logs.warn.push(args.map(String).join(' '));
+  console.error = (...args) => logs.error.push(args.map(String).join(' '));
+  try {
+    return fn(logs);
+  } finally {
+    console.warn = prevWarn;
+    console.error = prevError;
+  }
+}
+
 (function testEventBusPhasesAndTrace() {
   const { EventBus } = loadCore();
   const seq = [];
@@ -76,8 +168,9 @@ function loadCore() {
 })();
 
 (function testPluginLoaderRegisterFromJSONCompatibility() {
-  const { PluginLoader, ServiceRegistry, CommandRegistry } = loadCore();
-  ServiceRegistry.register('svc.external', ()=>true, { pluginId:'core' });
+  withCapturedConsole(() => {
+    const { PluginLoader, ServiceRegistry, CommandRegistry } = loadCore();
+    ServiceRegistry.register('svc.external', ()=>true, { pluginId:'core' });
 
   const jsonA = {
     id:'plugin:json_a',
@@ -90,8 +183,8 @@ function loadCore() {
       onA: 'payload.ok = true; return payload;'
     }
   };
-  const okA = PluginLoader.registerFromJSON(jsonA);
-  assert.strictEqual(okA, true);
+    const okA = PluginLoader.registerFromJSON(jsonA);
+    assert.strictEqual(okA, true);
 
   const jsonB = {
     id:'plugin:json_b',
@@ -106,14 +199,182 @@ function loadCore() {
       cmdPing: 'return true;'
     }
   };
-  const okB = PluginLoader.registerFromJSON(jsonB);
-  assert.strictEqual(okB, true);
-  assert.strictEqual(CommandRegistry.has('json_b_ping'), true);
+    const okB = PluginLoader.registerFromJSON(jsonB);
+    assert.strictEqual(okB, true);
+    assert.strictEqual(CommandRegistry.has('json_b_ping'), true);
 
-  const jsonLate = { id:'plugin:json_late', version:'1.0.0' };
-  const jsonBefore = { id:'plugin:json_before', version:'1.0.0', load:{ before:['plugin:json_late'] } };
-  assert.strictEqual(PluginLoader.registerFromJSON(jsonLate), true);
-  assert.strictEqual(PluginLoader.registerFromJSON(jsonBefore), false);
+    const jsonLate = { id:'plugin:json_late', version:'1.0.0' };
+    const jsonBefore = { id:'plugin:json_before', version:'1.0.0', load:{ before:['plugin:json_late'] } };
+    assert.strictEqual(PluginLoader.registerFromJSON(jsonLate), true);
+    assert.strictEqual(PluginLoader.registerFromJSON(jsonBefore), false);
+  });
+})();
+
+(function testPluginLoaderSemverAdvancedRanges() {
+  withCapturedConsole(() => {
+    const { PluginLoader } = loadCore();
+    const base = { id:'plugin:semver_base', version:'1.4.2' };
+    assert.strictEqual(PluginLoader.register(base), true);
+
+  const okCaret = { id:'plugin:semver_caret', version:'1.0.0', requires:{ plugins:['plugin:semver_base ^1.4.0'] } };
+  const okTilde = { id:'plugin:semver_tilde', version:'1.0.0', requires:{ plugins:['plugin:semver_base ~1.4.0'] } };
+  const okOr = { id:'plugin:semver_or', version:'1.0.0', requires:{ plugins:['plugin:semver_base ^2.0.0 || ^1.4.0'] } };
+  const badOr = { id:'plugin:semver_or_bad', version:'1.0.0', requires:{ plugins:['plugin:semver_base ^2.0.0 || ~1.5.0'] } };
+
+    assert.strictEqual(PluginLoader.register(okCaret), true);
+    assert.strictEqual(PluginLoader.register(okTilde), true);
+    assert.strictEqual(PluginLoader.register(okOr), true);
+    assert.strictEqual(PluginLoader.register(badOr), false);
+  });
+})();
+
+(function testPluginLoaderServiceDependencyOrderAndCycleDiagnostics() {
+  withCapturedConsole(() => {
+    const { PluginLoader } = loadCore();
+    const defs = [
+      { id:'plugin:consumer', version:'1.0.0', requires:{ services:['svc.dynamic'] } },
+      { id:'plugin:provider', version:'1.0.0', services:{ 'svc.dynamic': ()=>true } },
+    ];
+    const loaded = PluginLoader.registerMany(defs);
+    assert.strictEqual(loaded, 2);
+    assert.deepStrictEqual(Array.from(PluginLoader.lastBatchOrder()), ['plugin:provider', 'plugin:consumer']);
+
+    const cycDefs = [
+      { id:'plugin:cyc_a', version:'1.0.0', requires:{ services:['svc.cyc_b'] }, services:{ 'svc.cyc_a': ()=>true } },
+      { id:'plugin:cyc_b', version:'1.0.0', requires:{ services:['svc.cyc_a'] }, services:{ 'svc.cyc_b': ()=>true } },
+    ];
+    const loadedCyc = PluginLoader.registerMany(cycDefs);
+    assert.strictEqual(loadedCyc, 0);
+    const pending = PluginLoader.pending();
+    assert.strictEqual(pending.length, 2);
+    assert.ok(pending.every(p => (p.errors || []).some(e => String(e).includes('Posible ciclo de dependencias'))));
+  });
+})();
+
+(function testEventBusValidationPolicyAndRealEventChecks() {
+  const { EventBus } = loadCore();
+  const warnings = [];
+  const prevWarn = console.warn;
+  console.warn = (...args) => warnings.push(args.map(String).join(' '));
+
+  try {
+    EventBus.defineEvent('output:line', {
+      validateIn: (p)=> !!p && typeof p.text === 'string',
+      validateOut: (p)=> !!p && typeof p.text === 'string',
+    });
+    EventBus.on('output:line', (p)=>p, 'p:test');
+
+    EventBus.setValidationPolicy('dev');
+    EventBus.emit('output:line', { text: 123 });
+    assert.ok(warnings.some(w => w.includes('validateIn(output:line)')), 'dev policy debe advertir validación');
+
+    EventBus.setValidationPolicy('strict');
+    assert.throws(() => EventBus.emit('output:line', { text: 123 }), /validateIn\(output:line\)/);
+
+    EventBus.defineEvent('world:tick', {
+      validateIn: (p)=> !!p && typeof p.cycle === 'number',
+      validateOut: (p)=> !!p && typeof p.cycle === 'number',
+    });
+    EventBus.on('world:tick', (p)=>({ ...p, cycle: 'invalid' }), 'p:bad_out');
+    assert.throws(() => EventBus.emit('world:tick', { cycle: 1 }), /validateOut\(world:tick\)/);
+
+    EventBus.setValidationPolicy('prod');
+    const out = EventBus.emit('world:tick', { cycle: 2 });
+    assert.strictEqual(out.cycle, 'invalid');
+  } finally {
+    EventBus.setValidationPolicy('dev');
+    console.warn = prevWarn;
+  }
+})();
+
+(function testEventBusListenerTimeoutAndHealth() {
+  withCapturedConsole(() => {
+    const { EventBus } = loadCore();
+    const busyWait = (ms) => { const t = Date.now(); while(Date.now() - t < ms){} };
+
+    EventBus.on('t:slow_warn', (p)=>{ busyWait(3); return p; }, 'p:slow_warn', { timeoutMs:1, onTimeout:'warn' });
+    const outWarn = EventBus.emit('t:slow_warn', { ok:true });
+    assert.strictEqual(outWarn.ok, true);
+
+    EventBus.on('t:slow_cancel', (p)=>{ busyWait(3); return p; }, 'p:slow_cancel', { timeoutMs:1, onTimeout:'cancel' });
+    const outCancel = EventBus.emit('t:slow_cancel', { ok:true });
+    assert.strictEqual(outCancel.cancelled, true);
+
+    EventBus.on('t:slow_error', (p)=>{ busyWait(3); return p; }, 'p:slow_error', { timeoutMs:1, onTimeout:'error' });
+    const outError = EventBus.emit('t:slow_error', { ok:true });
+    assert.strictEqual(outError.ok, true);
+
+    const hWarn = EventBus.health('p:slow_warn');
+    const hCancel = EventBus.health('p:slow_cancel');
+    const hError = EventBus.health('p:slow_error');
+    assert.ok(hWarn && hWarn.timeouts >= 1);
+    assert.ok(hCancel && hCancel.timeouts >= 1);
+    assert.ok(hError && hError.errors >= 1);
+  });
+})();
+
+(function testDiagnosticCommandsSmoke() {
+  const { sandbox, outLines } = loadCommandsSandbox();
+
+  sandbox.cmdPluginsOrden();
+  assert.ok(outLines.some(l => l.includes('plugin:a')));
+  assert.ok(outLines.some(l => l.includes('plugin:b')));
+
+  sandbox.cmdPluginsPendientes();
+  assert.ok(outLines.some(l => l.includes('plugin:pend')));
+  assert.ok(outLines.some(l => l.includes('Falta servicio svc.x')));
+
+  sandbox.EventBus.on('t:diag', (p)=>p, 'p:diag');
+  sandbox.EventBus.emit('t:diag', { ok:true });
+  sandbox.cmdEventosTrace(5);
+  assert.ok(outLines.some(l => l.includes('t:diag')));
+})();
+
+(function testGameplayServicesWithWorldStubs() {
+  const { sandbox } = loadCommandsSandbox();
+  const { ServiceRegistry } = sandbox;
+
+  assert.strictEqual(ServiceRegistry.has('gameplay.enter_node'), true);
+  assert.strictEqual(ServiceRegistry.has('gameplay.move_and_tick'), true);
+
+  const outEnter = ServiceRegistry.call('gameplay.enter_node', 'n2', { tick:2, showLook:false, saveAfter:false, grantXP:false });
+  assert.strictEqual(outEnter, 'n2');
+  assert.strictEqual(sandbox.Player.pos(), 'n2');
+  assert.strictEqual(sandbox.Clock.cycle, 2);
+
+  ServiceRegistry.call('gameplay.move_and_tick', 'norte');
+  assert.strictEqual(sandbox.Player.pos(), 'n3');
+  assert.strictEqual(sandbox.Clock.cycle, 3);
+})();
+
+(function testSecondPassPluginsAvoidLegacyNetBattleFallbacks() {
+  const tricksters = fs.readFileSync('plugins/plugin-tricksters.js', 'utf8');
+  const sombra = fs.readFileSync('plugins/plugin-sombra-herrante.js', 'utf8');
+
+  assert.ok(!/Net\.startBattle\s*\(/.test(tricksters), 'plugin-tricksters no debe usar Net.startBattle directo');
+  assert.ok(!/Net\.getMyBattle\s*\?/.test(tricksters), 'plugin-tricksters no debe consultar Net.getMyBattle directo');
+
+  assert.ok(!/Net\.startBattle\s*\(/.test(sombra), 'plugin-sombra-herrante no debe usar Net.startBattle directo');
+  assert.ok(!/Net\.getMyBattle\s*\?/.test(sombra), 'plugin-sombra-herrante no debe consultar Net.getMyBattle directo');
+})();
+
+(function testLegacySystemsUseDataLogicStructure() {
+  const required = [
+    { bootstrap:'systems/tactics.js', data:'systems/tactics/data.json', logic:'systems/tactics/logic.js', dataRef:'systems/tactics/data.json' },
+    { bootstrap:'systems/xp.js', data:'systems/xp/data.json', logic:'systems/xp/logic.js', dataRef:'systems/xp/data.json' },
+    { bootstrap:'systems/arc-engine.js', data:'systems/arc-engine/data.json', logic:'systems/arc-engine/logic.js', dataRef:'systems/arc-engine/data.json' },
+    { bootstrap:'systems/world-ai.js', data:'systems/world-ai/data.json', logic:'systems/world-ai/logic.js', dataRef:'systems/world-ai/data.json' },
+    { bootstrap:'systems/net.js', data:'systems/net/data.json', logic:'systems/net/logic.js', dataRef:'systems/net/data.json' },
+    { bootstrap:'systems/sfx-engine.js', data:'systems/sfx/data.json', logic:'systems/sfx/logic.js', dataRef:'systems/sfx/data.json' },
+    { bootstrap:'systems/music-engine.js', data:'systems/music/data.json', logic:'systems/music/logic.js', dataRef:'systems/music/data.json' },
+  ];
+
+  required.forEach((r) => {
+    assert.strictEqual(fs.existsSync(r.data), true, `debe existir ${r.data}`);
+    assert.strictEqual(fs.existsSync(r.logic), true, `debe existir ${r.logic}`);
+    const src = fs.readFileSync(r.bootstrap, 'utf8');
+    assert.ok(src.includes(r.dataRef), `${r.bootstrap} debe referenciar ${r.dataRef}`);
+  });
 })();
 
 console.log('OK runtime_smoke');
