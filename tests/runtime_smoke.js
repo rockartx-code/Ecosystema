@@ -363,13 +363,13 @@ function withCapturedConsole(fn) {
   const moduleJson = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/module.json'), 'utf8'));
   const systemsFromModule = new Map((moduleJson.systems || []).map(s => [s.name, s.data]));
   const required = [
-    { name:'tactics', bootstrap:'systems/tactics/logic.js', logic:'systems/tactics/logic.js' },
-    { name:'xp', bootstrap:'systems/xp/logic.js', logic:'systems/xp/logic.js' },
-    { name:'arc-engine', bootstrap:'systems/arc-engine/logic.js', logic:'systems/arc-engine/logic.js' },
-    { name:'world-ai', bootstrap:'systems/world-ai/logic.js', logic:'systems/world-ai/logic.js' },
-    { name:'net', bootstrap:'systems/net/logic.js', logic:'systems/net/logic.js' },
-    { name:'sfx', bootstrap:'systems/sfx/logic.js', logic:'systems/sfx/logic.js' },
-    { name:'music', bootstrap:'systems/music/logic.js', logic:'systems/music/logic.js' },
+    { name:'tactics', bootstrap:'systems/tactics.js', logic:'systems/tactics.js' },
+    { name:'xp', bootstrap:'systems/xp.js', logic:'systems/xp.js' },
+    { name:'arc-engine', bootstrap:'systems/arc-engine.js', logic:'systems/arc-engine.js' },
+    { name:'world-ai', bootstrap:'systems/world-ai.js', logic:'systems/world-ai.js' },
+    { name:'net', bootstrap:'systems/net.js', logic:'systems/net.js' },
+    { name:'sfx', bootstrap:'systems/sfx.js', logic:'systems/sfx.js' },
+    { name:'music', bootstrap:'systems/music.js', logic:'systems/music.js' },
   ];
 
   required.forEach((r) => {
