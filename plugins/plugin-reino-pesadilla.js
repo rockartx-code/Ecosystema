@@ -17,8 +17,70 @@ const pluginReinoPesadilla = (() => {
     vencidos: 0,
   };
 
+  function _svc(name) {
+    return (typeof ServiceRegistry !== 'undefined' && typeof ServiceRegistry.get === 'function')
+      ? ServiceRegistry.get(name)
+      : null;
+  }
+  function _player() {
+    const fn = _svc('runtime.player.current');
+    return typeof fn === 'function' ? fn() : null;
+  }
+  function _playerPos() {
+    const fn = _svc('runtime.player.position');
+    return typeof fn === 'function' ? fn() : null;
+  }
+  function _playerCombatStats(p = _player()) {
+    const fn = _svc('runtime.player.combat_stats');
+    const stats = typeof fn === 'function' ? (fn() || {}) : {};
+    return {
+      atk: Math.max(1, Math.floor(stats.atk || p?.atk || 1)),
+      def: Math.max(0, Math.floor(stats.def || p?.def || 0)),
+    };
+  }
+  function _worldNode(nodeId) {
+    const fn = _svc('runtime.world.node');
+    return typeof fn === 'function' ? fn(nodeId) : null;
+  }
+  function _worldExits(nodeId) {
+    const fn = _svc('runtime.world.exits');
+    return typeof fn === 'function' ? (fn(nodeId) || {}) : {};
+  }
+  function _worldExpandSection(fromNodeId, dir) {
+    const fn = _svc('runtime.world.expand_section');
+    return typeof fn === 'function' ? fn(fromNodeId, dir) : null;
+  }
+  function _worldIsBorder(nodeId) {
+    const fn = _svc('runtime.world.is_border');
+    return typeof fn === 'function' ? !!fn(nodeId) : false;
+  }
+  function _worldVisit(nodeId) {
+    const fn = _svc('runtime.world.visit');
+    return typeof fn === 'function' ? !!fn(nodeId) : false;
+  }
+  function _clockTick(delta=1) {
+    const fn = _svc('runtime.clock.tick');
+    return typeof fn === 'function' ? !!fn(delta) : false;
+  }
+  function _line(text, color='t-out', bold=false) {
+    const fn = _svc('runtime.output.line');
+    if(typeof fn === 'function') fn(text, color, bold);
+  }
+  function _sp() {
+    const fn = _svc('runtime.output.sp');
+    if(typeof fn === 'function') fn();
+  }
+  function _sep(ch='─', len=46) {
+    const fn = _svc('runtime.output.sep');
+    if(typeof fn === 'function') fn(ch, len);
+  }
+  function _saveGame() {
+    const fn = _svc('runtime.game.save');
+    if(typeof fn === 'function') fn();
+  }
+
   function _currentDifficulty() {
-    const node = World.node(Player.pos());
+    const node = _worldNode(_playerPos());
     return Number(node?.dificultad || 0);
   }
 
@@ -43,22 +105,23 @@ const pluginReinoPesadilla = (() => {
     state.dir = dir;
     state.vencidos = 0;
 
-    Out.sp();
-    Out.sep('═');
-    Out.line('☾ REINO PESADILLA', 't-cor', true);
-    Out.line('La frontera se retuerce y te arrastra a un nodo de pesadilla.', 't-pel');
-    Out.line(`Debes derrotar ${TOTAL_MONSTRUOS} monstruos seguidos para abrir la nueva sección.`, 't-dim');
-    Out.sep('═');
-    Out.sp();
+    _sp();
+    _sep('═');
+    _line('☾ REINO PESADILLA', 't-cor', true);
+    _line('La frontera se retuerce y te arrastra a un nodo de pesadilla.', 't-pel');
+    _line(`Debes derrotar ${TOTAL_MONSTRUOS} monstruos seguidos para abrir la nueva sección.`, 't-dim');
+    _sep('═');
+    _sp();
 
     setTimeout(() => _spawnNextNightmare(), 180);
   }
 
   function _buildNightmareEnemy(index) {
-    const p = Player.get();
+    const p = _player();
+    const stats = _playerCombatStats(p);
     const baseHp = Math.max(18, Math.floor((p.maxHp || p.hp || 20) * 1.5));
-    const baseAtk = Math.max(2, Math.floor((Player.getAtk?.() || p.atk || 6) * 1.5));
-    const baseDef = Math.max(1, Math.floor((Player.getDef?.() || p.def || 2) * 1.5));
+    const baseAtk = Math.max(2, Math.floor((stats.atk || p.atk || 6) * 1.5));
+    const baseDef = Math.max(1, Math.floor((stats.def || p.def || 2) * 1.5));
 
     const statBoost = U.pick(['hp', 'atk', 'def'], U.rng(`${state.runId}:${index}`));
     let hp = baseHp;
@@ -66,8 +129,8 @@ const pluginReinoPesadilla = (() => {
     let def = baseDef;
 
     if(statBoost === 'hp') hp = Math.max(hp, Math.floor((p.maxHp || p.hp || 20) * 3));
-    if(statBoost === 'atk') atk = Math.max(atk, Math.floor((Player.getAtk?.() || p.atk || 6) * 3));
-    if(statBoost === 'def') def = Math.max(def, Math.floor((Player.getDef?.() || p.def || 2) * 3));
+    if(statBoost === 'atk') atk = Math.max(atk, Math.floor((stats.atk || p.atk || 6) * 3));
+    if(statBoost === 'def') def = Math.max(def, Math.floor((stats.def || p.def || 2) * 3));
 
     return {
       tipo: 'enemy',
@@ -78,7 +141,7 @@ const pluginReinoPesadilla = (() => {
       atk,
       def,
       vivo: true,
-      nodeId: Player.pos(),
+      nodeId: _playerPos(),
       tags: ['pesadilla', 'abismo', 'corrupto'],
       es_pesadilla: true,
       pesadilla_run_id: state.runId,
@@ -88,16 +151,17 @@ const pluginReinoPesadilla = (() => {
 
   function _spawnNextNightmare() {
     if(!state.activa || state.vencidos >= TOTAL_MONSTRUOS) return;
-    const getCurrentBattle = ServiceRegistry?.get?.('gameplay.battle.current');
+    const getCurrentBattle = _svc('runtime.battle.current');
     if(typeof getCurrentBattle === 'function' && getCurrentBattle()) return;
 
     const idx = state.vencidos + 1;
-    const p = Player.get();
+    const p = _player();
+    const stats = _playerCombatStats(p);
     const enemy = _buildNightmareEnemy(idx);
 
-    Out.line(`☠ Oleada ${idx}/${TOTAL_MONSTRUOS}: ${enemy.name} [boost ${enemy.pesadilla_boost.toUpperCase()}]`, 't-cor', true);
+    _line(`☠ Oleada ${idx}/${TOTAL_MONSTRUOS}: ${enemy.name} [boost ${enemy.pesadilla_boost.toUpperCase()}]`, 't-cor', true);
 
-    const startBattle = ServiceRegistry?.get?.('gameplay.battle.start');
+    const startBattle = _svc('runtime.battle.start');
     const actors = [
       {
         tipo: 'player',
@@ -105,16 +169,16 @@ const pluginReinoPesadilla = (() => {
         name: p.name,
         hp: p.hp,
         maxHp: p.maxHp,
-        atk: Player.getAtk(),
-        def: Player.getDef(),
+        atk: stats.atk,
+        def: stats.def,
         vivo: true,
-        nodeId: Player.pos(),
+        nodeId: _playerPos(),
         playerId: p.id,
       },
       enemy,
     ];
-    if(typeof startBattle === 'function') startBattle(Player.pos(), actors);
-    else Out.line('Servicio gameplay.battle.start no disponible para Reino Pesadilla.', 't-dim');
+    if(typeof startBattle === 'function') startBattle(_playerPos(), actors);
+    else _line('Servicio runtime.battle.start no disponible para Reino Pesadilla.', 't-dim');
   }
 
   function _onEnemyDefeat(payload) {
@@ -122,7 +186,7 @@ const pluginReinoPesadilla = (() => {
     if(!state.activa || !enemy?.es_pesadilla || enemy?.pesadilla_run_id !== state.runId) return payload;
 
     state.vencidos++;
-    Out.line(`✓ Pesadilla derrotada (${state.vencidos}/${TOTAL_MONSTRUOS})`, 't-cra');
+    _line(`✓ Pesadilla derrotada (${state.vencidos}/${TOTAL_MONSTRUOS})`, 't-cra');
 
     if(state.vencidos >= TOTAL_MONSTRUOS) {
       _finishNightmare();
@@ -138,18 +202,18 @@ const pluginReinoPesadilla = (() => {
     const battle = payload?.battle;
     if(!battle?.estado || battle.estado !== 'activo') return payload;
 
-    const getBattleActor = ServiceRegistry?.get?.('gameplay.battle.actor');
+    const getBattleActor = _svc('runtime.battle.actor');
     const actor = typeof getBattleActor === 'function' ? getBattleActor(battle) : null;
-    const me = Player.get();
+    const me = _player();
     if(!actor || actor.tipo !== 'player' || actor.playerId !== me.id) return payload;
 
     setTimeout(() => {
-      const getCurrentBattle = ServiceRegistry?.get?.('gameplay.battle.current');
+      const getCurrentBattle = _svc('runtime.battle.current');
       const current = typeof getCurrentBattle === 'function' ? getCurrentBattle() : null;
       if(!current || current.id !== battle.id || current.estado !== 'activo') return;
-      const combatAction = ServiceRegistry?.get?.('gameplay.combat.action');
+      const combatAction = _svc('runtime.battle.action');
       if(typeof combatAction === 'function') combatAction(current.id, me.id, 'atacar', null);
-      else Out.line('Servicio gameplay.combat.action no disponible para autoplay en Reino Pesadilla.', 't-dim');
+      else _line('Servicio runtime.battle.action no disponible para autoplay en Reino Pesadilla.', 't-dim');
     }, 140);
 
     return payload;
@@ -159,31 +223,32 @@ const pluginReinoPesadilla = (() => {
     const fromNodeId = state.fromNodeId;
     const dir = state.dir;
 
-    Out.sp();
-    Out.sep('═');
-    Out.line('✦ EL REINO PESADILLA SE DESVANECE', 't-eco', true);
-    Out.line('La frontera vuelve a estabilizarse.', 't-dim');
-    Out.sep('═');
+    _sp();
+    _sep('═');
+    _line('✦ EL REINO PESADILLA SE DESVANECE', 't-eco', true);
+    _line('La frontera vuelve a estabilizarse.', 't-dim');
+    _sep('═');
 
     state.activa = false;
     state.runId = null;
 
-    const dest = World.expandSection(fromNodeId, dir);
+    const dest = _worldExpandSection(fromNodeId, dir);
     if(!dest) {
-      Out.line('No se pudo crear la nueva sección.', 't-pel');
+      _line('No se pudo crear la nueva sección.', 't-pel');
       return;
     }
-    const enterNode = ServiceRegistry?.get?.('gameplay.enter_node');
+    const enterNode = _svc('runtime.world.enter_node');
     if(typeof enterNode === 'function') {
       enterNode(dest, { tick:1, showLook:true, saveAfter:true, grantXP:true });
     } else {
-      Player.setPos(dest);
-      Clock.tick(1);
-      EventBus.emit('player:tick', { player: Player.get() });
-      World.visit(dest);
-      const look = ServiceRegistry?.get?.('gameplay.look');
+      const setPos = _svc('runtime.player.set_position');
+      if(typeof setPos === 'function') setPos(dest);
+      _clockTick(1);
+      EventBus.emit('player:tick', { player: _player() });
+      _worldVisit(dest);
+      const look = _svc('runtime.world.look');
       if(typeof look === 'function') look();
-      save();
+      _saveGame();
     }
   }
 
@@ -193,7 +258,7 @@ const pluginReinoPesadilla = (() => {
     if(state.activa) {
       const allowed = new Set(['atacar', 'atk', 'a', 'defender', 'd', 'magia', 'habilidad', 'estado', 'stats', 'examinar', 'ex', 'batalla', 'b', 'huir', 'h']);
       if(!allowed.has(payload.verb)) {
-        Out.line('El Reino Pesadilla te mantiene atrapado. Sobrevive al combate.', 't-cor');
+        _line('El Reino Pesadilla te mantiene atrapado. Sobrevive al combate.', 't-cor');
         payload.cancelled = true;
       }
       return payload;
@@ -204,10 +269,10 @@ const pluginReinoPesadilla = (() => {
     const dir = _resolveDir(payload.verb, payload.args || []);
     if(!dir || !['norte', 'sur', 'este', 'oeste'].includes(dir)) return payload;
 
-    const fromNodeId = Player.pos();
-    const exits = World.exits(fromNodeId);
+    const fromNodeId = _playerPos();
+    const exits = _worldExits(fromNodeId);
     if(exits?.[dir]) return payload;
-    if(!World.isBorder(fromNodeId)) return payload;
+    if(!_worldIsBorder(fromNodeId)) return payload;
 
     if(_currentDifficulty() < DIFICULTAD_MIN) return payload;
     if(!U.chance(CHANCE)) return payload;

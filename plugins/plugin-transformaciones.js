@@ -11,8 +11,38 @@
 //  - Al transformar se rompe un equipo equipado al azar.
 // ════════════════════════════════════════════════════════════════
 
+function _svc(name) {
+  return (typeof ServiceRegistry !== 'undefined' && typeof ServiceRegistry.get === 'function')
+    ? ServiceRegistry.get(name)
+    : null;
+}
+function _player() {
+  const fn = _svc('runtime.player.current');
+  return typeof fn === 'function' ? fn() : null;
+}
+function _playerCombatStats() {
+  const fn = _svc('runtime.player.combat_stats');
+  return typeof fn === 'function' ? (fn() || {}) : {};
+}
+function _playerRecalcResonances() {
+  const fn = _svc('runtime.player.recalc_resonances');
+  return typeof fn === 'function' ? !!fn() : false;
+}
+function _line(text, color='t-out', bold=false) {
+  const fn = _svc('runtime.output.line');
+  if(typeof fn === 'function') fn(text, color, bold);
+}
+function _sp() {
+  const fn = _svc('runtime.output.sp');
+  if(typeof fn === 'function') fn();
+}
+function _saveGame() {
+  const fn = _svc('runtime.game.save');
+  if(typeof fn === 'function') fn();
+}
+
 function _txData() {
-  const p = Player.get();
+  const p = _player();
   p.ext = p.ext || {};
   p.ext.transformaciones = p.ext.transformaciones || {
     puntos: {},
@@ -54,7 +84,7 @@ function _rebuildEquipRefs(eq) {
 }
 
 function _romperEquipoAleatorio() {
-  const p = Player.get();
+  const p = _player();
   const eq = p.equipped || {};
   const slots = [
     'mano_izquierda','mano_derecha','casco','guantes','peto','botas','accesorio_1','accesorio_2','mitico','reliquia',
@@ -66,7 +96,7 @@ function _romperEquipoAleatorio() {
   const it = eq[slot];
   eq[slot] = null;
   _rebuildEquipRefs(eq);
-  if(typeof Player._recalcResonancias === 'function') Player._recalcResonancias();
+  _playerRecalcResonances();
   return { slot, item: it };
 }
 
@@ -96,7 +126,7 @@ function _interiorizarEnBatalla(payload) {
   battle._txInteriorizados[enemy.id] = true;
   battleLog(battle, `🜂 Interiorizas a ${enemy.name}. +1 punto de transformación [${tipo.label}] (total: ${tx.puntos[tipo.key]}).`, 't-mag');
   _xpGanar('mente', 10, `interiorizar ${tipo.label}`);
-  save();
+  _saveGame();
 
   return { handled:true, consumeTurn:true };
 }
@@ -108,7 +138,7 @@ function _transformarEnBatalla(payload) {
     return { handled:true, consumeTurn:false };
   }
 
-  const p = Player.get();
+  const p = _player();
   const tx = _txData();
   const vivos = battle.cola.filter(c => c.vivo && c.tipo !== 'player');
   if(!vivos.length) {
@@ -135,7 +165,7 @@ function _transformarEnBatalla(payload) {
   const [tipoKey, puntos] = entry;
   const target = vivos[0];
 
-  const baseAtk = Player.getAtk ? Player.getAtk() : (actor.atk || 1);
+  const baseAtk = _playerCombatStats().atk || actor.atk || 1;
   const bonus = Math.floor(puntos * 8 + (puntos * puntos * 0.75));
   const dmg = Math.max(1, Math.floor(baseAtk + bonus - (target.def || 0)));
 
@@ -156,15 +186,9 @@ function _transformarEnBatalla(payload) {
   }
 
   _xpGanar('combate', Math.ceil(dmg / 2), 'transformación');
-  save();
+  _saveGame();
 
   return { handled:true, consumeTurn:true };
-}
-
-function _svc(name) {
-  return (typeof ServiceRegistry !== 'undefined' && typeof ServiceRegistry.get === 'function')
-    ? ServiceRegistry.get(name)
-    : null;
 }
 
 function _xpGanar(attr, amount, reason) {
@@ -201,8 +225,9 @@ const pluginTransformaciones = {
           }
         }
 
-        const playerActor = battle.cola.find(c => c.tipo === 'player' && c.playerId === Player.get().id);
-        const hpPlayer = playerActor?.hp ?? Player.get().hp;
+        const player = _player();
+        const playerActor = battle.cola.find(c => c.tipo === 'player' && c.playerId === player?.id);
+        const hpPlayer = playerActor?.hp ?? player?.hp;
         if(hpPlayer < 5 && !battle._txAvisadoLowHp) {
           battle._txAvisadoLowHp = true;
           battleLog(battle, 'el vínculo se siente presente usa el commandos transformar', 't-cor');
@@ -236,15 +261,15 @@ const pluginTransformaciones = {
       fn: () => {
         const tx = _txData();
         const list = Object.entries(tx.puntos || {}).filter(([,v]) => v > 0);
-        Out.sp();
-        Out.line('— TRANSFORMACIONES —', 't-mag');
+        _sp();
+        _line('— TRANSFORMACIONES —', 't-mag');
         if(!list.length) {
-          Out.line('Sin puntos. Debilita enemigos (≤5HP) e interioriza en batalla.', 't-dim');
-          Out.sp();
+          _line('Sin puntos. Debilita enemigos (≤5HP) e interioriza en batalla.', 't-dim');
+          _sp();
           return;
         }
-        list.sort((a,b) => b[1] - a[1]).forEach(([k,v]) => Out.line(`  ${k}: ${v}`, 't-mag'));
-        Out.sp();
+        list.sort((a,b) => b[1] - a[1]).forEach(([k,v]) => _line(`  ${k}: ${v}`, 't-mag'));
+        _sp();
       },
       meta: {
         titulo: 'transformaciones',

@@ -79,6 +79,23 @@ function _tacticsWoundMeta(key) {
   const fn = _svc('runtime.tactics.wound_meta');
   return typeof fn === 'function' ? fn(key) : null;
 }
+function _enemyAbilityExecutor() {
+  return _svc('runtime.combat.enemy.use_habilidad');
+}
+function _enemyMagicExecutor() {
+  return _svc('runtime.combat.enemy.cast_magia');
+}
+function _enemyAbilityBuffTicker() {
+  return _svc('runtime.combat.enemy.tick_habilidad_buffs');
+}
+function _player() {
+  const fn = _svc('runtime.player.current');
+  return typeof fn === 'function' ? fn() : null;
+}
+function _gsAliveNPCs() {
+  const fn = _svc('runtime.gs.alive_npcs');
+  return typeof fn === 'function' ? (fn() || []) : [];
+}
 
 // ── Asignar perfil según actor ────────────────────────────────────
 function _asignarPerfil(actor) {
@@ -95,7 +112,7 @@ function _asignarPerfil(actor) {
   if(n.includes('fragmento')||n.includes('eco_corrupto'))return profiles.cazador || _defaultProfile();
 
   if(tipo==='npc') {
-    const npcRef = typeof GS!=='undefined' ? GS.aliveNPCs().find(x=>x.id===actor.id) : null;
+    const npcRef = _gsAliveNPCs().find(x=>x.id===actor.id) || null;
     const arq    = npcRef?.arq_ocu||npcRef?.arq_vis||'';
     if(['traidor','corrupto','vengativo'].includes(arq))  return profiles.oportunista || _defaultProfile();
     if(['mártir','sacrificio'].includes(arq))             return profiles.guardián || _defaultProfile();
@@ -240,9 +257,9 @@ function _ejecutarDecision(decision, actor, battle) {
     case 'habilidad': {
       const { hab, target } = decision;
       if(!hab) { _ataqueFisico(actor, decision.target||battle.cola.find(c=>c.vivo&&c.tipo==='player'), battle); break; }
-      // Delegar a plugin:habilidades via función global
-      const log = typeof _ejecutarHabilidadEnemigo !== 'undefined'
-        ? _ejecutarHabilidadEnemigo(actor, hab, target, battle)
+      const execHab = _enemyAbilityExecutor();
+      const log = typeof execHab === 'function'
+        ? execHab(actor, hab, target, battle)
         : _ataqueFisico(actor, target, battle);
       if(!log) _ataqueFisico(actor, target, battle);
       break;
@@ -251,8 +268,9 @@ function _ejecutarDecision(decision, actor, battle) {
     case 'magia': {
       const { mag, target } = decision;
       if(!mag || mag.cargas<=0) { _ataqueFisico(actor, decision.target||battle.cola.find(c=>c.vivo&&c.tipo==='player'), battle); break; }
-      const log = typeof _ejecutarMagiaEnemigo !== 'undefined'
-        ? _ejecutarMagiaEnemigo(actor, mag, target, battle)
+      const execMag = _enemyMagicExecutor();
+      const log = typeof execMag === 'function'
+        ? execMag(actor, mag, target, battle)
         : _ataqueFisico(actor, target, battle);
       if(!log) _ataqueFisico(actor, target, battle);
       break;
@@ -283,7 +301,7 @@ function _ataqueFisico(actor, target, battle) {
   }
 
   // Niebla personal del jugador (_niebla_turnos)
-  const p = Player.get();
+  const p = _player();
   if(target.tipo==='player' && target.playerId===p.id && (p._niebla_turnos||0)>0 && Math.random()<0.40) {
     battleLog(battle, `  🌫 ${target.name} desaparece en la niebla. Fallo.`, 't-dim');
     return;
@@ -404,7 +422,8 @@ const pluginIABatalla = {
         const perfil = _asignarPerfil(actor);
 
         // Tick de buffs del actor antes de decidir
-        if(typeof _tickBuffsEnemigo !== 'undefined') _tickBuffsEnemigo(actor);
+        const tickEnemyBuffs = _enemyAbilityBuffTicker();
+        if(typeof tickEnemyBuffs === 'function') tickEnemyBuffs(actor);
 
         const decision = _decidirAccion(actor, battle, perfil);
         _ejecutarDecision(decision, actor, battle);

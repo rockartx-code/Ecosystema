@@ -21,6 +21,55 @@ const pluginArbolVida = (() => {
   function _clone(v) {
     return JSON.parse(JSON.stringify(v));
   }
+  function _svc(name) {
+    return (typeof ServiceRegistry !== 'undefined' && typeof ServiceRegistry.get === 'function')
+      ? ServiceRegistry.get(name)
+      : null;
+  }
+  function _player() {
+    const fn = _svc('runtime.player.current');
+    return typeof fn === 'function' ? fn() : null;
+  }
+  function _playerPos() {
+    const fn = _svc('runtime.player.position');
+    return typeof fn === 'function' ? fn() : null;
+  }
+  function _playerCombatStats() {
+    const fn = _svc('runtime.player.combat_stats');
+    return typeof fn === 'function' ? (fn() || {}) : {};
+  }
+  function _playerAddItem(item) {
+    const fn = _svc('runtime.player.add_item');
+    return typeof fn === 'function' ? !!fn(item) : false;
+  }
+  function _playerRemoveItem(itemId) {
+    const fn = _svc('runtime.player.remove_item');
+    return typeof fn === 'function' ? !!fn(itemId) : false;
+  }
+  function _worldNode(nodeId) {
+    const fn = _svc('runtime.world.node');
+    return typeof fn === 'function' ? fn(nodeId) : null;
+  }
+  function _clockCurrent() {
+    const fn = _svc('runtime.clock.current');
+    return typeof fn === 'function' ? (fn() || {}) : {};
+  }
+  function _line(text, color='t-out', bold=false) {
+    const fn = _svc('runtime.output.line');
+    if(typeof fn === 'function') fn(text, color, bold);
+  }
+  function _sp() {
+    const fn = _svc('runtime.output.sp');
+    if(typeof fn === 'function') fn();
+  }
+  function _sep(ch='─', len=46) {
+    const fn = _svc('runtime.output.sep');
+    if(typeof fn === 'function') fn(ch, len);
+  }
+  function _saveGame() {
+    const fn = _svc('runtime.game.save');
+    if(typeof fn === 'function') fn();
+  }
 
   function _ensureArrays() {
     if(!Array.isArray(state.planted)) state.planted = [];
@@ -51,14 +100,15 @@ const pluginArbolVida = (() => {
   }
 
   function _spawnSombraAt(nodeId, playerSnap) {
-    const node = World.node(nodeId);
+    const node = _worldNode(nodeId);
     if(!node) return;
 
     node.enemies = node.enemies || [];
 
     const hp = Math.max(20, Math.floor(playerSnap.maxHp || 50));
-    const atk = Math.max(1, Math.floor(Player.getAtk?.() || playerSnap.atk || 6));
-    const def = Math.max(0, Math.floor(Player.getDef?.() || playerSnap.def || 1));
+    const stats = _playerCombatStats();
+    const atk = Math.max(1, Math.floor(stats.atk || playerSnap.atk || 6));
+    const def = Math.max(0, Math.floor(stats.def || playerSnap.def || 1));
 
     node.enemies.push({
       id: U.uid(),
@@ -79,7 +129,7 @@ const pluginArbolVida = (() => {
         player_name: playerSnap.name,
         inventory: _clone(playerSnap.inventory || []),
         equipped: _clone(playerSnap.equipped || {}),
-        ciclo: Clock.cycle,
+        ciclo: _clockCurrent().cycle || 0,
       },
     });
   }
@@ -88,54 +138,56 @@ const pluginArbolVida = (() => {
     _ensureArrays();
     if(!state.planted.length) return;
 
-    const matured = state.planted.filter(seed => Clock.cycle >= (seed.targetCycle || Infinity));
+    const cycle = _clockCurrent().cycle || 0;
+    const matured = state.planted.filter(seed => cycle >= (seed.targetCycle || Infinity));
     if(!matured.length) return;
 
     matured.forEach(seed => {
       if(!_hasTreeInNode(seed.nodeId)) {
-        state.trees.push({ nodeId: seed.nodeId, grownCycle: Clock.cycle });
-        if(Player.pos() === seed.nodeId) {
-          Out.line('🌳 La semilla germina: un Árbol de la Vida emerge.', 't-cra', true);
+        state.trees.push({ nodeId: seed.nodeId, grownCycle: cycle });
+        if(_playerPos() === seed.nodeId) {
+          _line('🌳 La semilla germina: un Árbol de la Vida emerge.', 't-cra', true);
         }
       }
     });
 
-    state.planted = state.planted.filter(seed => Clock.cycle < (seed.targetCycle || Infinity));
+    state.planted = state.planted.filter(seed => cycle < (seed.targetCycle || Infinity));
   }
 
   function _cmdSembrar() {
     _ensureArrays();
-    const p = Player.get();
-    const nodeId = Player.pos();
+    const p = _player();
+    const nodeId = _playerPos();
+    const cycle = _clockCurrent().cycle || 0;
 
     if(_hasTreeInNode(nodeId)) {
-      Out.line('Ya existe un Árbol de la Vida activo en este nodo.', 't-dim');
+      _line('Ya existe un Árbol de la Vida activo en este nodo.', 't-dim');
       return;
     }
 
     if(_hasPlantInNode(nodeId)) {
       const seed = state.planted.find(x => x.nodeId === nodeId);
-      const turns = Math.max(0, (seed?.targetCycle || Clock.cycle) - Clock.cycle);
-      Out.line(`Ya hay una semilla plantada aquí. Crece en ${turns} ciclo(s).`, 't-dim');
+      const turns = Math.max(0, (seed?.targetCycle || cycle) - cycle);
+      _line(`Ya hay una semilla plantada aquí. Crece en ${turns} ciclo(s).`, 't-dim');
       return;
     }
 
     const semilla = p.inventory.find(i => i.blueprint === SEMILLA_BP || (i.nombre || '').toLowerCase() === SEMILLA_NOMBRE.toLowerCase());
     if(!semilla) {
-      Out.line(`Necesitas ${SEMILLA_NOMBRE} para usar "sembrar".`, 't-dim');
+      _line(`Necesitas ${SEMILLA_NOMBRE} para usar "sembrar".`, 't-dim');
       return;
     }
 
-    Player.rmItem(semilla.id);
+    _playerRemoveItem(semilla.id);
     state.planted.push({
       nodeId,
-      plantedCycle: Clock.cycle,
-      targetCycle: Clock.cycle + 10,
+      plantedCycle: cycle,
+      targetCycle: cycle + 10,
     });
 
-    Out.line('Siembras la Semilla de la vida.', 't-cra', true);
-    Out.line('En 10 ciclos crecerá un Árbol de la Vida en este lugar.', 't-dim');
-    save();
+    _line('Siembras la Semilla de la vida.', 't-cra', true);
+    _line('En 10 ciclos crecerá un Árbol de la Vida en este lugar.', 't-dim');
+    _saveGame();
   }
 
   function _spawnNinfa(payload) {
@@ -143,9 +195,11 @@ const pluginArbolVida = (() => {
     if(!nodeId || !payload?.enemies) return payload;
     if(!U.chance(0.14)) return payload;
 
-    const pAtk = Math.max(1, Player.getAtk());
-    const pDef = Math.max(0, Player.getDef());
-    const pHp  = Math.max(20, Player.get().maxHp || 50);
+    const player = _player();
+    const stats = _playerCombatStats();
+    const pAtk = Math.max(1, stats.atk || player?.atk || 1);
+    const pDef = Math.max(0, stats.def || player?.def || 0);
+    const pHp  = Math.max(20, player?.maxHp || 50);
 
     const hp = Math.max(12, Math.round(pHp * 1.3));
     const atk = Math.max(2, Math.round(pAtk * 1.3));
@@ -172,7 +226,7 @@ const pluginArbolVida = (() => {
   function _onNinfaDefeated(payload) {
     if(!payload?.enemy?.es_ninfa) return payload;
 
-    Player.addItem({
+    _playerAddItem({
       id: U.uid(),
       blueprint: SEMILLA_BP,
       nombre: SEMILLA_NOMBRE,
@@ -182,7 +236,7 @@ const pluginArbolVida = (() => {
       desc: 'Semilla que enraiza un Árbol de la Vida como punto de retorno.',
     });
 
-    Out.line(`La Ninfa deja caer: ${SEMILLA_NOMBRE}.`, 't-cra');
+    _line(`La Ninfa deja caer: ${SEMILLA_NOMBRE}.`, 't-cra');
     return payload;
   }
 
@@ -210,15 +264,15 @@ const pluginArbolVida = (() => {
     p.hp = p.maxHp;
     p.position = tree.nodeId;
 
-    Out.sp();
-    Out.sep('═');
-    Out.line('🌳 El Árbol de la Vida absorbe tu muerte.', 't-cra', true);
-    Out.line(`Revives en ${World.node(tree.nodeId)?.name || tree.nodeId}.`, 't-cra');
-    Out.line('El árbol se destruye, pierdes inventario y equipo.', 't-pel');
-    Out.line('Una sombra nace en el lugar de tu caída.', 't-cor');
-    Out.sep('═');
+    _sp();
+    _sep('═');
+    _line('🌳 El Árbol de la Vida absorbe tu muerte.', 't-cra', true);
+    _line(`Revives en ${_worldNode(tree.nodeId)?.name || tree.nodeId}.`, 't-cra');
+    _line('El árbol se destruye, pierdes inventario y equipo.', 't-pel');
+    _line('Una sombra nace en el lugar de tu caída.', 't-cor');
+    _sep('═');
 
-    save();
+    _saveGame();
 
     return { ...payload, cancelled: true, revivedByLifeTree: true };
   }
@@ -232,7 +286,8 @@ const pluginArbolVida = (() => {
     const tree = state.trees.find(t => t.nodeId === nodeId);
 
     if(plant) {
-      const remain = Math.max(0, (plant.targetCycle || Clock.cycle) - Clock.cycle);
+      const cycle = _clockCurrent().cycle || 0;
+      const remain = Math.max(0, (plant.targetCycle || cycle) - cycle);
       payload.lines.push({ text: `🌱 Semilla de vida plantada (crece en ${remain} ciclo(s)).`, color: 't-cra' });
     }
     if(tree) {

@@ -1163,6 +1163,8 @@ if(typeof ServiceRegistry !== 'undefined') {
   // Sprint 1 facades (runtime.*) — aliases estables para desacoplar callers de gameplay.*
   ServiceRegistry.register('runtime.battle.start', (nodeId, actors=[]) => ServiceRegistry.call('gameplay.battle.start', nodeId, actors), { pluginId:'core', version:'0.1.0' });
   ServiceRegistry.register('runtime.battle.action', (battleId, playerId, action, payload=null) => ServiceRegistry.call('gameplay.combat.action', battleId, playerId, action, payload), { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.battle.current', () => ServiceRegistry.call('gameplay.battle.current'), { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.battle.actor', (battle=null) => ServiceRegistry.call('gameplay.battle.actor', battle), { pluginId:'core', version:'0.1.0' });
   ServiceRegistry.register('runtime.battle.render', (battle=null) => {
     if(typeof Net==='undefined') return false;
     const current = battle || NetRef().getMyBattle?.();
@@ -1178,6 +1180,180 @@ if(typeof ServiceRegistry !== 'undefined') {
     return true;
   }, { pluginId:'core', version:'0.1.0' });
   ServiceRegistry.register('runtime.battle.escape', (battle, playerId) => ServiceRegistry.call('gameplay.combat.escape', battle, playerId), { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.capture.start', (target='') => ServiceRegistry.call('gameplay.capture.start', target), { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.world.enter_node', (dest, opts={}) => ServiceRegistry.call('gameplay.enter_node', dest, opts), { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.world.look', () => ServiceRegistry.call('gameplay.look'), { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.player.current', () => {
+    if(typeof Player === 'undefined' || typeof Player.get !== 'function') return null;
+    return Player.get();
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.player.position', () => {
+    if(typeof Player === 'undefined' || typeof Player.pos !== 'function') return null;
+    return Player.pos();
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.player.set_position', (nodeId) => {
+    if(typeof Player === 'undefined' || typeof Player.setPos !== 'function') return false;
+    Player.setPos(nodeId);
+    return true;
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.player.combat_stats', () => {
+    if(typeof Player === 'undefined') return { atk:0, def:0 };
+    return {
+      atk: typeof Player.getAtk === 'function' ? Player.getAtk() : 0,
+      def: typeof Player.getDef === 'function' ? Player.getDef() : 0,
+    };
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.player.add_item', (item) => {
+    if(typeof Player === 'undefined' || typeof Player.addItem !== 'function' || !item) return false;
+    Player.addItem(item);
+    return true;
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.player.get_slot', (tipo) => {
+    if(typeof Player === 'undefined' || typeof Player.getSlot !== 'function') return 0;
+    return Player.getSlot(tipo);
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.player.find_item', (query='') => {
+    if(typeof Player === 'undefined' || typeof Player.findItem !== 'function') return null;
+    return Player.findItem(query);
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.player.remove_item', (itemId) => {
+    if(typeof Player === 'undefined' || typeof Player.rmItem !== 'function' || !itemId) return false;
+    Player.rmItem(itemId);
+    return true;
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.player.add_to_slot', (tipo, item) => {
+    if(typeof Player === 'undefined' || typeof Player.addToSlot !== 'function') return false;
+    return !!Player.addToSlot(tipo, item);
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.player.remove_from_slot', (tipo, itemId) => {
+    if(typeof Player === 'undefined' || typeof Player.removeFromSlot !== 'function') return false;
+    return !!Player.removeFromSlot(tipo, itemId);
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.player.find_in_slot', (tipo, query='') => {
+    if(typeof Player === 'undefined' || typeof Player.findInSlot !== 'function') return null;
+    return Player.findInSlot(tipo, query);
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.player.recalc_resonances', () => {
+    if(typeof Player === 'undefined' || typeof Player._recalcResonancias !== 'function') return false;
+    Player._recalcResonancias();
+    return true;
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.world.all', () => {
+    if(typeof World === 'undefined' || typeof World.all !== 'function') return {};
+    return World.all();
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.world.node', (nodeId) => {
+    if(typeof World === 'undefined' || typeof World.node !== 'function') return null;
+    return World.node(nodeId);
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.world.exits', (nodeId) => {
+    if(typeof World === 'undefined' || typeof World.exits !== 'function') return {};
+    return World.exits(nodeId) || {};
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.world.visit', (nodeId) => {
+    if(typeof World === 'undefined' || typeof World.visit !== 'function') return false;
+    World.visit(nodeId);
+    return true;
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.world.expand_section', (fromNodeId, dir) => {
+    if(typeof World === 'undefined' || typeof World.expandSection !== 'function') return null;
+    return World.expandSection(fromNodeId, dir);
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.world.is_border', (nodeId) => {
+    if(typeof World === 'undefined' || typeof World.isBorder !== 'function') return false;
+    return !!World.isBorder(nodeId);
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.world.remove_enemy', (nodeId, enemyId) => {
+    if(typeof World === 'undefined' || typeof World.rmEnemy !== 'function') return false;
+    World.rmEnemy(nodeId, enemyId);
+    return true;
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.world.remove_creature', (nodeId, creatureId) => {
+    if(typeof World === 'undefined' || typeof World.rmCreature !== 'function') return false;
+    World.rmCreature(nodeId, creatureId);
+    return true;
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.world.read', () => ({
+    seed: typeof World !== 'undefined' ? World.seed : null,
+    sectionCount: typeof World !== 'undefined' ? World.sectionCount : 0,
+  }), { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.world.calc_difficulty', () => {
+    if(typeof World === 'undefined' || typeof World.calcDificultad !== 'function') return 1.0;
+    return Number(World.calcDificultad()) || 1.0;
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.clock.current', () => ({
+    cycle: typeof Clock !== 'undefined' ? Clock.cycle : 0,
+    slot: typeof Clock !== 'undefined' && typeof Clock.get === 'function' ? Clock.get() : null,
+  }), { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.clock.tick', (delta=1) => {
+    if(typeof Clock === 'undefined' || typeof Clock.tick !== 'function') return false;
+    Clock.tick(delta);
+    return true;
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.output.line', (text, color='t-out', bold=false) => {
+    if(typeof Out === 'undefined' || typeof Out.line !== 'function') return false;
+    Out.line(text, color, bold);
+    return true;
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.output.sp', () => {
+    if(typeof Out === 'undefined' || typeof Out.sp !== 'function') return false;
+    Out.sp();
+    return true;
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.output.sep', (ch='─', len=46) => {
+    if(typeof Out === 'undefined' || typeof Out.sep !== 'function') return false;
+    Out.sep(ch, len);
+    return true;
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.status.refresh', () => {
+    if(typeof refreshStatus !== 'function') return false;
+    refreshStatus();
+    return true;
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.game.save', () => {
+    if(typeof save !== 'function') return false;
+    save();
+    return true;
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.gs.all_npcs', () => {
+    if(typeof GS === 'undefined' || typeof GS.allNPCs !== 'function') return [];
+    return GS.allNPCs();
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.gs.alive_npcs', () => {
+    if(typeof GS === 'undefined' || typeof GS.aliveNPCs !== 'function') return [];
+    return GS.aliveNPCs();
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.gs.add_npc', (npc) => {
+    if(typeof GS === 'undefined' || typeof GS.addNPC !== 'function' || !npc) return false;
+    GS.addNPC(npc);
+    return true;
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.gs.npc', (npcId) => {
+    if(typeof GS === 'undefined' || typeof GS.npc !== 'function') return null;
+    return GS.npc(npcId);
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.gs.npcs_in_node', (nodeId) => {
+    if(typeof GS === 'undefined' || typeof GS.npcEnNodo !== 'function') return [];
+    return GS.npcEnNodo(nodeId) || [];
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.gs.all_misiones', () => {
+    if(typeof GS === 'undefined' || typeof GS.allMisiones !== 'function') return [];
+    return GS.allMisiones();
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.gs.add_mision', (mision) => {
+    if(typeof GS === 'undefined' || typeof GS.addMision !== 'function' || !mision) return false;
+    GS.addMision(mision);
+    return true;
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.gs.mision', (misionId) => {
+    if(typeof GS === 'undefined' || typeof GS.mision !== 'function') return null;
+    return GS.mision(misionId);
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.gs.add_twist', (twist) => {
+    if(typeof GS === 'undefined' || typeof GS.addTwist !== 'function' || !twist) return false;
+    GS.addTwist(twist);
+    return true;
+  }, { pluginId:'core', version:'0.1.0' });
   ServiceRegistry.register('runtime.player.rest', async () => {
     if(typeof Tactics==='undefined' || typeof TacticsRef().cmdDescansar!=='function') return false;
     await TacticsRef().cmdDescansar();

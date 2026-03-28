@@ -74,6 +74,56 @@ CTX.runtime = {
     get: (path)=>ModuleLoader.get(path),
     listModules: ()=>ModuleLoader.list(),
   },
+  player: {
+    current: ()=>Player.get(),
+    position: ()=>Player.pos(),
+    setPosition: (nodeId)=>Player.setPos(nodeId),
+    combatStats: ()=>({ atk: Player.getAtk(), def: Player.getDef() }),
+    addItem: (item)=>Player.addItem(item),
+    recalcResonances: ()=>Player._recalcResonancias?.(),
+  },
+  world: {
+    all: ()=>World.all(),
+    node: (nodeId)=>World.node(nodeId),
+    exits: (nodeId)=>World.exits(nodeId),
+    visit: (nodeId)=>World.visit(nodeId),
+    expandSection: (fromNodeId, dir)=>World.expandSection(fromNodeId, dir),
+    isBorder: (nodeId)=>World.isBorder(nodeId),
+    read: ()=>({ seed: World.seed, sectionCount: World.sectionCount }),
+    calcDifficulty: ()=>typeof World.calcDificultad === 'function' ? World.calcDificultad() : 1.0,
+  },
+  clock: {
+    current: ()=>({ cycle: Clock.cycle, slot: Clock.get?.() || null }),
+    tick: (delta=1)=>Clock.tick(delta),
+  },
+  output: {
+    line: (text, color='t-out', bold=false)=>Out.line(text, color, bold),
+    sp: ()=>Out.sp(),
+    sep: (ch='─', len=46)=>Out.sep(ch, len),
+  },
+  status: {
+    refresh: ()=>refreshStatus(),
+  },
+  game: {
+    save: ()=>save(),
+  },
+  gs: {
+    allNPCs: ()=>GS.allNPCs(),
+    aliveNPCs: ()=>GS.aliveNPCs(),
+    addNPC: (npc)=>GS.addNPC(npc),
+    npc: (npcId)=>GS.npc(npcId),
+    npcsInNode: (nodeId)=>GS.npcEnNodo(nodeId),
+    allMisiones: ()=>GS.allMisiones(),
+    addMision: (mision)=>GS.addMision(mision),
+    mision: (misionId)=>GS.mision(misionId),
+    addTwist: (twist)=>GS.addTwist(twist),
+  },
+  xp: {
+    read: ()=>({
+      ser: typeof XP !== 'undefined' && typeof XP.ser === 'function' ? XP.ser() : null,
+      atributos: typeof XP !== 'undefined' ? (XP.ATRIBUTOS || {}) : {},
+    }),
+  },
 };
 PluginLoader.setEventsVersion?.(CTX.runtime.eventsVersion);
 
@@ -138,6 +188,26 @@ EventBus.defineEvents({
   'plugin:unloaded': {
     kind:'domain', phase:'post',
     validateIn: (p)=>_isObj(p) && _isStr(p.id || ''),
+  },
+  'plugin:error': {
+    kind:'domain', phase:'post',
+    validateIn: (p)=>_isObj(p) && _isStr(p.id || '') && Array.isArray(p.errors),
+  },
+  'world:after_gen': {
+    kind:'domain', phase:'post',
+    validateIn: (p)=>_isObj(p) && _isObj(p.nodes || {}) && _isObj(p.edges || {}) && _isStr(p.seed || ''),
+  },
+  'world:node_enter': {
+    kind:'domain', phase:'post',
+    validateIn: (p)=>_isObj(p) && _isStr(p.nodeId || '') && (_isObj(p.node || {}) || p.node == null) && (_isObj(p.player || {}) || p.player == null),
+  },
+  'world:section_expand': {
+    kind:'domain', phase:'post',
+    validateIn: (p)=>_isObj(p) && Array.isArray(p.nodeIds) && _isStr(p.fromNodeId || '') && _isStr(p.dir || ''),
+  },
+  'boss:defeated': {
+    kind:'domain', phase:'post',
+    validateIn: (p)=>_isObj(p) && (_isObj(p.boss || {}) || p.boss == null) && (Array.isArray(p.loot) || p.loot == null) && (_isNum(p.xp) || p.xp == null),
   },
   'combat:resolve_magia': {
     kind:'query', phase:'main',
@@ -279,7 +349,7 @@ if(typeof globalThis.Combat.active === 'undefined') {
 // Estos son los sistemas que antes eran monolíticos y ahora viven
 // como plugins registrados. Cada uno recibe CTX en sus handlers.
 
-function _registerCoreSystems() {
+function _registerDomainPlugins() {
   const corePluginDefs = [
     typeof pluginCreaturas        !== 'undefined' ? pluginCreaturas : null,
     typeof pluginHabilidades      !== 'undefined' ? pluginHabilidades : null,
@@ -447,9 +517,9 @@ async function bootSeq() {
   Out.boot('b2', '▸ Inicializando sistemas core...', 'pending');
   Out.boot('b2', '✓ Core: Entity, Player, World, Clock, GS, CombatResolution', 'ok');
 
-  Out.boot('b3', '▸ Registrando sistemas de dominio...', 'pending');
-  _registerCoreSystems();
-  Out.boot('b3', '✓ Sistemas: criaturas, habilidades, magias, supervivencia, dificultad, enemigos', 'ok');
+  Out.boot('b3', '▸ Registrando plugins de dominio...', 'pending');
+  _registerDomainPlugins();
+  Out.boot('b3', '✓ Plugins: criaturas, habilidades, magias, supervivencia, dificultad, enemigos', 'ok');
 
   Out.boot('b4', '▸ Cargando plugins JSON...', 'plug');
   if(consolidated.plugins.length) {

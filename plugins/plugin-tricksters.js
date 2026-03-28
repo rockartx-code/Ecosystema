@@ -83,8 +83,38 @@ const TricksterSystem = (() => {
     },
   ];
 
+  function _svc(name) {
+    return (typeof ServiceRegistry !== 'undefined' && typeof ServiceRegistry.get === 'function')
+      ? ServiceRegistry.get(name)
+      : null;
+  }
+  function _player() {
+    const fn = _svc('runtime.player.current');
+    return typeof fn === 'function' ? fn() : null;
+  }
+  function _playerCombatStats() {
+    const fn = _svc('runtime.player.combat_stats');
+    return typeof fn === 'function' ? (fn() || {}) : {};
+  }
+  function _playerAddItem(item) {
+    const fn = _svc('runtime.player.add_item');
+    return typeof fn === 'function' ? !!fn(item) : false;
+  }
+  function _line(text, color='t-out', bold=false) {
+    const fn = _svc('runtime.output.line');
+    if(typeof fn === 'function') fn(text, color, bold);
+  }
+  function _sp() {
+    const fn = _svc('runtime.output.sp');
+    if(typeof fn === 'function') fn();
+  }
+  function _sep(ch='─', len=46) {
+    const fn = _svc('runtime.output.sep');
+    if(typeof fn === 'function') fn(ch, len);
+  }
+
   function _chanceAparicion() {
-    const suerte = Player.get().suerte || 0;
+    const suerte = _player()?.suerte || 0;
     return Math.min(0.75, 0.06 + suerte * 0.03);
   }
 
@@ -104,28 +134,29 @@ const TricksterSystem = (() => {
     if(!Array.isArray(pool) || !pool.length) return null;
     const blueprint = U.pick(pool, U.rng(Date.now() + Math.random()));
     const item = _crearItem(blueprint, tipo, tags);
-    Player.addItem(item);
+    _playerAddItem(item);
     return item;
   }
 
   function _spawnEnNodo(nodeId) {
     const def = U.pick(TRICKSTERS, U.rng(Date.now() + nodeId));
-    const p = Player.get();
+    const p = _player();
+    const stats = _playerCombatStats();
 
-    Out.sp();
-    Out.sep('═');
-    TRICKSTER_ASCII.forEach(line => Out.line(line, 't-mag'));
-    Out.line(`✶ TRICKSTER — ${def.nombre}`, 't-mag', true);
-    Out.line(def.desc, 't-dim');
-    Out.line(`HP:${def.hp}  DEF:${def.def}  (Aparece con suerte alta)`, 't-mag');
-    Out.sep('═');
-    Out.sp();
+    _sp();
+    _sep('═');
+    TRICKSTER_ASCII.forEach(line => _line(line, 't-mag'));
+    _line(`✶ TRICKSTER — ${def.nombre}`, 't-mag', true);
+    _line(def.desc, 't-dim');
+    _line(`HP:${def.hp}  DEF:${def.def}  (Aparece con suerte alta)`, 't-mag');
+    _sep('═');
+    _sp();
 
-    const startBattle = ServiceRegistry?.get?.('gameplay.battle.start');
+    const startBattle = _svc('runtime.battle.start');
     const actors = [
       {
         tipo: 'player', id: p.id, name: p.name,
-        hp: p.hp, maxHp: p.maxHp, atk: Player.getAtk(), def: Player.getDef(),
+        hp: p.hp, maxHp: p.maxHp, atk: stats.atk || p.atk || 0, def: stats.def || p.def || 0,
         nodeId, playerId: p.id, vivo: true,
       },
       {
@@ -144,7 +175,7 @@ const TricksterSystem = (() => {
       },
     ];
     if(typeof startBattle === 'function') startBattle(nodeId, actors);
-    else Out.line('Servicio gameplay.battle.start no disponible para Tricksters.', 't-dim');
+    else _line('Servicio runtime.battle.start no disponible para Tricksters.', 't-dim');
   }
 
   function _tryEscape(actor, battle) {
@@ -170,10 +201,11 @@ const TricksterSystem = (() => {
       actor.vivo = false;
       const dmg = cfg.dañoExplosion || 30;
       target.hp = Math.max(0, target.hp - dmg);
-      if(target.playerId === Player.get().id) Player.get().hp = target.hp;
+      const player = _player();
+      if(target.playerId === player?.id) player.hp = target.hp;
       battleLog(battle, `💥 ${actor.name} explota y causa ${dmg} de daño.`, 't-cor');
       const raro = _crearItem(cfg.lootRaro || 'reliquia_trickster_rara', 'mítico', ['trickster', 'raro']);
-      Player.addItem(raro);
+      _playerAddItem(raro);
       battleLog(battle, `🎁 Loot raro: ${raro.nombre}.`, 't-cor');
       if(target.hp <= 0) {
         target.vivo = false;
@@ -193,15 +225,16 @@ const TricksterSystem = (() => {
       if(mag) battleLog(battle, `📜 Loot mágico: ${mag.nombre}.`, 't-mag');
     }
 
-    if(cfg.drenajeStamina && target.playerId === Player.get().id) {
-      const p = Player.get();
+    const player = _player();
+    if(cfg.drenajeStamina && target.playerId === player?.id) {
+      const p = player;
       p.stamina = Math.max(0, (p.stamina || 100) - cfg.drenajeStamina);
       battleLog(battle, `🕳 ${actor.name} drena ${cfg.drenajeStamina} de stamina.`, 't-pel');
     }
 
     const dmg = Math.max(1, (actor.atk || 8) - (target.def || 0));
     target.hp = Math.max(0, target.hp - dmg);
-    if(target.playerId === Player.get().id) Player.get().hp = target.hp;
+    if(target.playerId === player?.id) player.hp = target.hp;
     battleLog(battle, `${actor.name} → ${target.name}  −${dmg}HP`, 't-pel');
     if(target.hp <= 0) {
       target.vivo = false;
@@ -220,9 +253,10 @@ const TricksterSystem = (() => {
       if(item) battleLog(battle, `🎁 ${target.name} suelta ${item.nombre} al ser golpeado.`, 't-cra');
     }
 
-    if(cfg.dañoReflejadoPct && actor.playerId === Player.get().id) {
+    const player = _player();
+    if(cfg.dañoReflejadoPct && actor.playerId === player?.id) {
       const reflejo = Math.max(1, Math.floor(dmg * cfg.dañoReflejadoPct));
-      const p = Player.get();
+      const p = player;
       p.hp = Math.max(0, p.hp - reflejo);
       actor.hp = p.hp;
       battleLog(battle, `🪞 Reflejo: recibes ${reflejo} de daño.`, 't-pel');
@@ -236,14 +270,14 @@ const TricksterSystem = (() => {
   }
 
   function cmdTricksters() {
-    Out.sp();
-    Out.line('— TRICKSTERS DISPONIBLES —', 't-mag', true);
+    _sp();
+    _line('— TRICKSTERS DISPONIBLES —', 't-mag', true);
     TRICKSTERS.forEach(t => {
-      Out.line(`✶ ${t.nombre}  HP:${t.hp} DEF:${t.def}`, 't-mag');
-      Out.line(`   ${t.desc}`, 't-dim');
+      _line(`✶ ${t.nombre}  HP:${t.hp} DEF:${t.def}`, 't-mag');
+      _line(`   ${t.desc}`, 't-dim');
     });
-    Out.line(`Chance actual de aparición: ${(100 * _chanceAparicion()).toFixed(0)}%`, 't-cra');
-    Out.sp();
+    _line(`Chance actual de aparición: ${(100 * _chanceAparicion()).toFixed(0)}%`, 't-cra');
+    _sp();
   }
 
   return {
@@ -266,7 +300,7 @@ const pluginTricksters = {
     'world:node_enter': {
       fn(payload) {
         const { nodeId } = payload;
-        const getCurrentBattle = ServiceRegistry?.get?.('gameplay.battle.current');
+        const getCurrentBattle = _svc('runtime.battle.current');
         if(typeof getCurrentBattle === 'function' && getCurrentBattle()) return payload;
         if(Math.random() > TricksterSystem.chance()) return payload;
         setTimeout(() => TricksterSystem.spawn(nodeId), 180);

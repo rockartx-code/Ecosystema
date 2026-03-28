@@ -213,3 +213,10 @@ const ItemSystem = (() => {
 
   return { aplicar, genLootTactico, crear, cmdItems, CATALOGO };
 })();
+
+if(typeof ServiceRegistry !== 'undefined') {
+  ServiceRegistry.register('runtime.items.create', (blueprintId) => ItemSystem.crear(blueprintId), {
+    pluginId:'core',
+    version:'0.1.0',
+  });
+}

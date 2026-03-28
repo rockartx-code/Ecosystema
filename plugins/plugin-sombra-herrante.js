@@ -25,6 +25,55 @@ const SombraHerrante = (() => {
       ? ServiceRegistry.get(name)
       : null;
   }
+  function _player() {
+    const fn = _svc('runtime.player.current');
+    return typeof fn === 'function' ? fn() : null;
+  }
+  function _playerPos() {
+    const fn = _svc('runtime.player.position');
+    return typeof fn === 'function' ? fn() : null;
+  }
+  function _playerCombatStats(p = _player()) {
+    const fn = _svc('runtime.player.combat_stats');
+    const stats = typeof fn === 'function' ? (fn() || {}) : {};
+    return {
+      atk: Math.max(1, Math.floor(stats.atk || p?.atk || 1)),
+      def: Math.max(0, Math.floor(stats.def || p?.def || 0)),
+    };
+  }
+  function _worldAll() {
+    const fn = _svc('runtime.world.all');
+    return typeof fn === 'function' ? (fn() || {}) : {};
+  }
+  function _worldNode(nodeId) {
+    const fn = _svc('runtime.world.node');
+    return typeof fn === 'function' ? fn(nodeId) : null;
+  }
+  function _worldExits(nodeId) {
+    const fn = _svc('runtime.world.exits');
+    return typeof fn === 'function' ? (fn(nodeId) || {}) : {};
+  }
+  function _clockCycle() {
+    const fn = _svc('runtime.clock.current');
+    const current = typeof fn === 'function' ? fn() : null;
+    return current?.cycle ?? 0;
+  }
+  function _line(text, color='t-out', bold=false) {
+    const fn = _svc('runtime.output.line');
+    if(typeof fn === 'function') fn(text, color, bold);
+  }
+  function _sp() {
+    const fn = _svc('runtime.output.sp');
+    if(typeof fn === 'function') fn();
+  }
+  function _sep(ch='─', len=46) {
+    const fn = _svc('runtime.output.sep');
+    if(typeof fn === 'function') fn(ch, len);
+  }
+  function _xpRead() {
+    const fn = _svc('runtime.xp.read');
+    return typeof fn === 'function' ? (fn() || null) : null;
+  }
 
   function _lastRun() {
     const getRuns = _svc('runtime.memory.runs');
@@ -36,7 +85,7 @@ const SombraHerrante = (() => {
   }
 
   function _findSombra() {
-    const nodes = World.all?.() || {};
+    const nodes = _worldAll();
     for(const [nodeId, node] of Object.entries(nodes)) {
       const enemy = (node.enemies || []).find(e => e?.es_sombra_herrante);
       if(enemy) return { nodeId, node, enemy };
@@ -50,7 +99,7 @@ const SombraHerrante = (() => {
     if(!snap) return payload;
     if(_findSombra()) return payload;
 
-    const nodes = Object.values(World.all?.() || {});
+    const nodes = Object.values(_worldAll());
     if(!nodes.length) return payload;
 
     const spawn = U.pick(nodes, U.rng(`${run.id}:${Date.now()}`));
@@ -79,23 +128,24 @@ const SombraHerrante = (() => {
   }
 
   function _battleSombra(nodeId, sombra) {
-    const getCurrentBattle = ServiceRegistry?.get?.('gameplay.battle.current');
+    const getCurrentBattle = _svc('runtime.battle.current');
     if(!sombra || (typeof getCurrentBattle === 'function' && getCurrentBattle())) return;
-    const p = Player.get();
+    const p = _player();
+    const stats = _playerCombatStats(p);
 
-    Out.sp();
-    Out.sep('═');
-    SOMBRA_ASCII.forEach(line => Out.line(line, 't-cor'));
-    Out.line('☠ SOMBRA DEL HERRANTE', 't-cor', true);
-    Out.line(`Te encuentra la run anterior de ${sombra?.sombra_data?.player_name || 'alguien'}.`, 't-dim');
-    Out.line('Si la derrotas, recuperas su inventario completo.', 't-cra');
-    Out.sep('═');
+    _sp();
+    _sep('═');
+    SOMBRA_ASCII.forEach(line => _line(line, 't-cor'));
+    _line('☠ SOMBRA DEL HERRANTE', 't-cor', true);
+    _line(`Te encuentra la run anterior de ${sombra?.sombra_data?.player_name || 'alguien'}.`, 't-dim');
+    _line('Si la derrotas, recuperas su inventario completo.', 't-cra');
+    _sep('═');
 
-    const startBattle = ServiceRegistry?.get?.('gameplay.battle.start');
+    const startBattle = _svc('runtime.battle.start');
     const actors = [
       {
         tipo: 'player', id: p.id, name: p.name,
-        hp: p.hp, maxHp: p.maxHp, atk: Player.getAtk(), def: Player.getDef(),
+        hp: p.hp, maxHp: p.maxHp, atk: stats.atk, def: stats.def,
         nodeId, playerId: p.id, vivo: true,
       },
       {
@@ -114,11 +164,11 @@ const SombraHerrante = (() => {
       },
     ];
     if(typeof startBattle === 'function') startBattle(nodeId, actors);
-    else Out.line('Servicio gameplay.battle.start no disponible para Sombra del Herrante.', 't-dim');
+    else _line('Servicio runtime.battle.start no disponible para Sombra del Herrante.', 't-dim');
   }
 
   function _lootToNode(nodeId, items = []) {
-    const node = World.node(nodeId);
+    const node = _worldNode(nodeId);
     if(!node) return 0;
     node.loot = node.loot || [];
     node.loot._items = node.loot._items || [];
@@ -158,38 +208,38 @@ const SombraHerrante = (() => {
     const items = _collectRunInventory(snap);
     const added = _lootToNode(nodeId, items);
 
-    Out.sp();
-    Out.line(`La Sombra del Herrante se disipa y deja ${added} objeto(s) de su última run.`, 't-cra', true);
+    _sp();
+    _line(`La Sombra del Herrante se disipa y deja ${added} objeto(s) de su última run.`, 't-cra', true);
     if(snap?.xp) {
       const ramas = Object.entries(snap.xp?.ramas || {})
         .map(([k, v]) => `${k}:${v?.xp || 0}xp`)
         .join(' · ');
-      if(ramas) Out.line(`Memoria de experiencia: ${ramas}`, 't-mem');
+      if(ramas) _line(`Memoria de experiencia: ${ramas}`, 't-mem');
     }
     if(items.length) {
-      items.slice(0, 8).forEach(it => Out.line(`  ▸ ${it.nombre || it.blueprint || 'objeto sin nombre'}`, 't-dim'));
-      if(items.length > 8) Out.line(`  … y ${items.length - 8} más`, 't-dim');
+      items.slice(0, 8).forEach(it => _line(`  ▸ ${it.nombre || it.blueprint || 'objeto sin nombre'}`, 't-dim'));
+      if(items.length > 8) _line(`  ... y ${items.length - 8} más`, 't-dim');
     }
   }
 
   function _wander(payload) {
     const found = _findSombra();
-    const getCurrentBattle = ServiceRegistry?.get?.('gameplay.battle.current');
+    const getCurrentBattle = _svc('runtime.battle.current');
     if(!found || (typeof getCurrentBattle === 'function' && getCurrentBattle())) return payload;
 
-    const exits = World.exits(found.nodeId);
-    const nextId = U.pick(Object.values(exits), U.rng(`${Clock.cycle}:${found.enemy.id}`));
+    const exits = _worldExits(found.nodeId);
+    const nextId = U.pick(Object.values(exits), U.rng(`${_clockCycle()}:${found.enemy.id}`));
     if(!nextId || !U.chance(0.60)) return payload;
 
     const fromEnemies = found.node.enemies || [];
     found.node.enemies = fromEnemies.filter(e => e !== found.enemy);
 
-    const toNode = World.node(nextId);
+    const toNode = _worldNode(nextId);
     toNode.enemies = toNode.enemies || [];
     found.enemy.nodeId = nextId;
     toNode.enemies.push(found.enemy);
 
-    if(nextId === Player.pos()) {
+    if(nextId === _playerPos()) {
       setTimeout(() => _battleSombra(nextId, found.enemy), 120);
     }
 
@@ -197,28 +247,30 @@ const SombraHerrante = (() => {
   }
 
   function _onNodeEnter(payload) {
-    const node = World.node(payload.nodeId);
+    const node = _worldNode(payload.nodeId);
     const sombra = (node?.enemies || []).find(e => e?.es_sombra_herrante);
     if(!sombra) return payload;
     setTimeout(() => _battleSombra(payload.nodeId, sombra), 120);
     return payload;
   }
 
-  function _attachRunSnapshot(payload, ctx) {
+  function _attachRunSnapshot(payload) {
     if(!payload?.run || !payload?.player) return payload;
 
+    const stats = _playerCombatStats(payload.player);
+    const xpState = _xpRead();
     payload.run.sombra_herrante = {
       player_name: payload.player.name,
       run_id: payload.run.id,
       stats: {
         maxHp: payload.player.maxHp,
-        atk: Math.max(1, Math.floor(ctx?.Player?.getAtk?.() || payload.player.atk || 1)),
-        def: Math.max(0, Math.floor(ctx?.Player?.getDef?.() || payload.player.def || 0)),
+        atk: stats.atk || Math.max(1, Math.floor(payload.player.atk || 1)),
+        def: stats.def || Math.max(0, Math.floor(payload.player.def || 0)),
       },
       inventory: _clone(payload.player.inventory || []),
       equipped: _clone(payload.player.equipped || {}),
-      xp: _clone(ctx?.XP?.ser?.() || null),
-      ciclo: Clock.cycle,
+      xp: _clone(xpState?.ser || null),
+      ciclo: _clockCycle(),
     };
 
     return payload;

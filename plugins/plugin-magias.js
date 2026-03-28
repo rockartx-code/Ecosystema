@@ -34,6 +34,66 @@ function _svc(name) {
     ? ServiceRegistry.get(name)
     : null;
 }
+function _player() {
+  const fn = _svc('runtime.player.current');
+  return typeof fn === 'function' ? fn() : null;
+}
+function _playerPos() {
+  const fn = _svc('runtime.player.position');
+  return typeof fn === 'function' ? fn() : null;
+}
+function _playerCombatStats() {
+  const fn = _svc('runtime.player.combat_stats');
+  return typeof fn === 'function' ? (fn() || {}) : {};
+}
+function _playerAddToSlot(tipo, item) {
+  const fn = _svc('runtime.player.add_to_slot');
+  return typeof fn === 'function' ? !!fn(tipo, item) : false;
+}
+function _playerRemoveFromSlot(tipo, itemId) {
+  const fn = _svc('runtime.player.remove_from_slot');
+  return typeof fn === 'function' ? !!fn(tipo, itemId) : false;
+}
+function _playerFindItem(query='') {
+  const fn = _svc('runtime.player.find_item');
+  return typeof fn === 'function' ? fn(query) : null;
+}
+function _playerRemoveItem(itemId) {
+  const fn = _svc('runtime.player.remove_item');
+  return typeof fn === 'function' ? !!fn(itemId) : false;
+}
+function _playerGetSlot(tipo) {
+  const fn = _svc('runtime.player.get_slot');
+  return typeof fn === 'function' ? fn(tipo) : 0;
+}
+function _worldNode(nodeId) {
+  const fn = _svc('runtime.world.node');
+  return typeof fn === 'function' ? fn(nodeId) : null;
+}
+function _worldAll() {
+  const fn = _svc('runtime.world.all');
+  return typeof fn === 'function' ? (fn() || {}) : {};
+}
+function _worldRemoveEnemy(nodeId, enemyId) {
+  const fn = _svc('runtime.world.remove_enemy');
+  return typeof fn === 'function' ? !!fn(nodeId, enemyId) : false;
+}
+function _line(text, color='t-out', bold=false) {
+  const fn = _svc('runtime.output.line');
+  if(typeof fn === 'function') fn(text, color, bold);
+}
+function _sp() {
+  const fn = _svc('runtime.output.sp');
+  if(typeof fn === 'function') fn();
+}
+function _refreshStatus() {
+  const fn = _svc('runtime.status.refresh');
+  if(typeof fn === 'function') fn();
+}
+function _saveGame() {
+  const fn = _svc('runtime.game.save');
+  if(typeof fn === 'function') fn();
+}
 function _xpGanar(attr, amount, reason) {
   const gain = _svc('runtime.xp.gain');
   if(typeof gain === 'function') return !!gain(attr, amount, reason);
@@ -149,7 +209,7 @@ function _ejecutarMagiaEnemigo(actor, mag, target, battle) {
       // Infligir herida aleatoria
       const HERIDAS_POSIBLES = ['HEMORRAGIA','ENVENENAMIENTO','CONMOCION','FRACTURA'];
       const herida = U.pick(HERIDAS_POSIBLES,U.rng(Date.now()));
-      const p = Player.get();
+      const p = _player();
       if(target.tipo==='player' && target.playerId===p.id) {
         p.heridas=p.heridas||[];
         if(!p.heridas.includes(herida)){
@@ -180,7 +240,7 @@ function _ejecutarMagiaEnemigo(actor, mag, target, battle) {
 
     case 'mana_drain': {
       if(!target) break;
-      const p = Player.get();
+      const p = _player();
       if(target.tipo==='player' && target.playerId===p.id) {
         const manaDrenado = Math.min(p.mana||0, mag.poder||15);
         p.mana = Math.max(0,(p.mana||0)-manaDrenado);
@@ -209,7 +269,7 @@ function _ejecutarMagiaEnemigo(actor, mag, target, battle) {
       // Aplicar VACÍO
       _tactApplyElement(target,'VACÍO',battle);
       // Herida ENVENENAMIENTO fija
-      const p = Player.get();
+      const p = _player();
       if(target.tipo==='player'&&target.playerId===p.id) {
         p.heridas=p.heridas||[];
         if(!p.heridas.includes('ENVENENAMIENTO')) p.heridas.push('ENVENENAMIENTO');
@@ -265,7 +325,7 @@ function _tickMaldicion(target, battle) {
   if(dmg>0) {
     target.hp = Math.max(0,target.hp-dmg);
     battleLog(battle,`  ☠ MALDICIÓN → ${target.name}  −${dmg}HP  (${target._maldicion_turnos} turnos rest.)`, 't-cor');
-    const p = Player.get();
+    const p = _player();
     if(target.tipo==='player'&&target.playerId===p.id) p.hp=target.hp;
     if(target.hp<=0){ target.vivo=false; battleLog(battle,`${target.name} cae.`,'t-cor'); }
   }
@@ -313,7 +373,7 @@ function _progresarMagJugador(mag, actor, battle) {
 
 function _aplicarDanoJugadorMag(target, dmg, battle) {
   if(target.tipo!=='player') return;
-  const p = Player.get();
+  const p = _player();
   if(target.playerId!==p.id) return;
   p.hp = target.hp;
 }
@@ -321,11 +381,11 @@ function _aplicarDanoJugadorMag(target, dmg, battle) {
 // ── Comando CANALIZAR ─────────────────────────────────────────────
 function cmdCanalizar(args) {
   const q      = args.join(' ').trim().toLowerCase();
-  const battleSvc = (typeof ServiceRegistry!=='undefined' && ServiceRegistry.get) ? ServiceRegistry.get('gameplay.battle.current') : null;
+  const battleSvc = _svc('runtime.battle.current');
   const battle = battleSvc ? battleSvc() : null;
 
   if(!battle||battle.estado!=='activo') {
-    Out.line('Solo puedes canalizar durante una batalla activa.','t-dim'); return;
+    _line('Solo puedes canalizar durante una batalla activa.','t-dim'); return;
   }
 
   const candidatos = battle.cola.filter(c=>
@@ -336,37 +396,37 @@ function cmdCanalizar(args) {
   if(q) {
     fuente = candidatos.find(c=>c.name.toLowerCase().includes(q));
     if(!fuente) {
-      Out.line(`No hay magia reciente de "${args.join(' ')}".`,'t-dim');
-      if(candidatos.length) Out.line(`Disponibles: ${candidatos.map(c=>`${c.name.split(' ')[0].toLowerCase()} ⟨${c._ultima_magia.nombre}⟩`).join('  ·  ')}`,'t-mag');
+      _line(`No hay magia reciente de "${args.join(' ')}".`,'t-dim');
+      if(candidatos.length) _line(`Disponibles: ${candidatos.map(c=>`${c.name.split(' ')[0].toLowerCase()} ⟨${c._ultima_magia.nombre}⟩`).join('  ·  ')}`,'t-mag');
       return;
     }
   } else if(candidatos.length===1) {
     fuente = candidatos[0];
   } else if(candidatos.length>1) {
-    Out.line('Varias magias disponibles. Especifica el enemigo:','t-dim');
-    candidatos.forEach(c=>Out.line(`  canalizar ${c.name.split(' ')[0].toLowerCase()}  — ⟨${c._ultima_magia.nombre}⟩  [${c._ultima_magia.efecto}]`,'t-mag'));
+    _line('Varias magias disponibles. Especifica el enemigo:','t-dim');
+    candidatos.forEach(c=>_line(`  canalizar ${c.name.split(' ')[0].toLowerCase()}  — ⟨${c._ultima_magia.nombre}⟩  [${c._ultima_magia.efecto}]`,'t-mag'));
     return;
   } else {
-    Out.line('Ningún enemigo ha usado una magia recientemente.','t-dim');
-    Out.line('Usa "canalizar" justo después de que el enemigo lance una magia.','t-dim');
+    _line('Ningún enemigo ha usado una magia recientemente.','t-dim');
+    _line('Usa "canalizar" justo después de que el enemigo lance una magia.','t-dim');
     return;
   }
 
   const magUsada = fuente._ultima_magia;
-  const max      = Player.getSlot('magias');
-  const col      = Player.get().ext?.magias||[];
+  const max      = _playerGetSlot('magias');
+  const col      = _player()?.ext?.magias||[];
 
   if(col.length>=max) {
-    Out.line(`Sin slots de magia (${col.length}/${max}).`,'t-dim'); return;
+    _line(`Sin slots de magia (${col.length}/${max}).`,'t-dim'); return;
   }
   if(col.some(m=>m.pool_id===magUsada.pool_id)) {
-    Out.line(`Ya conoces ⟨${magUsada.nombre}⟩.`,'t-dim'); return;
+    _line(`Ya conoces ⟨${magUsada.nombre}⟩.`,'t-dim'); return;
   }
 
   // Bloquear magias que no tienen sentido para el jugador
   const BLOQUEADAS_JUGADOR = ['invocar_eco','duplicar']; // duplicar ya existe en forja
   if(BLOQUEADAS_JUGADOR.includes(magUsada.efecto)) {
-    Out.line(`⟨${magUsada.nombre}⟩ no puede ser canalizada. Su naturaleza es incompatible con un cuerpo vivo.`,'t-mag');
+    _line(`⟨${magUsada.nombre}⟩ no puede ser canalizada. Su naturaleza es incompatible con un cuerpo vivo.`,'t-mag');
     return;
   }
 
@@ -392,49 +452,49 @@ function cmdCanalizar(args) {
     canalizada_de: fuente.name,
   };
 
-  Player.addToSlot('magias', magAprendida);
+  _playerAddToSlot('magias', magAprendida);
   _xpGanar('mente', 35, `magia canalizada: ${magAprendida.nombre}`);
 
-  Out.sp();
-  Out.line(`⟨${magAprendida.nombre}⟩ canalizada.`,'t-mag',true);
-  Out.line(`Poder: ${magAprendida.poder}  ·  Cargas: ${magAprendida.cargas}  ·  Fragilidad inicial: ${magAprendida.fragilidad}%`,'t-dim');
-  Out.line(`Canalizada de ${fuente.name}. Poder reducido al 70% — la canalización es imperfecta.`,'t-dim');
-  Out.sp();
+  _sp();
+  _line(`⟨${magAprendida.nombre}⟩ canalizada.`,'t-mag',true);
+  _line(`Poder: ${magAprendida.poder}  ·  Cargas: ${magAprendida.cargas}  ·  Fragilidad inicial: ${magAprendida.fragilidad}%`,'t-dim');
+  _line(`Canalizada de ${fuente.name}. Poder reducido al 70% — la canalización es imperfecta.`,'t-dim');
+  _sp();
 
   fuente._ultima_magia = null;
-  save();
+  _saveGame();
 }
 
 // ── Comandos del jugador (sin cambios de v2.0) ────────────────────
 function cmdMagias() {
-  const mags = Player.get().ext?.magias||[];
-  const max  = Player.getSlot('magias');
-  Out.sp();
-  Out.line(`— MAGIAS CONJURADAS (${mags.length}/${max}) —`,'t-mag');
-  if(!mags.length){ Out.line('Sin magias. Usa "conjurar [materiales]" o "canalizar" en batalla.','t-dim'); Out.sp(); return; }
+  const mags = _player()?.ext?.magias||[];
+  const max  = _playerGetSlot('magias');
+  _sp();
+  _line(`— MAGIAS CONJURADAS (${mags.length}/${max}) —`,'t-mag');
+  if(!mags.length){ _line('Sin magias. Usa "conjurar [materiales]" o "canalizar" en batalla.','t-dim'); _sp(); return; }
   mags.forEach(m=>{
     _initProgMag(m);
     const frag    = m.fragilidad||0;
     const fragCol = frag>=60?'t-pel':frag>=30?'t-mem':'t-cra';
     const ori     = m.origen==='canalizada'?` [canalizada·${m.canalizada_de}]`:'';
-    Out.line(`  ${m.nombre}${ori}  [${m.efecto}]  cargas:${m.cargas}/${m.cargas_max}  frag:${frag}%  evol:N${m.evolucion.nivel} ${m.evolucion.contador}/${m.evolucion.umbral}  maest:N${m.maestria.nivel} ${m.maestria.xp}/${m.maestria.umbral}`,'t-mag');
-    Out.line(`    ${m.desc||'—'}`,'t-dim');
-    if(frag>=80) Out.line('    ⚠ Próxima a corromperse.','t-pel');
+    _line(`  ${m.nombre}${ori}  [${m.efecto}]  cargas:${m.cargas}/${m.cargas_max}  frag:${frag}%  evol:N${m.evolucion.nivel} ${m.evolucion.contador}/${m.evolucion.umbral}  maest:N${m.maestria.nivel} ${m.maestria.xp}/${m.maestria.umbral}`,'t-mag');
+    _line(`    ${m.desc||'—'}`,'t-dim');
+    if(frag>=80) _line('    ⚠ Próxima a corromperse.','t-pel');
   });
-  Out.sp();
+  _sp();
 }
 
 function cmdLanzar(args) {
   const q    = args.join(' ').trim();
-  const mags = Player.get().ext?.magias||[];
+  const mags = _player()?.ext?.magias||[];
   const mag  = q ? mags.find(m=>m.nombre?.toLowerCase().includes(q.toLowerCase())) : mags.find(m=>m.cargas>0);
 
-  if(!mag){ Out.line('Sin magia disponible.','t-dim'); return; }
-  if(mag.cargas<=0){ Out.line(`"${mag.nombre}" sin cargas. Usa "recargar".`,'t-dim'); return; }
+  if(!mag){ _line('Sin magia disponible.','t-dim'); return; }
+  if(mag.cargas<=0){ _line(`"${mag.nombre}" sin cargas. Usa "recargar".`,'t-dim'); return; }
 
-  const p = Player.get();
+  const p = _player();
   const manaCost = mag.poder||8;
-  if((p.mana||0)<manaCost){ Out.line(`Maná insuficiente (necesitas ${manaCost}).`,'t-mag'); return; }
+  if((p.mana||0)<manaCost){ _line(`Maná insuficiente (necesitas ${manaCost}).`,'t-mag'); return; }
   p.mana = Math.max(0,(p.mana||0)-manaCost);
   mag.cargas--;
   mag.fragilidad = U.clamp((mag.fragilidad||0)+10,0,100);
@@ -443,64 +503,65 @@ function cmdLanzar(args) {
 
   if(mag.fragilidad>=100){
     mag.corrompida=true;
-    Out.line(`${mag.nombre} se corrompe. Pierdes la magia.`,'t-pel',true);
-    Player.removeFromSlot('magias',mag.id);
+    _line(`${mag.nombre} se corrompe. Pierdes la magia.`,'t-pel',true);
+    _playerRemoveFromSlot('magias',mag.id);
   }
-  refreshStatus(); save();
+  _refreshStatus(); _saveGame();
 }
 
 function _efectoFueraCombate(mag,p){
-  const n=World.node(Player.pos());
+  const pos = _playerPos();
+  const n=_worldNode(pos);
   switch(mag.efecto){
     case 'dmg_dist':{
       const enemies=n?.enemies||[];
-      if(!enemies.length){Out.line(`${mag.nombre}: Sin objetivos.`,'t-mag');break;}
+      if(!enemies.length){_line(`${mag.nombre}: Sin objetivos.`,'t-mag');break;}
       const e=enemies[0]; const dmg=Math.max(1,(mag.poder||8)-(e.def||0));
       e.hp_current=Math.max(0,(e.hp_current||e.hp)-dmg);
-      Out.line(`${mag.nombre} → ${e.nombre}  −${dmg}HP`,'t-mag',true);
-      if(e.hp_current<=0) World.rmEnemy(Player.pos(),e.id);
+      _line(`${mag.nombre} → ${e.nombre}  −${dmg}HP`,'t-mag',true);
+      if(e.hp_current<=0) _worldRemoveEnemy(pos,e.id);
       break;
     }
     case 'teleport':{
-      const nodos=Object.keys(World.all()).filter(id=>id!==Player.pos());
+      const nodos=Object.keys(_worldAll()).filter(id=>id!==pos);
       if(!nodos.length) break;
       const dest=nodos[Math.floor(Math.random()*nodos.length)];
-      const enterNodeSvc = (typeof ServiceRegistry!=='undefined' && ServiceRegistry.get) ? ServiceRegistry.get('gameplay.enter_node') : null;
+      const enterNodeSvc = _svc('runtime.world.enter_node');
       if(enterNodeSvc) enterNodeSvc(dest, { tick:1, showLook:false, saveAfter:false, grantXP:false });
-      else { Player.setPos(dest); Clock.tick(1); World.visit(dest); }
-      Out.line(`${mag.nombre}: teletransportado a ${World.node(dest)?.name||'?'}`,'t-mag',true);
+      _line(`${mag.nombre}: teletransportado a ${_worldNode(dest)?.name||'?'}`,'t-mag',true);
       break;
     }
-    case 'invisibilidad':{ p.flags=p.flags||[]; p.flags=p.flags.filter(f=>f.tipo!=='invisible'); p.flags.push({tipo:'invisible',ciclos:3}); Out.line(`${mag.nombre}: invisible por 3 ciclos.`,'t-mag',true); break; }
-    case 'duplicar':     { p._duplicar_loot=true; Out.line(`${mag.nombre}: próximo objeto recogido se duplica.`,'t-mag',true); break; }
-    case 'revelar':      { const item=p.inventory.find(i=>i.imprint); if(item) Out.line(`${mag.nombre}: ${item.nombre} — hash:${item.imprint?.hash||'?'}`,'t-mag',true); else Out.line('Sin objetos con impronta.','t-dim'); break; }
-    case 'debuff':       { const e=(n?.enemies||[])[0]; if(e){const r=Math.max(1,Math.floor(e.atk*0.3));e.atk=Math.max(1,e.atk-r);Out.line(`${mag.nombre} → ${e.nombre}  ATK−${r}`,'t-mag',true);}else Out.line('Sin objetivos.','t-dim'); break; }
-    case 'maldicion':    { Out.line(`${mag.nombre}: efecto de maldición solo activo en batalla.`,'t-dim'); break; }
-    case 'mana_drain':   { Out.line(`${mag.nombre}: efecto solo activo en batalla.`,'t-dim'); break; }
-    default: Out.line(`${mag.nombre} (${mag.efecto}): lanzada.`,'t-mag',true);
+    case 'invisibilidad':{ p.flags=p.flags||[]; p.flags=p.flags.filter(f=>f.tipo!=='invisible'); p.flags.push({tipo:'invisible',ciclos:3}); _line(`${mag.nombre}: invisible por 3 ciclos.`,'t-mag',true); break; }
+    case 'duplicar':     { p._duplicar_loot=true; _line(`${mag.nombre}: próximo objeto recogido se duplica.`,'t-mag',true); break; }
+    case 'revelar':      { const item=p.inventory.find(i=>i.imprint); if(item) _line(`${mag.nombre}: ${item.nombre} — hash:${item.imprint?.hash||'?'}`,'t-mag',true); else _line('Sin objetos con impronta.','t-dim'); break; }
+    case 'debuff':       { const e=(n?.enemies||[])[0]; if(e){const r=Math.max(1,Math.floor(e.atk*0.3));e.atk=Math.max(1,e.atk-r);_line(`${mag.nombre} → ${e.nombre}  ATK−${r}`,'t-mag',true);}else _line('Sin objetivos.','t-dim'); break; }
+    case 'maldicion':    { _line(`${mag.nombre}: efecto de maldición solo activo en batalla.`,'t-dim'); break; }
+    case 'mana_drain':   { _line(`${mag.nombre}: efecto solo activo en batalla.`,'t-dim'); break; }
+    default: _line(`${mag.nombre} (${mag.efecto}): lanzada.`,'t-mag',true);
   }
 }
 
 function cmdRecargar(args){
   const[magQ,...matRest]=args; const matQ=matRest.join(' ').trim();
-  const mags=Player.get().ext?.magias||[];
+  const mags=_player()?.ext?.magias||[];
   const mag=magQ?mags.find(m=>m.nombre?.toLowerCase().includes(magQ)):mags[0];
-  if(!mag){Out.line('Sin magia para recargar.','t-dim');return;}
-  const mat=matQ?Player.findItem(matQ):Player.get().inventory.find(i=>D.matTags(i.blueprint).some(t=>['resonante','corrupto'].includes(t)));
-  if(!mat){Out.line('Necesitas un material resonante o corrupto.','t-dim');return;}
-  if(!D.matTags(mat.blueprint).some(t=>['resonante','corrupto'].includes(t))){Out.line(`${mat.blueprint} no es válido.`,'t-dim');return;}
-  Player.rmItem(mat.id);
+  if(!mag){_line('Sin magia para recargar.','t-dim');return;}
+  const p=_player();
+  const mat=matQ?_playerFindItem(matQ):p.inventory.find(i=>D.matTags(i.blueprint).some(t=>['resonante','corrupto'].includes(t)));
+  if(!mat){_line('Necesitas un material resonante o corrupto.','t-dim');return;}
+  if(!D.matTags(mat.blueprint).some(t=>['resonante','corrupto'].includes(t))){_line(`${mat.blueprint} no es válido.`,'t-dim');return;}
+  _playerRemoveItem(mat.id);
   mag.cargas=Math.min(mag.cargas_max||3,(mag.cargas||0)+2);
   mag.fragilidad=Math.max(0,(mag.fragilidad||0)-20);
   mag.corrompida=false;
-  Out.line(`${mag.nombre} recargada. Cargas: ${mag.cargas}/${mag.cargas_max}  Fragilidad: ${mag.fragilidad}%`,'t-mag');
-  save();
+  _line(`${mag.nombre} recargada. Cargas: ${mag.cargas}/${mag.cargas_max}  Fragilidad: ${mag.fragilidad}%`,'t-mag');
+  _saveGame();
 }
 
 // ── Ejecución de magia del jugador en batalla ─────────────────────
 function _ejecutarMagiaJugadorBatalla(payload){
   const{actor,mag,target,battle,isMyTurn}=payload;
-  const p=Player.get();
+  const p=_player();
   if((p.heridas||[]).includes('CONMOCION')&&U.chance(0.4)){
     battleLog(battle,'💫 Conmoción: la magia falla!','t-dim'); mag.cargas--; payload.handled=true; return payload;
   }
@@ -524,7 +585,7 @@ function _ejecutarMagiaJugadorBatalla(payload){
   }
   if(isMyTurn) _xpGanar('mente',12,'magia en batalla');
   _progresarMagJugador(mag, actor, battle);
-  if(mag.fragilidad>=100){mag.corrompida=true;battleLog(battle,`☠ ⟨${mag.nombre}⟩ se corrompe.`,'t-pel');Player.removeFromSlot('magias',mag.id);}
+  if(mag.fragilidad>=100){mag.corrompida=true;battleLog(battle,`☠ ⟨${mag.nombre}⟩ se corrompe.`,'t-pel');_playerRemoveFromSlot('magias',mag.id);}
   payload.handled=true; payload.logEntry=log;
   return payload;
 }
@@ -535,6 +596,14 @@ const pluginMagias = {
   nombre:  'Sistema de Magias',
   version: '2.1.0',
   descripcion: 'Magias para jugadores y enemigos. "canalizar" aprende magias enemigas lanzadas.',
+
+  services: {
+    'runtime.combat.enemy.cast_magia': {
+      fn(actor, mag, target, battle) {
+        return _ejecutarMagiaEnemigo(actor, mag, target, battle);
+      },
+    },
+  },
 
   hooks: {
 
@@ -552,8 +621,9 @@ const pluginMagias = {
       fn(payload) {
         if(payload.tipo!=='magias') return payload;
         const base  = D.playerDef?.slots_magias||2;
-        const bonus = Player.get().inventory.some(i=>D.mat(i.blueprint)?.efecto_pasivo==='+1_slot_magia')?1:0;
-        const extra = Player.get()._extra_mag_slots||0;
+        const currentPlayer = _player();
+        const bonus = currentPlayer.inventory.some(i=>D.mat(i.blueprint)?.efecto_pasivo==='+1_slot_magia')?1:0;
+        const extra = currentPlayer._extra_mag_slots||0;
         payload.final = base+bonus+extra;
         return payload;
       }
@@ -620,7 +690,7 @@ const pluginMagias = {
       fn(payload) {
         const p    = payload.player;
         const mags = p.ext?.magias || [];
-        const max  = Player.getSlot('magias');
+        const max  = _playerGetSlot('magias');
         const mana = p.mana ?? p.maxMana ?? 60;
         payload.slots['mag'] = { text: `${mags.length}/${max}`, color: 't-mag' };
         payload.slots['mna'] = { text: `${mana}`,

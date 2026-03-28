@@ -36,6 +36,30 @@ function _svc(name) {
     ? ServiceRegistry.get(name)
     : null;
 }
+function _player() {
+  const fn = _svc('runtime.player.current');
+  return typeof fn === 'function' ? fn() : null;
+}
+function _playerAddToSlot(tipo, item) {
+  const fn = _svc('runtime.player.add_to_slot');
+  return typeof fn === 'function' ? !!fn(tipo, item) : false;
+}
+function _playerGetSlot(tipo) {
+  const fn = _svc('runtime.player.get_slot');
+  return typeof fn === 'function' ? fn(tipo) : 0;
+}
+function _line(text, color='t-out', bold=false) {
+  const fn = _svc('runtime.output.line');
+  if(typeof fn === 'function') fn(text, color, bold);
+}
+function _sp() {
+  const fn = _svc('runtime.output.sp');
+  if(typeof fn === 'function') fn();
+}
+function _saveGame() {
+  const fn = _svc('runtime.game.save');
+  if(typeof fn === 'function') fn();
+}
 function _xpGanar(attr, amount, reason) {
   const gain = _svc('runtime.xp.gain');
   if(typeof gain === 'function') return !!gain(attr, amount, reason);
@@ -209,7 +233,8 @@ function _ejecutarHabilidadEnemigo(actor, hab, target, battle) {
         j.atk              = Math.max(1, Math.floor((j.atk||5)*(1-pct)));
         j._atk_debuff_t    = (j._atk_debuff_t||0)+2;
         // Sincronizar con el estado del jugador local
-        if(j.playerId===Player.get().id) Player.get().atk=j.atk;
+        const p = _player();
+        if(j.playerId===p?.id) p.atk=j.atk;
       });
       log = `${actor.name} ⟨${hab.nombre}⟩ — ATK jugadores −${Math.round(pct*100)}% (2 turnos)`;
       battleLog(battle, log, 't-cor');
@@ -234,7 +259,7 @@ function _ejecutarHabilidadEnemigo(actor, hab, target, battle) {
 // Aplica herida al jugador local si es el target
 function _aplicarDanoJugador(target, dmg, battle) {
   if(target.tipo !== 'player') return;
-  const p = Player.get();
+  const p = _player();
   if(target.playerId !== p.id) return;
   p.hp = target.hp;
   if(typeof Tactics !== 'undefined') {
@@ -274,7 +299,8 @@ function _progresarHabJugador(hab, actor, battle) {
     hab.maestria.nivel   = (hab.maestria.nivel||0) + 1;
     hab.maestria.umbral  = Math.floor((hab.maestria.umbral||8) * 1.2);
     actor.atk            = (actor.atk||0) + 1;
-    if(actor.playerId===Player.get().id) Player.get().atk = actor.atk;
+    const p = _player();
+    if(actor.playerId===p?.id) p.atk = actor.atk;
     battleLog(battle, `◎ Maestría de ⟨${hab.nombre}⟩ sube a ${hab.maestria.nivel}. ATK +1 este combate.`,'t-acc');
     _xpGanar('cuerpo', 10 + hab.maestria.nivel*2, 'maestría de habilidad');
   }
@@ -308,7 +334,7 @@ function _tickBuffsEnemigo(actor) {
 // ── Ejecutar habilidad del JUGADOR ───────────────────────────────
 function _ejecutarHabilidadJugador(payload) {
   const { actor, hab, battle, isMyTurn } = payload;
-  const p      = Player.get();
+  const p      = _player();
   const target = payload.target || battle?.cola?.find(c=>c.vivo&&(c.tipo==='enemy'||c.tipo==='npc'));
 
   if(isMyTurn) _tactConsumeStamina(10);
@@ -423,11 +449,11 @@ function _ejecutarHabilidadJugador(payload) {
 // ── Comando COPIAR ────────────────────────────────────────────────
 function cmdCopiar(args) {
   const q      = args.join(' ').trim().toLowerCase();
-  const battleSvc = (typeof ServiceRegistry!=='undefined' && ServiceRegistry.get) ? ServiceRegistry.get('gameplay.battle.current') : null;
+  const battleSvc = _svc('runtime.battle.current');
   const battle = battleSvc ? battleSvc() : null;
 
   if(!battle || battle.estado!=='activo') {
-    Out.line('Solo puedes copiar durante una batalla activa.','t-dim'); return;
+    _line('Solo puedes copiar durante una batalla activa.','t-dim'); return;
   }
 
   const candidatos = battle.cola.filter(c=>
@@ -438,31 +464,31 @@ function cmdCopiar(args) {
   if(q) {
     fuente = candidatos.find(c=>c.name.toLowerCase().includes(q));
     if(!fuente) {
-      Out.line(`No hay habilidad reciente de "${args.join(' ')}".`,'t-dim');
-      if(candidatos.length) Out.line(`Disponibles: ${candidatos.map(c=>`${c.name.split(' ')[0].toLowerCase()} ⟨${c._ultima_habilidad.nombre}⟩`).join('  ·  ')}`,'t-hab');
+      _line(`No hay habilidad reciente de "${args.join(' ')}".`,'t-dim');
+      if(candidatos.length) _line(`Disponibles: ${candidatos.map(c=>`${c.name.split(' ')[0].toLowerCase()} ⟨${c._ultima_habilidad.nombre}⟩`).join('  ·  ')}`,'t-hab');
       return;
     }
   } else if(candidatos.length===1) {
     fuente = candidatos[0];
   } else if(candidatos.length>1) {
-    Out.line('Varias habilidades disponibles. Especifica el enemigo:','t-dim');
-    candidatos.forEach(c=>Out.line(`  copiar ${c.name.split(' ')[0].toLowerCase().replace(/\s/g,'_')}  — ⟨${c._ultima_habilidad.nombre}⟩  [${c._ultima_habilidad.efecto}]`,'t-hab'));
+    _line('Varias habilidades disponibles. Especifica el enemigo:','t-dim');
+    candidatos.forEach(c=>_line(`  copiar ${c.name.split(' ')[0].toLowerCase().replace(/\s/g,'_')}  — ⟨${c._ultima_habilidad.nombre}⟩  [${c._ultima_habilidad.efecto}]`,'t-hab'));
     return;
   } else {
-    Out.line('Ningún enemigo ha usado una habilidad recientemente.','t-dim');
-    Out.line('Usa "copiar" justo después de que el enemigo ejecute su habilidad.','t-dim');
+    _line('Ningún enemigo ha usado una habilidad recientemente.','t-dim');
+    _line('Usa "copiar" justo después de que el enemigo ejecute su habilidad.','t-dim');
     return;
   }
 
   const habUsada = fuente._ultima_habilidad;
-  const max      = Player.getSlot('habilidades');
-  const col      = Player.get().ext?.habilidades || [];
+  const max      = _playerGetSlot('habilidades');
+  const col      = _player()?.ext?.habilidades || [];
 
   if(col.length >= max) {
-    Out.line(`Sin slots libres (${col.length}/${max}). Necesitas un slot antes de copiar.`,'t-dim'); return;
+    _line(`Sin slots libres (${col.length}/${max}). Necesitas un slot antes de copiar.`,'t-dim'); return;
   }
   if(col.some(h=>h.pool_id===habUsada.pool_id)) {
-    Out.line(`Ya conoces ⟨${habUsada.nombre}⟩.`,'t-dim'); return;
+    _line(`Ya conoces ⟨${habUsada.nombre}⟩.`,'t-dim'); return;
   }
 
   // Recuperar definición base y construir la habilidad sin escalar
@@ -481,28 +507,28 @@ function cmdCopiar(args) {
     copiada_de:       fuente.name,
   };
 
-  Player.addToSlot('habilidades', habAprendida);
+  _playerAddToSlot('habilidades', habAprendida);
   _xpGanar('cuerpo', 30, `habilidad copiada: ${habAprendida.nombre}`);
 
-  Out.sp();
-  Out.line(`⟨${habAprendida.nombre}⟩ aprendida.`,'t-hab',true);
-  Out.line(`Efecto: ${habAprendida.efecto}  ·  Valor base: ${habAprendida.valor}  ·  Copiada de ${fuente.name}`,'t-dim');
-  Out.line(`Nota: valor base sin escalado del enemigo. Evolucionará con el uso.`,'t-dim');
-  Out.sp();
+  _sp();
+  _line(`⟨${habAprendida.nombre}⟩ aprendida.`,'t-hab',true);
+  _line(`Efecto: ${habAprendida.efecto}  ·  Valor base: ${habAprendida.valor}  ·  Copiada de ${fuente.name}`,'t-dim');
+  _line(`Nota: valor base sin escalado del enemigo. Evolucionará con el uso.`,'t-dim');
+  _sp();
 
   fuente._ultima_habilidad = null;  // consumir — no se puede copiar dos veces
-  save();
+  _saveGame();
 }
 
 // ── Comando HABILIDADES ───────────────────────────────────────────
 function cmdHabilidades() {
-  const habs = Player.get().ext?.habilidades || [];
-  const max  = Player.getSlot('habilidades');
-  Out.sp();
-  Out.line(`— HABILIDADES CORPORALES (${habs.length}/${max}) —`, 't-hab');
+  const habs = _player()?.ext?.habilidades || [];
+  const max  = _playerGetSlot('habilidades');
+  _sp();
+  _line(`— HABILIDADES CORPORALES (${habs.length}/${max}) —`, 't-hab');
   if(!habs.length) {
-    Out.line('Sin habilidades. Usa "encarnar [materiales]" o "copiar" en batalla.', 't-dim');
-    Out.sp(); return;
+    _line('Sin habilidades. Usa "encarnar [materiales]" o "copiar" en batalla.', 't-dim');
+    _sp(); return;
   }
   const COLS = { atk_mult:'t-pel', def_pasiva:'t-sis', atk_bonus:'t-cra', evasion:'t-mem', scan:'t-eco', aoe:'t-cor', evol:'t-acc', poise_break:'t-twi', lifesteal:'t-cor', counter:'t-acc', atk_debuff_area:'t-twi', atk_drain:'t-pel' };
   habs.forEach(h => {
@@ -512,10 +538,10 @@ function cmdHabilidades() {
     const evoBar = evo ? `  evol:N${evo.nivel} ${evo.contador}/${evo.umbral}` : '';
     const msBar  = ms  ? `  maest:N${ms.nivel} ${ms.xp}/${ms.umbral}` : '';
     const ori    = h.origen==='copiada' ? ` [copiada·${h.copiada_de}]` : '';
-    Out.line(`  ${h.nombre}${ori}  [${h.efecto}]  val:${h.valor??'—'}${evoBar}${msBar}`, COLS[h.efecto]||'t-hab');
-    Out.line(`    ${h.desc||'—'}`, 't-dim');
+    _line(`  ${h.nombre}${ori}  [${h.efecto}]  val:${h.valor??'—'}${evoBar}${msBar}`, COLS[h.efecto]||'t-hab');
+    _line(`    ${h.desc||'—'}`, 't-dim');
   });
-  Out.sp();
+  _sp();
 }
 
 // ── Registro del plugin ───────────────────────────────────────────
@@ -524,6 +550,19 @@ const pluginHabilidades = {
   nombre:  'Sistema de Habilidades',
   version: '2.1.0',
   descripcion: 'Habilidades para jugadores y enemigos. "copiar" aprende habilidades enemigas en estado base.',
+
+  services: {
+    'runtime.combat.enemy.use_habilidad': {
+      fn(actor, hab, target, battle) {
+        return _ejecutarHabilidadEnemigo(actor, hab, target, battle);
+      },
+    },
+    'runtime.combat.enemy.tick_habilidad_buffs': {
+      fn(actor) {
+        return _tickBuffsEnemigo(actor);
+      },
+    },
+  },
 
   hooks: {
 
@@ -547,7 +586,7 @@ const pluginHabilidades = {
     'player:calc_slot': {
       fn(payload) {
         if(payload.tipo!=='habilidades') return payload;
-        payload.final = (D.playerDef?.slots_habilidades||3)+(Player.get()._extra_hab_slots||0);
+        payload.final = (D.playerDef?.slots_habilidades||3)+(_player()?._extra_hab_slots||0);
         return payload;
       }
     },
@@ -558,7 +597,7 @@ const pluginHabilidades = {
       fn(payload) {
         const p    = payload.player;
         const habs = p.ext?.habilidades || [];
-        const max  = Player.getSlot('habilidades');
+        const max  = _playerGetSlot('habilidades');
         payload.slots['hab'] = { text: `${habs.length}/${max}`, color: 't-hab' };
         return payload;
       }
@@ -600,7 +639,7 @@ const pluginHabilidades = {
           const att  = payload.actor;
           if(att && att.tipo==='player') {
             att.hp = Math.max(0,(att.hp||0)-dmgC);
-            const p = Player.get();
+            const p = _player();
             if(att.playerId===p.id) p.hp=att.hp;
             battleLog(payload.battle, `  ↺ ${target.name} contragolpea → ${att.name}  −${dmgC}HP`,'t-pel');
           }
@@ -612,7 +651,7 @@ const pluginHabilidades = {
     // Contragolpe del JUGADOR cuando le pegan
     'combat:post_resolve': {
       fn(payload) {
-        const p = Player.get();
+        const p = _player();
         if(p._counter_activo && p._counter_mult && (payload.finalDmg||0)>0) {
           const dmgC = Math.max(1, Math.floor(payload.finalDmg*p._counter_mult));
           const src  = payload.actor;

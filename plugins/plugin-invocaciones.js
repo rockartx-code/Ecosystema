@@ -24,8 +24,46 @@ const DjinnInvocaciones = (() => {
     { id:'djinn_velo_entropico',  nombre:'Djinn Velo Entrópico',  foco5x:'hp',  estilo:'entropia',   desc:'Aumenta entropía de batalla y niega defensas en ventana crítica.' },
   ];
 
+  function _svc(name) {
+    return (typeof ServiceRegistry !== 'undefined' && typeof ServiceRegistry.get === 'function')
+      ? ServiceRegistry.get(name)
+      : null;
+  }
+  function _player() {
+    const fn = _svc('runtime.player.current');
+    return typeof fn === 'function' ? fn() : null;
+  }
+  function _playerCombatStats() {
+    const fn = _svc('runtime.player.combat_stats');
+    return typeof fn === 'function' ? (fn() || {}) : {};
+  }
+  function _playerAddItem(item) {
+    const fn = _svc('runtime.player.add_item');
+    return typeof fn === 'function' ? !!fn(item) : false;
+  }
+  function _worldNode(nodeId) {
+    const fn = _svc('runtime.world.node');
+    return typeof fn === 'function' ? fn(nodeId) : null;
+  }
+  function _line(text, color='t-out', bold=false) {
+    const fn = _svc('runtime.output.line');
+    if(typeof fn === 'function') fn(text, color, bold);
+  }
+  function _sp() {
+    const fn = _svc('runtime.output.sp');
+    if(typeof fn === 'function') fn();
+  }
+  function _sep(ch='─', len=46) {
+    const fn = _svc('runtime.output.sep');
+    if(typeof fn === 'function') fn(ch, len);
+  }
+  function _refreshStatus() {
+    const fn = _svc('runtime.status.refresh');
+    if(typeof fn === 'function') fn();
+  }
+
   function _state() {
-    const p = Player.get();
+    const p = _player();
     p.ext = p.ext || {};
     p.ext.invocaciones = p.ext.invocaciones || {
       cooldownBatallas: 0,
@@ -39,12 +77,13 @@ const DjinnInvocaciones = (() => {
   }
 
   function _cofre() {
-    const chest = RunMem?.data?.refugio_cofre;
+    const getData = _svc('runtime.memory.data.get');
+    const chest = typeof getData === 'function' ? getData()?.refugio_cofre : null;
     return Array.isArray(chest) ? chest : [];
   }
 
   function _inventoryInvocations() {
-    return (Player.get().inventory || []).filter(it => it?.tipo === 'invocacion_djinn');
+    return (_player()?.inventory || []).filter(it => it?.tipo === 'invocacion_djinn');
   }
 
   function _todosItemsInvocacion() {
@@ -67,11 +106,12 @@ const DjinnInvocaciones = (() => {
   }
 
   function _statsDesdeJugador(def) {
-    const p = Player.get();
+    const p = _player();
+    const stats = _playerCombatStats();
     const base = {
       hp: Math.max(20, Math.round((p.maxHp || 50) * 1.2)),
-      atk: Math.max(5, Math.round((Player.getAtk?.() || p.atk || 6) * 1.2)),
-      def: Math.max(1, Math.round((Player.getDef?.() || p.def || 2) * 1.2)),
+      atk: Math.max(5, Math.round((stats.atk || p.atk || 6) * 1.2)),
+      def: Math.max(1, Math.round((stats.def || p.def || 2) * 1.2)),
     };
     base[def.foco5x] = Math.max(base[def.foco5x], Math.round(base[def.foco5x] * 5));
     return base;
@@ -152,14 +192,14 @@ const DjinnInvocaciones = (() => {
 
     const dId = enemy?.djinn_def?.id;
     if(dId && _tieneInvocacionDjinn(dId)) {
-      Out.line(`El núcleo de ${enemy.name} ya está ligado a tu cofre/inventario.`, 't-dim');
+      _line(`El núcleo de ${enemy.name} ya está ligado a tu cofre/inventario.`, 't-dim');
       return payload;
     }
 
     const item = _crearLootInvocacion(enemy);
     if(!item) return payload;
-    Player.addItem(item);
-    Out.line(`🜂 Obtienes ${item.nombre}.`, 't-cra', true);
+    _playerAddItem(item);
+    _line(`🜂 Obtienes ${item.nombre}.`, 't-cra', true);
     return payload;
   }
 
@@ -173,7 +213,8 @@ const DjinnInvocaciones = (() => {
     if(!target) return 0;
     const dmg = Math.max(1, Math.round(amount));
     target.hp = Math.max(0, target.hp - dmg);
-    if(target.playerId === Player.get().id) Player.get().hp = target.hp;
+    const player = _player();
+    if(target.playerId === player?.id) player.hp = target.hp;
     battleLog(battle, `${actor.name} → ${target.name}  −${dmg}HP  (${target.hp}/${target.maxHp})`, label);
     if(target.hp <= 0) { target.vivo = false; battleLog(battle, `${target.name} cae.`, 't-cor'); }
     return dmg;
@@ -292,7 +333,7 @@ const DjinnInvocaciones = (() => {
   }
 
   function _inBattle() {
-    const battleSvc = (typeof ServiceRegistry!=='undefined' && ServiceRegistry.get) ? ServiceRegistry.get('gameplay.battle.current') : null;
+    const battleSvc = _svc('runtime.battle.current');
     const b = battleSvc ? battleSvc() : null;
     return b && b.estado === 'activo' ? b : null;
   }
@@ -415,7 +456,7 @@ const DjinnInvocaciones = (() => {
   }
 
   function _applyTransmutationFail(a, b) {
-    const p = Player.get();
+    const p = _player();
     const dmg = Math.max(8, Math.round(((a?.summonSnapshot?.atk || 10) + (b?.summonSnapshot?.atk || 10)) * 0.35));
     p.hp = Math.max(1, p.hp - dmg);
 
@@ -428,17 +469,17 @@ const DjinnInvocaciones = (() => {
     const st = _state();
     st.transmutacionesFallidas = (st.transmutacionesFallidas || 0) + 1;
 
-    Out.line(`✖ La transmutación colapsa: recibes ${dmg} de daño.`, 't-cor', true);
-    Out.line(`Estados alterados aplicados: ${e1} + ${e2}.`, 't-pel');
-    refreshStatus?.();
+    _line(`✖ La transmutación colapsa: recibes ${dmg} de daño.`, 't-cor', true);
+    _line(`Estados alterados aplicados: ${e1} + ${e2}.`, 't-pel');
+    _refreshStatus();
   }
 
   function cmdTransmutar(args = []) {
     const selected = _pickTransmutationItems(args);
-    if(selected.error) { Out.line(selected.error, 't-dim'); return; }
+    if(selected.error) { _line(selected.error, 't-dim'); return; }
     const { a, b } = selected;
 
-    const p = Player.get();
+    const p = _player();
     p.inventory = (p.inventory || []).filter(it => it.id !== a.id && it.id !== b.id);
     EventBus.emit('player:item_remove', { item:a, player:p });
     EventBus.emit('player:item_remove', { item:b, player:p });
@@ -449,18 +490,18 @@ const DjinnInvocaciones = (() => {
     }
 
     const fusion = _createFusionItem(a, b);
-    Player.addItem(fusion);
+    _playerAddItem(fusion);
 
     const st = _state();
     st.transmutaciones = (st.transmutaciones || 0) + 1;
 
-    Out.sp();
-    Out.line('🜁 TRANSMUTACIÓN EXITOSA', 't-cra', true);
-    Out.line(`${a.nombre} + ${b.nombre}`, 't-dim');
-    Out.line(`→ ${fusion.nombre}`, 't-mag');
-    Out.line(`Stats fusionadas: HP ${fusion.summonSnapshot.hp} · ATK ${fusion.summonSnapshot.atk} · DEF ${fusion.summonSnapshot.def}`, 't-cra');
-    Out.line(`Estrategias combinadas: ${fusion.summonSnapshot.estilos.join(' + ')}`, 't-dim');
-    Out.sp();
+    _sp();
+    _line('🜁 TRANSMUTACIÓN EXITOSA', 't-cra', true);
+    _line(`${a.nombre} + ${b.nombre}`, 't-dim');
+    _line(`→ ${fusion.nombre}`, 't-mag');
+    _line(`Stats fusionadas: HP ${fusion.summonSnapshot.hp} · ATK ${fusion.summonSnapshot.atk} · DEF ${fusion.summonSnapshot.def}`, 't-cra');
+    _line(`Estrategias combinadas: ${fusion.summonSnapshot.estilos.join(' + ')}`, 't-dim');
+    _sp();
   }
 
   function _onCommandBefore(payload) {
@@ -469,7 +510,7 @@ const DjinnInvocaciones = (() => {
 
     const battle = _inBattle();
     if(!battle) {
-      Out.line('Invocación solo puede usarse durante una batalla activa.', 't-dim');
+      _line('Invocación solo puede usarse durante una batalla activa.', 't-dim');
       payload.cancelled = true;
       return payload;
     }
@@ -477,7 +518,7 @@ const DjinnInvocaciones = (() => {
     const st = _state();
     const gate = _canUseSummonInBattle(battle, st);
     if(!gate.ok) {
-      Out.line(gate.reason, 't-dim');
+      _line(gate.reason, 't-dim');
       payload.cancelled = true;
       return payload;
     }
@@ -485,7 +526,7 @@ const DjinnInvocaciones = (() => {
     const query = (payload?.args || []).join(' ').trim();
     const item = _findSummonItem(query);
     if(!item) {
-      Out.line('No tienes objetos de invocación Djinn en inventario.', 't-dim');
+      _line('No tienes objetos de invocación Djinn en inventario.', 't-dim');
       payload.cancelled = true;
       return payload;
     }
@@ -507,16 +548,16 @@ const DjinnInvocaciones = (() => {
   }
 
   function _onNodeEnter(payload) {
-    const node = World.node(payload?.nodeId);
+    const node = _worldNode(payload?.nodeId);
     const djinn = (node?.enemies || []).find(e => e?.es_djinn_archon);
     if(!djinn) return payload;
 
-    Out.sp();
-    Out.sep('═');
-    Out.line('⚚ RESONANCIA DE INVOCACIÓN DETECTADA', 't-mag', true);
-    Out.line(_lineaPresentacion(djinn), 't-mag');
-    Out.line(djinn?.djinn_def?.desc || 'Djinn de patrón complejo detectado.', 't-dim');
-    Out.sep('═');
+    _sp();
+    _sep('═');
+    _line('⚚ RESONANCIA DE INVOCACIÓN DETECTADA', 't-mag', true);
+    _line(_lineaPresentacion(djinn), 't-mag');
+    _line(djinn?.djinn_def?.desc || 'Djinn de patrón complejo detectado.', 't-dim');
+    _sep('═');
     return payload;
   }
 
@@ -524,23 +565,23 @@ const DjinnInvocaciones = (() => {
     const st = _state();
     const inv = _inventoryInvocations();
 
-    Out.sp(); Out.sep('─');
-    Out.line('INVOCACIONES DJINN', 't-mag', true);
-    Out.line(`Cooldown restante: ${st.cooldownBatallas || 0} batalla(s).`, 't-dim');
-    Out.line(`Invocaciones usadas: ${st.invocacionesRealizadas || 0}.`, 't-dim');
-    Out.line(`Transmutaciones: ${st.transmutaciones || 0} (fallidas: ${st.transmutacionesFallidas || 0}).`, 't-dim');
+    _sp(); _sep('─');
+    _line('INVOCACIONES DJINN', 't-mag', true);
+    _line(`Cooldown restante: ${st.cooldownBatallas || 0} batalla(s).`, 't-dim');
+    _line(`Invocaciones usadas: ${st.invocacionesRealizadas || 0}.`, 't-dim');
+    _line(`Transmutaciones: ${st.transmutaciones || 0} (fallidas: ${st.transmutacionesFallidas || 0}).`, 't-dim');
     if(!inv.length) {
-      Out.line('No tienes objetos de invocación en inventario.', 't-dim');
+      _line('No tienes objetos de invocación en inventario.', 't-dim');
     } else {
       inv.forEach(it => {
         const s = it.summonSnapshot || {};
         const estr = (s.estilos || [s.estilo]).filter(Boolean).join(' + ');
-        Out.line(`  ▸ ${it.nombre}  HP:${s.hp||'?'} ATK:${s.atk||'?'} DEF:${s.def||'?'} [${estr}]`, 't-cra');
+        _line(`  ▸ ${it.nombre}  HP:${s.hp||'?'} ATK:${s.atk||'?'} DEF:${s.def||'?'} [${estr}]`, 't-cra');
       });
     }
-    Out.line('En batalla: invocacion [nombre].', 't-dim');
-    Out.line('Fuera de batalla: transmutar <invA> | <invB>.', 't-dim');
-    Out.sep('─'); Out.sp();
+    _line('En batalla: invocacion [nombre].', 't-dim');
+    _line('Fuera de batalla: transmutar <invA> | <invB>.', 't-dim');
+    _sep('─'); _sp();
   }
 
   return {

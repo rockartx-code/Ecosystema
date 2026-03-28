@@ -12,6 +12,80 @@
 //   - Registra comandos: capturar, vincular, liberar, criar, modo, nombrar, criaturas
 // ════════════════════════════════════════════════════════════════
 
+function _svc(name) {
+  return (typeof ServiceRegistry !== 'undefined' && typeof ServiceRegistry.get === 'function')
+    ? ServiceRegistry.get(name)
+    : null;
+}
+function _player() {
+  const fn = _svc('runtime.player.current');
+  return typeof fn === 'function' ? fn() : null;
+}
+function _playerPos() {
+  const fn = _svc('runtime.player.position');
+  return typeof fn === 'function' ? fn() : null;
+}
+function _playerCombatStats() {
+  const fn = _svc('runtime.player.combat_stats');
+  return typeof fn === 'function' ? (fn() || {}) : {};
+}
+function _playerGetSlot(tipo) {
+  const fn = _svc('runtime.player.get_slot');
+  return typeof fn === 'function' ? fn(tipo) : 0;
+}
+function _playerAddItem(item) {
+  const fn = _svc('runtime.player.add_item');
+  return typeof fn === 'function' ? !!fn(item) : false;
+}
+function _playerAddToSlot(tipo, item) {
+  const fn = _svc('runtime.player.add_to_slot');
+  return typeof fn === 'function' ? !!fn(tipo, item) : false;
+}
+function _playerRemoveFromSlot(tipo, itemId) {
+  const fn = _svc('runtime.player.remove_from_slot');
+  return typeof fn === 'function' ? !!fn(tipo, itemId) : false;
+}
+function _playerFindInSlot(tipo, query='') {
+  const fn = _svc('runtime.player.find_in_slot');
+  return typeof fn === 'function' ? fn(tipo, query) : null;
+}
+function _playerRemoveItem(itemId) {
+  const fn = _svc('runtime.player.remove_item');
+  return typeof fn === 'function' ? !!fn(itemId) : false;
+}
+function _worldNode(nodeId) {
+  const fn = _svc('runtime.world.node');
+  return typeof fn === 'function' ? fn(nodeId) : null;
+}
+function _worldExits(nodeId) {
+  const fn = _svc('runtime.world.exits');
+  return typeof fn === 'function' ? (fn(nodeId) || {}) : {};
+}
+function _worldRemoveCreature(nodeId, creatureId) {
+  const fn = _svc('runtime.world.remove_creature');
+  return typeof fn === 'function' ? !!fn(nodeId, creatureId) : false;
+}
+function _line(text, color='t-out', bold=false) {
+  const fn = _svc('runtime.output.line');
+  if(typeof fn === 'function') fn(text, color, bold);
+}
+function _sp() {
+  const fn = _svc('runtime.output.sp');
+  if(typeof fn === 'function') fn();
+}
+function _sep(ch='─', len=46) {
+  const fn = _svc('runtime.output.sep');
+  if(typeof fn === 'function') fn(ch, len);
+}
+function _saveGame() {
+  const fn = _svc('runtime.game.save');
+  if(typeof fn === 'function') fn();
+}
+function _clockCurrent() {
+  const fn = _svc('runtime.clock.current');
+  return typeof fn === 'function' ? (fn() || {}) : {};
+}
+
 // ── Implementación de Creature ────────────────────────────────────
 class Creature extends Entity {
   constructor(data = {}) {
@@ -121,7 +195,7 @@ function _apoyoCompanero(creature, battle, opts = {}) {
   };
 
   if(modo === 'defensivo') {
-    const p = Player.get();
+      const p = _player();
     const curacion = Math.floor(atk * (opts.opening ? 0.45 : 0.3));
     p.hp = Math.min(p.maxHp, p.hp + curacion);
     const pj = battle.cola.find(c => c.tipo === 'player' && c.playerId === p.id);
@@ -131,7 +205,7 @@ function _apoyoCompanero(creature, battle, opts = {}) {
   }
 
   if(modo === 'autónomo') {
-    const p = Player.get();
+      const p = _player();
     if((p.hp / Math.max(1, p.maxHp)) < 0.3) {
       const curacion = Math.floor(atk * 0.25);
       p.hp = Math.min(p.maxHp, p.hp + curacion);
@@ -157,9 +231,10 @@ function _mkCreature(arcId, nodeId, nodeEstado = 'virgen', opts = {}) {
   const extra = nodeEstado === 'corrompido' ? ['corrupto'] : [];
   const cn    = D.creNames || { prefijos:['Eco'], sufijos:['Profundo'] };
   const nombre = U.pick(cn.prefijos || ['Eco'], rng) + '-' + U.pick(cn.sufijos || ['Profundo'], rng);
-  const imp   = typeof Imprint !== 'undefined'
-    ? Imprint.gen(arcId, [...(arq.tags||[]),...extra], { nodeId, cycle:Clock.cycle, pid:'world' })
-    : null;
+  const genImprint = ServiceRegistry?.get?.('runtime.imprint.gen');
+  const imp   = typeof genImprint === 'function'
+      ? genImprint(arcId, [...(arq.tags||[]),...extra], { nodeId, cycle:_clockCurrent().cycle || 0, pid:'world' })
+      : null;
 
   const dif = opts.difficulty || 1.0;
   return new Creature({
@@ -187,17 +262,17 @@ function _anclasRequeridas(creature) {
 function _anclaCompatible(creature) {
   const reqs = _anclasRequeridas(creature);
   if(!reqs.length) return { ok:true, ancla:null };
-  const ancla = Player.get().inventory.find(i=>reqs.includes(i.blueprint));
+  const ancla = _player().inventory.find(i=>reqs.includes(i.blueprint));
   return { ok:!!ancla, ancla:ancla || null };
 }
 
 // ── Comandos ──────────────────────────────────────────────────────
 function cmdCapturar(args) {
   const target = args.join(' ').trim();
-  const captureService = ServiceRegistry?.get?.('gameplay.capture.start');
+  const captureService = ServiceRegistry?.get?.('runtime.capture.start');
   if(typeof captureService === 'function') return captureService(target);
   const q      = target.toLowerCase();
-  const n      = World.node(Player.pos());
+  const n      = _worldNode(_playerPos());
   const cre    = target
     ? n?.creatures?.find(c => {
         const nombre = String(c?.nombre || '').toLowerCase();
@@ -208,44 +283,45 @@ function cmdCapturar(args) {
         return nombre.includes(q) || arc.includes(q) || id.includes(q) || hash === q || short === q;
       })
     : n?.creatures?.[0];
-  if(!cre) { Out.line('No hay criatura para capturar.','t-dim'); return; }
+  if(!cre) { _line('No hay criatura para capturar.','t-dim'); return; }
 
   cre.hp_current = cre.hp || cre.maxHp;
   const { ok, ancla } = _anclaCompatible(cre);
   const reqs = _anclasRequeridas(cre);
 
-  Out.sp(); Out.sep('─');
-  Out.line(`CAPTURA — ${cre.nombre}  [${cre.arquetipo}]`, 't-cri', true);
-  Out.line(`HP:${cre.hp}  ATK:${cre.atk}  DEF:${cre.def||0}  Voluntad:${cre.voluntad}`, 't-dim');
-  Out.line(`Tags: ${cre.tags.join(', ')}`, 't-dim');
+  _sp(); _sep('─');
+  _line(`CAPTURA — ${cre.nombre}  [${cre.arquetipo}]`, 't-cri', true);
+  _line(`HP:${cre.hp}  ATK:${cre.atk}  DEF:${cre.def||0}  Voluntad:${cre.voluntad}`, 't-dim');
+  _line(`Tags: ${cre.tags.join(', ')}`, 't-dim');
   if(reqs.length) {
-    Out.line(`Anclas requeridas: ${reqs.join(' / ')}`, ok ? 't-cra' : 't-pel');
-    if(!ok) Out.line('⚠ Sin ancla compatible. La captura será más difícil.','t-pel');
-    else    Out.line(`Ancla disponible: ${ancla.blueprint} ✓`, 't-cra');
+    _line(`Anclas requeridas: ${reqs.join(' / ')}`, ok ? 't-cra' : 't-pel');
+    if(!ok) _line('⚠ Sin ancla compatible. La captura será más difícil.','t-pel');
+    else    _line(`Ancla disponible: ${ancla.blueprint} ✓`, 't-cra');
   } else {
-    Out.line('No requiere ancla específica.','t-dim');
+    _line('No requiere ancla específica.','t-dim');
   }
-  Out.line('Debilita la criatura a < 30% HP y usa "vincular [ancla]".', 't-dim');
-  Out.sep('─'); Out.sp();
+  _line('Debilita la criatura a < 30% HP y usa "vincular [ancla]".', 't-dim');
+  _sep('─'); _sp();
 
-  const { cancelled } = EventBus.emitCancellable('creature:capture_try', { creature:cre, player:Player.get() });
-  if(cancelled) { Out.line('La captura fue bloqueada.','t-dim'); return; }
+  const { cancelled } = EventBus.emitCancellable('creature:capture_try', { creature:cre, player:_player() });
+  if(cancelled) { _line('La captura fue bloqueada.','t-dim'); return; }
 
-  const p = Player.get();
-  const startBattle = ServiceRegistry?.get?.('runtime.battle.start') || ServiceRegistry?.get?.('gameplay.battle.start');
+  const p = _player();
+  const stats = _playerCombatStats();
+  const startBattle = ServiceRegistry?.get?.('runtime.battle.start');
   const actors = [
-    { tipo:'player',   id:p.id,   name:p.name,     hp:p.hp, maxHp:p.maxHp, atk:Player.getAtk(), def:Player.getDef(), nodeId:n.id, playerId:p.id, vivo:true },
+    { tipo:'player',   id:p.id,   name:p.name,     hp:p.hp, maxHp:p.maxHp, atk:stats.atk || p.atk || 0, def:stats.def || p.def || 0, nodeId:n.id, playerId:p.id, vivo:true },
     { tipo:'creature', id:cre.id, name:cre.nombre, hp:cre.hp_current, maxHp:cre.maxHp||cre.hp, atk:cre.atk, def:cre.def||0, nodeId:n.id, tags:cre.tags||[], vivo:true, _cre_ref:cre },
   ];
   if(typeof startBattle === 'function') startBattle(n.id, actors);
-  else Out.line('Servicio runtime.battle.start no disponible para captura.', 't-dim');
+  else _line('Servicio runtime.battle.start no disponible para captura.', 't-dim');
 }
 
 function cmdVincular(args, battle) {
   const anclaQuery = (Array.isArray(args) ? args.join(' ') : args||'').trim();
-  const p   = Player.get();
-  const pos = Player.pos();
-  const n   = World.node(pos);
+  const p   = _player();
+  const pos = _playerPos();
+  const n   = _worldNode(pos);
 
   // Buscar criatura en combate activo.
   // Importante: la HP confiable durante combate vive en `battle.cola`,
@@ -262,13 +338,13 @@ function cmdVincular(args, battle) {
   if(!cre) cre = n?.creatures?.[0] || null;
   if(!cre && creCombate) cre = creCombate;
   if(!creCombate && cre) creCombate = cre;
-  if(!creCombate) { Out.line('No hay criatura para vincular.','t-dim'); return; }
+  if(!creCombate) { _line('No hay criatura para vincular.','t-dim'); return; }
 
   // Verificar HP usando los valores del combate cuando existen.
   const hpActual = creCombate.hp_current ?? creCombate.hp;
   const hpMax    = creCombate.maxHp || cre.maxHp || creCombate.hp || cre.hp || 1;
   const hpPct = hpActual / hpMax;
-  if(hpPct >= 0.30) { Out.line(`HP al ${Math.round(hpPct*100)}%. Necesitas < 30% para vincular.`,'t-pel'); return; }
+  if(hpPct >= 0.30) { _line(`HP al ${Math.round(hpPct*100)}%. Necesitas < 30% para vincular.`,'t-pel'); return; }
 
   // Verificar ancla
   const reqs = _anclasRequeridas(cre);
@@ -277,25 +353,25 @@ function cmdVincular(args, battle) {
     ancla = anclaQuery
       ? p.inventory.find(i=>reqs.includes(i.blueprint)&&i.blueprint.includes(anclaQuery))
       : p.inventory.find(i=>reqs.includes(i.blueprint));
-    if(!ancla) { Out.line(`Necesitas un ancla compatible: ${reqs.join(' / ')}`,'t-pel'); return; }
+    if(!ancla) { _line(`Necesitas un ancla compatible: ${reqs.join(' / ')}`,'t-pel'); return; }
   }
 
   // Voluntad decide si la vinculación tiene éxito
   const chance = ancla ? 0.75 : 0.45;
   if(!U.chance(chance)) {
-    Out.line(`${cre.nombre} rechaza el vínculo. (Voluntad: ${cre.voluntad})`,'t-pel');
-    if(ancla) { Out.line('El ancla se consume de todas formas.','t-dim'); Player.rmItem(ancla.id); }
+    _line(`${cre.nombre} rechaza el vínculo. (Voluntad: ${cre.voluntad})`,'t-pel');
+    if(ancla) { _line('El ancla se consume de todas formas.','t-dim'); _playerRemoveItem(ancla.id); }
     return;
   }
 
   // Vincular
-  if(ancla) Player.rmItem(ancla.id);
+  if(ancla) _playerRemoveItem(ancla.id);
   cre.estado   = 'vinculada';
   cre.afinidad = 20;
-  World.rmCreature(pos, cre.id);
+  _worldRemoveCreature(pos, cre.id);
 
-  if(!Player.addToSlot('compañeros', cre)) {
-    Out.line('Sin espacio para compañeros.','t-dim');
+  if(!_playerAddToSlot('compañeros', cre)) {
+    _line('Sin espacio para compañeros.','t-dim');
     cre.estado = 'libre';
     n.creatures.push(cre);
     return;
@@ -305,91 +381,91 @@ function cmdVincular(args, battle) {
   const gainXp = ServiceRegistry?.get?.('runtime.xp.gain');
   if(typeof gainXp === 'function') gainXp('criaturas', 35, 'captura exitosa');
 
-  Out.sp();
-  Out.line(`✦ ${cre.nombre} vinculado. [${cre.arquetipo}]`, 't-cri', true);
-  Out.line(`HP:${cre.hp}  ATK:${cre.atk}  Voluntad:${cre.voluntad}  Afinidad:${cre.afinidad}`, 't-dim');
-  Out.line(`Tags: ${cre.tags.join(', ')}`, 't-dim');
-  Out.line(`Gen.${cre.linaje?.generacion||0}  Modo: ${cre.modo}`, 't-dim');
-  Out.sep('─'); Out.sp();
+  _sp();
+  _line(`✦ ${cre.nombre} vinculado. [${cre.arquetipo}]`, 't-cri', true);
+  _line(`HP:${cre.hp}  ATK:${cre.atk}  Voluntad:${cre.voluntad}  Afinidad:${cre.afinidad}`, 't-dim');
+  _line(`Tags: ${cre.tags.join(', ')}`, 't-dim');
+  _line(`Gen.${cre.linaje?.generacion||0}  Modo: ${cre.modo}`, 't-dim');
+  _sep('─'); _sp();
 
   EventBus.emit('creature:bound', { creature:cre, player:p });
   if(battle) {
-    const escapeBattle = ServiceRegistry?.get?.('runtime.battle.escape') || ServiceRegistry?.get?.('gameplay.combat.escape');
+    const escapeBattle = ServiceRegistry?.get?.('runtime.battle.escape');
     if(typeof escapeBattle === 'function') escapeBattle(battle, p.id);
-    else Out.line('Servicio runtime.battle.escape no disponible para cerrar combate de captura.', 't-dim');
+    else _line('Servicio runtime.battle.escape no disponible para cerrar combate de captura.', 't-dim');
   }
-  save();
+  _saveGame();
 }
 
 function cmdLiberar(args) {
   const q = args.join(' ').trim();
-  const c = Player.findInSlot('compañeros', q);
-  if(!c) { Out.line(`No tienes "${q}".`,'t-dim'); return; }
-  Player.removeFromSlot('compañeros', c.id);
-  const n = World.node(Player.pos());
+  const c = _playerFindInSlot('compañeros', q);
+  if(!c) { _line(`No tienes "${q}".`,'t-dim'); return; }
+  _playerRemoveFromSlot('compañeros', c.id);
+  const n = _worldNode(_playerPos());
   if(n) { c.estado='libre'; c.afinidad=Math.max(0,c.afinidad-20); n.creatures.push(c); }
-  Out.line(`Liberas a ${c.nombre}. Afinidad reducida.`,'t-mem');
-  save();
+  _line(`Liberas a ${c.nombre}. Afinidad reducida.`,'t-mem');
+  _saveGame();
 }
 
 function cmdModo(args) {
   const [cQ, ...rest] = args;
   const modo = rest.join(' ').trim();
-  const c = Player.findInSlot('compañeros', cQ);
-  if(!c) { Out.line(`No tienes "${cQ||'?'}".`,'t-dim'); return; }
+  const c = _playerFindInSlot('compañeros', cQ);
+  if(!c) { _line(`No tienes "${cQ||'?'}".`,'t-dim'); return; }
   const modos = ['activo','defensivo','caza','autónomo','latente'];
   if(!modos.includes(modo)) {
-    Out.line(`Modos: ${modos.join(' / ')}`,'t-dim');
-    Out.line('  activo    — ataca al de menor HP','t-dim');
-    Out.line('  caza      — ATK×1.4 DEF×0.7','t-dim');
-    Out.line('  defensivo — DEF×1.5 ATK×0.7, cura al jugador','t-dim');
-    Out.line('  autónomo  — evalúa la situación','t-dim');
-    Out.line('  latente   — no participa en combate','t-dim');
+    _line(`Modos: ${modos.join(' / ')}`,'t-dim');
+    _line('  activo    — ataca al de menor HP','t-dim');
+    _line('  caza      — ATK×1.4 DEF×0.7','t-dim');
+    _line('  defensivo — DEF×1.5 ATK×0.7, cura al jugador','t-dim');
+    _line('  autónomo  — evalúa la situación','t-dim');
+    _line('  latente   — no participa en combate','t-dim');
     return;
   }
   c.modo = modo;
-  Out.line(`${c.nombre} → ${modo}.`,'t-cri');
-  save();
+  _line(`${c.nombre} → ${modo}.`,'t-cri');
+  _saveGame();
 }
 
 function cmdNombrar(args) {
   const [cQ, ...rest] = args;
   const nombre = rest.join(' ').trim();
-  const c = Player.findInSlot('compañeros', cQ);
+  const c = _playerFindInSlot('compañeros', cQ);
   if(!c || !nombre) return;
   c.nombre = nombre;
-  Out.line(`${c.nombre}.`,'t-cri');
-  save();
+  _line(`${c.nombre}.`,'t-cri');
+  _saveGame();
 }
 
 function cmdCompañeros() {
-  const comps = Player.get().ext?.compañeros || [];
-  Out.sp();
-  Out.line(`— COMPAÑEROS (${comps.length}/${Player.getSlot('compañeros')}) —`,'t-cri');
-  if(!comps.length) { Out.line('Sin compañeros. Usa "capturar" en un nodo con criaturas.','t-dim'); Out.sp(); return; }
+  const comps = _player()?.ext?.compañeros || [];
+  _sp();
+  _line(`— COMPAÑEROS (${comps.length}/${_playerGetSlot('compañeros')}) —`,'t-cri');
+  if(!comps.length) { _line('Sin compañeros. Usa "capturar" en un nodo con criaturas.','t-dim'); _sp(); return; }
   comps.forEach(c => {
     const st  = c instanceof Creature ? c.statsEnBatalla() : { atk:c.atk, hp:c.maxHp, def:c.def||0 };
     const gen = c.linaje?.generacion > 0 ? ` Gen.${c.linaje.generacion}` : '';
-    Out.line(`  ${c.nombre}  [${c.arquetipo}]  ${c.estado}  modo:${c.modo}${gen}`, 't-cri');
-    Out.line(`    HP:${c.hp}/${c.maxHp}(→${st.hp}) ATK:${c.atk}→${st.atk}  DEF:${c.def||0}→${st.def}  Afi:${c.afinidad}  Ines:${c.inestabilidad}`, 't-dim');
-    Out.line(`    Tags: ${c.tags.join(', ')}  Combates:${c.memoria?.combates||0}`, 't-dim');
-    if(c.inestabilidad > 60) Out.line(`    ⚠ Alta inestabilidad`, 't-pel');
+    _line(`  ${c.nombre}  [${c.arquetipo}]  ${c.estado}  modo:${c.modo}${gen}`, 't-cri');
+    _line(`    HP:${c.hp}/${c.maxHp}(→${st.hp}) ATK:${c.atk}→${st.atk}  DEF:${c.def||0}→${st.def}  Afi:${c.afinidad}  Ines:${c.inestabilidad}`, 't-dim');
+    _line(`    Tags: ${c.tags.join(', ')}  Combates:${c.memoria?.combates||0}`, 't-dim');
+    if(c.inestabilidad > 60) _line(`    ⚠ Alta inestabilidad`, 't-pel');
   });
-  Out.sp();
+  _sp();
 }
 
 function cmdCriar(args) {
   const [qa, qb] = args;
-  const a = Player.findInSlot('compañeros', qa);
-  const b = Player.findInSlot('compañeros', qb);
-  if(!a || !b || a.id===b.id) { Out.line('Necesitas dos compañeros distintos.','t-dim'); return; }
+  const a = _playerFindInSlot('compañeros', qa);
+  const b = _playerFindInSlot('compañeros', qb);
+  if(!a || !b || a.id===b.id) { _line('Necesitas dos compañeros distintos.','t-dim'); return; }
   if(a.afinidad < 60 || b.afinidad < 60) {
-    Out.line(`Ambos necesitan afinidad ≥ 60.  (${a.nombre}:${a.afinidad}  ${b.nombre}:${b.afinidad})`,'t-dim');
+    _line(`Ambos necesitan afinidad ≥ 60.  (${a.nombre}:${a.afinidad}  ${b.nombre}:${b.afinidad})`,'t-dim');
     return;
   }
   const fams = D.creFamilies || {};
   const compat = Object.values(fams).some(f=>f.includes(a.arquetipo)&&f.includes(b.arquetipo));
-  if(!compat) { Out.line(`${a.nombre} y ${b.nombre} no son compatibles.`,'t-dim'); return; }
+  if(!compat) { _line(`${a.nombre} y ${b.nombre} no son compatibles.`,'t-dim'); return; }
 
   const rng     = U.rng(Date.now()+Math.random());
   const tagsH   = [...U.pickN(a.tags,Math.ceil(a.tags.length/2),rng),...U.pickN(b.tags,Math.ceil(b.tags.length/2),rng)];
@@ -420,18 +496,18 @@ function cmdCriar(args) {
     tags:tagsH, estado:'latente', _cria:cria,
     desc:`Gen.${genHijo}. ATK:${cria.atk} DEF:${cria.def} HP:${cria.maxHp}`,
   };
-  Player.addItem(huevo);
-  Player.get().stats.breeding = (Player.get().stats.breeding||0)+1;
+  _playerAddItem(huevo);
+  _player().stats.breeding = (_player().stats.breeding||0)+1;
   const gainXp = ServiceRegistry?.get?.('runtime.xp.gain');
   if(typeof gainXp === 'function') gainXp('criaturas', 40+genHijo*15, `breeding gen.${genHijo}`);
 
-  Out.sp();
-  Out.line(`BREEDING — ${a.nombre} × ${b.nombre}`, 't-cri', true);
-  Out.line(`${nombre}  Gen.${genHijo}`, 't-cri');
-  Out.line(`Stats: HP:${cria.maxHp}  ATK:${cria.atk}  DEF:${cria.def}  (×${genBonus.toFixed(2)})`, 't-dim');
-  Out.line('"usar huevo" para incubar.','t-dim');
-  Out.sp();
-  save();
+  _sp();
+  _line(`BREEDING — ${a.nombre} × ${b.nombre}`, 't-cri', true);
+  _line(`${nombre}  Gen.${genHijo}`, 't-cri');
+  _line(`Stats: HP:${cria.maxHp}  ATK:${cria.atk}  DEF:${cria.def}  (×${genBonus.toFixed(2)})`, 't-dim');
+  _line('"usar huevo" para incubar.','t-dim');
+  _sp();
+  _saveGame();
 }
 
 // ── Registro del plugin ───────────────────────────────────────────
@@ -484,7 +560,7 @@ const pluginCreaturas = {
       fn(payload) {
         const p     = payload.player;
         const comps = p.ext?.compañeros || [];
-        const max   = Player.getSlot('compañeros');
+        const max   = _playerGetSlot('compañeros');
         payload.slots['comp'] = { text: `${comps.length}/${max}`, color: 't-cri' };
         return payload;
       }
@@ -512,11 +588,11 @@ const pluginCreaturas = {
           if(!nodo.creatures) return;
           nodo.creatures.forEach(creature => {
             if(creature.estado !== 'libre') return;
-            const exits = Object.values(World.exits(nodo.id));
+            const exits = Object.values(_worldExits(nodo.id));
             if(!exits.length) return;
             const destId = exits[Math.floor(Math.random()*exits.length)];
             if(destId === nodo.id) return;
-            const destNode = World.node(destId);
+            const destNode = _worldNode(destId);
             if(!destNode) return;
             destNode.creatures = destNode.creatures || [];
             destNode.creatures.push(creature);
@@ -534,7 +610,7 @@ const pluginCreaturas = {
       fn(payload) {
         const battle = payload?.battle;
         if(!battle?.cola?.length) return payload;
-        const comps = Player.get().ext?.compañeros || [];
+        const comps = _player()?.ext?.compañeros || [];
         comps.forEach(c => _apoyoCompanero(c, battle, { opening:true }));
         return payload;
       }
@@ -542,7 +618,7 @@ const pluginCreaturas = {
 
     'combat:post_resolve': {
       fn(payload) {
-        const comps = Player.get().ext?.compañeros || [];
+        const comps = _player()?.ext?.compañeros || [];
         comps.forEach(c => _apoyoCompanero(c, payload?.battle));
         return payload;
       }

@@ -3,6 +3,68 @@
 // Monstruos mundiales que se mueven, amenazan y dejan loot mítico.
 // ════════════════════════════════════════════════════════════════
 const BossSystem = (() => {
+  function _svc(name) {
+    return (typeof ServiceRegistry !== 'undefined' && typeof ServiceRegistry.get === 'function')
+      ? ServiceRegistry.get(name)
+      : null;
+  }
+  function _player() {
+    const fn = _svc('runtime.player.current');
+    return typeof fn === 'function' ? fn() : null;
+  }
+  function _playerPos() {
+    const fn = _svc('runtime.player.position');
+    return typeof fn === 'function' ? fn() : null;
+  }
+  function _playerCombatStats() {
+    const fn = _svc('runtime.player.combat_stats');
+    return typeof fn === 'function' ? (fn() || {}) : {};
+  }
+  function _playerAddItem(item) {
+    const fn = _svc('runtime.player.add_item');
+    return typeof fn === 'function' ? !!fn(item) : false;
+  }
+  function _worldAll() {
+    const fn = _svc('runtime.world.all');
+    return typeof fn === 'function' ? (fn() || {}) : {};
+  }
+  function _worldNode(nodeId) {
+    const fn = _svc('runtime.world.node');
+    return typeof fn === 'function' ? fn(nodeId) : null;
+  }
+  function _worldExits(nodeId) {
+    const fn = _svc('runtime.world.exits');
+    return typeof fn === 'function' ? (fn(nodeId) || {}) : {};
+  }
+  function _clockCurrent() {
+    const fn = _svc('runtime.clock.current');
+    return typeof fn === 'function' ? (fn() || {}) : {};
+  }
+  function _clockTick(delta=1) {
+    const fn = _svc('runtime.clock.tick');
+    return typeof fn === 'function' ? !!fn(delta) : false;
+  }
+  function _gsAddTwist(twist) {
+    const fn = _svc('runtime.gs.add_twist');
+    return typeof fn === 'function' ? !!fn(twist) : false;
+  }
+  function _line(text, color='t-out', bold=false) {
+    const fn = _svc('runtime.output.line');
+    if(typeof fn === 'function') fn(text, color, bold);
+  }
+  function _sp() {
+    const fn = _svc('runtime.output.sp');
+    if(typeof fn === 'function') fn();
+  }
+  function _sep(ch='─', len=46) {
+    const fn = _svc('runtime.output.sep');
+    if(typeof fn === 'function') fn(ch, len);
+  }
+  function _saveGame() {
+    const fn = _svc('runtime.game.save');
+    if(typeof fn === 'function') fn();
+  }
+
   const BOSS_ASCII = [
     '              /\\',
     '         /\\  //\\\\  /\\',
@@ -30,7 +92,7 @@ const BossSystem = (() => {
     while(queue.length) {
       const { id, dist } = queue.shift();
       if(dist > 6) return 999;
-      for(const nextId of Object.values(World.exits(id))) {
+      for(const nextId of Object.values(_worldExits(id))) {
         if(nextId === toId) return dist + 1;
         if(!visited.has(nextId)) { visited.add(nextId); queue.push({ id:nextId, dist:dist+1 }); }
       }
@@ -44,7 +106,7 @@ const BossSystem = (() => {
     const queue   = [{ id:fromId, path:[] }];
     while(queue.length) {
       const { id, path } = queue.shift();
-      for(const [dir, nextId] of Object.entries(World.exits(id))) {
+      for(const [dir, nextId] of Object.entries(_worldExits(id))) {
         if(nextId === bossNodeId) return path[0] || dir;
         if(!visited.has(nextId) && path.length <= 3) { visited.add(nextId); queue.push({ id:nextId, path:path.length?path:[dir] }); }
       }
@@ -54,9 +116,12 @@ const BossSystem = (() => {
 
   function genLootBoss(def) {
     const rng = U.rng(Date.now() + def.id);
+    const genImprint = _svc('runtime.imprint.gen');
     return def.loot_especial.map(blueprint => {
-      const imp  = Imprint.gen(blueprint, def.tags, { nodeId:'boss', cycle:Clock.cycle, pid:'boss' }, 0.9 + Math.random()*0.1);
-      imp.mutations = imp.mutations.concat(def.tags.slice(0,2));
+      const imp  = typeof genImprint === 'function'
+        ? genImprint(blueprint, def.tags, { nodeId:'boss', cycle:_clockCurrent().cycle || 0, pid:'boss' }, 0.9 + Math.random()*0.1)
+        : null;
+      if(imp) imp.mutations = (imp.mutations || []).concat(def.tags.slice(0,2));
       const tipo = ['arma','armadura','magia','habilidad'].find(t => blueprint.includes(t)) || 'mítico';
       const item = { id:U.uid(), blueprint, nombre:blueprint.replace(/_/g,' '), tipo, tags:[...def.tags,'mítico','boss'], imprint:imp, estado:'boss_drop', desc:`Arrebatado a ${def.nombre}.`, atk:tipo==='arma'?20+U.rand(5,15):0, def:tipo==='armadura'?15+U.rand(3,10):0, poder:30+U.rand(10,20), durabilidad:100, es_mitico:true, boss_id:def.id };
       if(tipo==='magia')     { item.cargas=5; item.cargas_max=5; item.fragilidad=0; item.efecto='dmg_dist'; item.poder=25+U.rand(10,15); }
@@ -66,109 +131,113 @@ const BossSystem = (() => {
   }
 
   function spawn() {
-    const nodeIds   = Object.keys(World.all());
-    const candidatos = nodeIds.filter(id => id !== Player.pos() && !bosses.some(b=>!b.eliminado&&b.nodeId===id) && distancia(Player.pos(),id) >= 4);
+    const player = _player();
+    const playerPos = _playerPos();
+    const nodeIds = Object.keys(_worldAll());
+    const candidatos = nodeIds.filter(id => id !== playerPos && !bosses.some(b=>!b.eliminado&&b.nodeId===id) && distancia(playerPos, id) >= 4);
     if(!candidatos.length) return;
     const nodeId  = candidatos[Math.floor(Math.random()*candidatos.length)];
     const defBase = BOSSES_DEF[Math.floor(Math.random()*BOSSES_DEF.length)];
-    const dif     = EventBus.emit('world:calc_difficulty', { player:Player.get(), difficulty:1.0 })?.difficulty || 1.0;
-    const def     = { ...defBase, hp:Math.round(defBase.hp*dif), atk:Math.round(defBase.atk*Math.sqrt(dif)), def:Math.round(defBase.def*Math.sqrt(dif)*0.8), xp_base:Math.round(defBase.xp_base*dif) };
-    const bossState = { def, nodeId, hp_actual:def.hp, ciclo_entrada:Clock.cycle, ciclo_salida:Clock.cycle+U.rand(15,40), eliminado:false, en_combate:false, id:U.uid() };
+    const dif = EventBus.emit('world:calc_difficulty', { player, difficulty:1.0 })?.difficulty || 1.0;
+    const cycle = _clockCurrent().cycle || 0;
+    const def = { ...defBase, hp:Math.round(defBase.hp*dif), atk:Math.round(defBase.atk*Math.sqrt(dif)), def:Math.round(defBase.def*Math.sqrt(dif)*0.8), xp_base:Math.round(defBase.xp_base*dif) };
+    const bossState = { def, nodeId, hp_actual:def.hp, ciclo_entrada:cycle, ciclo_salida:cycle+U.rand(15,40), eliminado:false, en_combate:false, id:U.uid() };
     bosses.push(bossState);
-    Out.sp(); Out.sep('═');
-    Out.line(`${def.icon} PRESENCIA DETECTADA`, def.color, true);
-    Out.line('Algo de poder incalculable ha entrado al mundo.', 't-dim');
-    Out.line('Se necesita un equipo para hacerle frente.', 't-pel');
-    Out.sep('═'); Out.sp();
+    _sp(); _sep('═');
+    _line(`${def.icon} PRESENCIA DETECTADA`, def.color, true);
+    _line('Algo de poder incalculable ha entrado al mundo.', 't-dim');
+    _line('Se necesita un equipo para hacerle frente.', 't-pel');
+    _sep('═'); _sp();
     EventBus.emit('boss:spawn', { boss:bossState, nodeId });
   }
 
   function moverBosses() {
     bosses.filter(b=>!b.eliminado).forEach(boss => {
-      if(Clock.cycle >= boss.ciclo_salida) {
+      if((_clockCurrent().cycle || 0) >= boss.ciclo_salida) {
         const prev = boss.nodeId;
         boss.eliminado = true;
-        if(distancia(Player.pos(), prev) <= 3) { Out.sp(); Out.line(`${boss.def.icon} ${boss.def.nombre} se ha retirado del mundo.`, 't-dim'); Out.sp(); }
+        if(distancia(_playerPos(), prev) <= 3) { _sp(); _line(`${boss.def.icon} ${boss.def.nombre} se ha retirado del mundo.`, 't-dim'); _sp(); }
         return;
       }
-      const exits = Object.values(World.exits(boss.nodeId));
+      const exits = Object.values(_worldExits(boss.nodeId));
       if(!exits.length) return;
       const prev   = boss.nodeId;
       boss.nodeId  = exits[Math.floor(Math.random()*exits.length)];
       _comprobarProximidad(boss, prev);
     });
-    bosses = bosses.filter(b => !b.eliminado || Clock.cycle - b.ciclo_entrada < 5);
+    bosses = bosses.filter(b => !b.eliminado || (_clockCurrent().cycle || 0) - b.ciclo_entrada < 5);
   }
 
   function _comprobarProximidad(boss, prevNode) {
-    const playerNode = Player.pos();
+    const playerNode = _playerPos();
     const dist       = distancia(boss.nodeId, playerNode);
     const prevDist   = distancia(prevNode, playerNode);
     if(boss.nodeId === playerNode) { setTimeout(() => _iniciarCombateBoss(boss), 400); return; }
     if(dist === 1 && prevDist > 1) {
       const dir = dirHaciaBoss(playerNode, boss.nodeId) || 'cerca';
-      Out.sp(); Out.line(`☠ EL MIEDO SE SIENTE HACIA EL ${dir.toUpperCase()}`, boss.def.color, true); Out.line(boss.def.frase_cerca, 't-pel'); Out.sp();
+      _sp(); _line(`☠ EL MIEDO SE SIENTE HACIA EL ${dir.toUpperCase()}`, boss.def.color, true); _line(boss.def.frase_cerca, 't-pel'); _sp();
     } else if(dist === 2 && prevDist > 2) {
       const dir = dirHaciaBoss(playerNode, boss.nodeId) || 'lejos';
-      Out.sp(); Out.line(`${boss.def.icon} Algo poderoso se siente hacia el ${dir.toUpperCase()}.`, boss.def.color); Out.line(boss.def.frase_lejos, 't-dim'); Out.sp();
+      _sp(); _line(`${boss.def.icon} Algo poderoso se siente hacia el ${dir.toUpperCase()}.`, boss.def.color); _line(boss.def.frase_lejos, 't-dim'); _sp();
     }
   }
 
   function _iniciarCombateBoss(boss) {
     if(boss.eliminado || boss.en_combate) return;
-    const p   = Player.get();
+    const p = _player();
+    const stats = _playerCombatStats();
+    if(!p) return;
     const def = boss.def;
-    Out.sp(); Out.sep('═');
-    BOSS_ASCII.forEach(line => Out.line(line, def.color));
-    Out.line(`${def.icon} ${def.nombre.toUpperCase()}`, def.color, true);
-    Out.line(`"${def.titulo}"`, def.color);
-    Out.line(def.desc, 't-out');
-    Out.line(`HP:${boss.hp_actual}/${def.hp}  ATK:${def.atk}  DEF:${def.def}`, 't-pel');
-    Out.line('⚠ Se recomienda un equipo para sobrevivir.', 't-pel', true);
-    Out.sep('═'); Out.sp();
+    const nodeId = _playerPos();
+    _sp(); _sep('═');
+    BOSS_ASCII.forEach(line => _line(line, def.color));
+    _line(`${def.icon} ${def.nombre.toUpperCase()}`, def.color, true);
+    _line(`"${def.titulo}"`, def.color);
+    _line(def.desc, 't-out');
+    _line(`HP:${boss.hp_actual}/${def.hp}  ATK:${def.atk}  DEF:${def.def}`, 't-pel');
+    _line('⚠ Se recomienda un equipo para sobrevivir.', 't-pel', true);
+    _sep('═'); _sp();
     const combatants = [
-      { tipo:'player', id:p.id, name:p.name, hp:p.hp, maxHp:p.maxHp, atk:Player.getAtk(), def:Player.getDef(), vivo:true, nodeId:Player.pos(), playerId:p.id },
-      { tipo:'enemy', id:boss.id, name:def.nombre, hp:boss.hp_actual, maxHp:def.hp, atk:def.atk, def:def.def, vivo:true, nodeId:Player.pos(), tags:def.tags, poise_max:def.poise_max, poise:def.poise_max, es_boss:true, boss_ref:boss, color:def.color, ataques_especiales:[...def.ataques_especiales] },
+      { tipo:'player', id:p.id, name:p.name, hp:p.hp, maxHp:p.maxHp, atk:stats.atk || 0, def:stats.def || 0, vivo:true, nodeId, playerId:p.id },
+      { tipo:'enemy', id:boss.id, name:def.nombre, hp:boss.hp_actual, maxHp:def.hp, atk:def.atk, def:def.def, vivo:true, nodeId, tags:def.tags, poise_max:def.poise_max, poise:def.poise_max, es_boss:true, boss_ref:boss, color:def.color, ataques_especiales:[...def.ataques_especiales] },
     ];
     boss.en_combate = true;
-    const startBattleSvc = _svc('runtime.battle.start') || _svc('gameplay.battle.start');
-    if(startBattleSvc) startBattleSvc(Player.pos(), combatants);
-    else Out.line('Servicio runtime.battle.start no disponible para boss.', def.color);
-    EventBus.once('combat:enemy_defeat', ({ enemy }) => { if(enemy.es_boss && enemy.id === boss.id) _onBossDefeated(boss); }, 'boss_defeat_'+boss.id);
+    const startBattleSvc = _svc('runtime.battle.start');
+    if(startBattleSvc) startBattleSvc(nodeId, combatants);
+    else _line('Servicio runtime.battle.start no disponible para boss.', def.color);
   }
 
   function _onBossDefeated(boss) {
     boss.eliminado  = false; // se elimina al final
     boss.en_combate = false;
     const def = boss.def;
-    Out.sp(); Out.sep('═');
-    Out.line(`${def.icon} ${def.nombre} HA CAÍDO`, def.color, true);
-    Out.line(`"${def.titulo}" ya no acecha el mundo.`, 't-dim');
-    Out.sep('─');
+    _sp(); _sep('═');
+    _line(`${def.icon} ${def.nombre} HA CAÍDO`, def.color, true);
+    _line(`"${def.titulo}" ya no acecha el mundo.`, 't-dim');
+    _sep('─');
 
     const gainXp = _svc('runtime.xp.gain');
     if(typeof gainXp === 'function') {
       gainXp('combate',    Math.floor(def.xp_base*0.5),  `boss: ${def.nombre}`);
       gainXp('exploración',Math.floor(def.xp_base*0.25), `boss: ${def.nombre}`);
       gainXp('narrativa',  Math.floor(def.xp_base*0.25), `boss: ${def.nombre}`);
-      Out.line(`⬆ +${def.xp_base} XP distribuida.`, 't-mem', true);
+      _line(`⬆ +${def.xp_base} XP distribuida.`, 't-mem', true);
     }
 
     const lootItems = genLootBoss(def);
-    Out.line(`Loot mítico (${lootItems.length} objetos):`, def.color);
+    _line(`Loot mítico (${lootItems.length} objetos):`, def.color);
     lootItems.forEach(item => {
-      Player.addItem(item);
+      _playerAddItem(item);
       const col = item.tipo==='arma'?'t-pel':item.tipo==='armadura'?'t-sis':item.tipo==='magia'?'t-mag':item.tipo==='habilidad'?'t-hab':'t-cor';
-      Out.line(`  ✦ ${item.nombre}  [${item.tipo.toUpperCase()}]${item.atk?'  ATK+'+item.atk:''}${item.poder?'  POD+'+item.poder:''}`, col);
+      _line(`  ✦ ${item.nombre}  [${item.tipo.toUpperCase()}]${item.atk?'  ATK+'+item.atk:''}${item.poder?'  POD+'+item.poder:''}`, col);
     });
 
-    GS.addTwist?.({ id:'boss_'+boss.id, titulo:`Caída de ${def.nombre}`, texto:`${def.nombre} fue derrotado en el ciclo ${Clock.cycle}.`, boss:true });
-    Object.keys(typeof FactionSystem !== 'undefined' ? FactionSystem.controlNodos||{} : {}).forEach(facId => FactionSystem.modRep(facId, +30));
-    Out.line('+30 reputación con todas las facciones.', 't-eco');
-    Out.sep('═'); Out.sp();
+    _gsAddTwist({ id:'boss_'+boss.id, titulo:`Caída de ${def.nombre}`, texto:`${def.nombre} fue derrotado en el ciclo ${_clockCurrent().cycle || 0}.`, boss:true });
+    _line('+30 reputación con todas las facciones.', 't-eco');
+    _sep('═'); _sp();
     boss.eliminado = true;
     EventBus.emit('boss:defeated', { boss, loot:lootItems, xp:def.xp_base });
-    save();
+    _saveGame();
   }
 
   function procesarAtaqueEspecial(bossActor, battle) {
@@ -188,47 +257,75 @@ const BossSystem = (() => {
       case 'vacío_absoluto': { const t=jugadores[0]; if(t){t.elemento_estado='VACÍO';const dmg=Math.floor(bossActor.atk*0.8);t.hp=Math.max(0,t.hp-dmg);battleLog(battle,`◇ ${bossActor.name}: VACÍO sobre ${t.name} −${dmg}HP`,'t-twi');} break; }
       case 'memoria_paralizante': { const t=jugadores[Math.floor(Math.random()*jugadores.length)]; if(t){t.stun_turnos=2;t.skipping=true;} battleLog(battle,`◎ ${bossActor.name}: MEMORIA — ${t?.name} aturdido 2 turnos.`,'t-mag'); break; }
       case 'resonancia_area': { const dmg=Math.floor(bossActor.atk*0.5); jugadores.forEach(j=>{j.hp=Math.max(0,j.hp-dmg);j.elemento_estado='RESONANTE';}); battleLog(battle,`◎ ${bossActor.name}: RESONANCIA − todos −${dmg}HP [RESONANTE]`,'t-mag'); break; }
-      case 'devorar_stamina': { jugadores.forEach(j=>{if(j.playerId===Player.get().id){const p=Player.get();p.stamina=Math.max(0,(p.stamina||0)-40);}}); battleLog(battle,`✦ ${bossActor.name}: DEVORAR STAMINA −40`,'t-pel'); break; }
-      case 'consumir_ciclo': { Clock.tick(2); const dmg=Math.floor(bossActor.atk*0.4); jugadores.forEach(j=>{j.hp=Math.max(0,j.hp-dmg);}); battleLog(battle,`✦ ${bossActor.name}: CICLO CONSUMIDO, todos −${dmg}HP`,'t-cor'); break; }
+      case 'devorar_stamina': { const p = _player(); jugadores.forEach(j=>{if(p && j.playerId===p.id){p.stamina=Math.max(0,(p.stamina||0)-40);}}); battleLog(battle,`✦ ${bossActor.name}: DEVORAR STAMINA −40`,'t-pel'); break; }
+      case 'consumir_ciclo': { _clockTick(2); const dmg=Math.floor(bossActor.atk*0.4); jugadores.forEach(j=>{j.hp=Math.max(0,j.hp-dmg);}); battleLog(battle,`✦ ${bossActor.name}: CICLO CONSUMIDO, todos −${dmg}HP`,'t-cor'); break; }
     }
   }
 
   function cmdBosses() {
-    Out.sp(); Out.line('— BOSSES ACTIVOS —', 't-cor');
+    _sp(); _line('— BOSSES ACTIVOS —', 't-cor');
     const activos = bosses.filter(b => !b.eliminado);
-    if(!activos.length) { Out.line('No hay bosses en el mundo actualmente.', 't-dim'); Out.sp(); return; }
+    if(!activos.length) { _line('No hay bosses en el mundo actualmente.', 't-dim'); _sp(); return; }
     activos.forEach(b => {
-      const dist    = distancia(Player.pos(), b.nodeId);
-      const nodo    = World.node(b.nodeId);
+      const dist = distancia(_playerPos(), b.nodeId);
+      const nodo = _worldNode(b.nodeId);
       const distStr = dist===0?'¡EN TU NODO!':dist===1?'A 1 nodo':dist===2?'A 2 nodos':`A ${dist} nodos`;
-      Out.line(`  ${b.def.icon} ${b.def.nombre}  "${b.def.titulo}"`, b.def.color, true);
-      Out.line(`    HP:${b.hp_actual}/${b.def.hp}  Nodo:${nodo?.name||b.nodeId}  ${distStr}`, dist<=2?'t-pel':'t-dim');
-      Out.line(`    Ciclos restantes: ~${Math.max(0,b.ciclo_salida-Clock.cycle)}  Loot: ${b.def.loot_especial.length} míticos`, 't-dim');
+      _line(`  ${b.def.icon} ${b.def.nombre}  "${b.def.titulo}"`, b.def.color, true);
+      _line(`    HP:${b.hp_actual}/${b.def.hp}  Nodo:${nodo?.name||b.nodeId}  ${distStr}`, dist<=2?'t-pel':'t-dim');
+      _line(`    Ciclos restantes: ~${Math.max(0,b.ciclo_salida-(_clockCurrent().cycle || 0))}  Loot: ${b.def.loot_especial.length} míticos`, 't-dim');
     });
-    Out.sp();
+    _sp();
   }
 
   let lastBossTick = 0;
-  EventBus.on('world:tick', () => {
-    const cycle = Clock.cycle;
-    if(cycle - lastBossTick < 3) return;
+
+  function onWorldTick(payload) {
+    const cycle = _clockCurrent().cycle || 0;
+    if(cycle - lastBossTick < 3) return payload;
     lastBossTick = cycle;
     if(bosses.filter(b=>!b.eliminado).length < 2 && cycle >= 5 && Math.random() < 0.08) spawn();
     moverBosses();
-    bosses.filter(b=>!b.eliminado&&!b.en_combate&&b.nodeId===Player.pos()).forEach(b=>setTimeout(()=>_iniciarCombateBoss(b),300));
-  }, 'boss_tick');
+    bosses.filter(b=>!b.eliminado&&!b.en_combate&&b.nodeId===_playerPos()).forEach(b=>setTimeout(()=>_iniciarCombateBoss(b),300));
+    return payload;
+  }
 
-  EventBus.on('world:node_enter', ({ nodeId }) => {
-    const boss = bosses.find(b => !b.eliminado && !b.en_combate && b.nodeId === nodeId);
+  function onNodeEnter(payload) {
+    const boss = bosses.find(b => !b.eliminado && !b.en_combate && b.nodeId === payload.nodeId);
     if(boss) setTimeout(() => _iniciarCombateBoss(boss), 500);
-  }, 'boss_enter');
+    return payload;
+  }
 
-  return { spawn, moverBosses, distancia, procesarAtaqueEspecial, cmdBosses, getBosses:()=>bosses, getBossEnNodo:nid=>bosses.find(b=>!b.eliminado&&b.nodeId===nid) };
+  function onEnemyDefeat(payload) {
+    const enemy = payload?.enemy;
+    if(!enemy?.es_boss) return payload;
+    const boss = bosses.find(row => row.id === enemy.id || row === enemy.boss_ref || row?.def?.id === enemy.boss_ref?.def?.id);
+    if(boss && !boss.eliminado) _onBossDefeated(boss);
+    return payload;
+  }
+
+  return { spawn, moverBosses, distancia, procesarAtaqueEspecial, cmdBosses, onWorldTick, onNodeEnter, onEnemyDefeat, getBosses:()=>bosses, getBossEnNodo:nid=>bosses.find(b=>!b.eliminado&&b.nodeId===nid) };
 })();
 
 const pluginBosses = {
   id:'plugin:bosses', nombre:'Sistema de Bosses', version:'2.0.0',
   descripcion:'Monstruos mundiales que se mueven y dejan loot mítico.',
+  hooks: {
+    'world:tick': {
+      fn(payload) {
+        return BossSystem.onWorldTick(payload);
+      }
+    },
+    'world:node_enter': {
+      fn(payload) {
+        return BossSystem.onNodeEnter(payload);
+      }
+    },
+    'combat:enemy_defeat': {
+      fn(payload) {
+        return BossSystem.onEnemyDefeat(payload);
+      }
+    },
+  },
   comandos: {
     'bosses': { fn:()=>BossSystem.cmdBosses(), meta:{ titulo:'bosses', color:'t-cor', desc:'Ver bosses activos y su distancia.' } },
     'boss':   { fn:()=>BossSystem.cmdBosses(), meta:{ titulo:'boss (alias)', color:'t-cor', desc:'Ver bosses.' } },

@@ -32,6 +32,32 @@ const ConcentracionSystem = (() => {
     return String(txt).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
   }
 
+  function _svc(name) {
+    return (typeof ServiceRegistry !== 'undefined' && typeof ServiceRegistry.get === 'function')
+      ? ServiceRegistry.get(name)
+      : null;
+  }
+  function _player() {
+    const fn = _svc('runtime.player.current');
+    return typeof fn === 'function' ? fn() : null;
+  }
+  function _clockTick(delta=1) {
+    const fn = _svc('runtime.clock.tick');
+    return typeof fn === 'function' ? !!fn(delta) : false;
+  }
+  function _line(text, color='t-out', bold=false) {
+    const fn = _svc('runtime.output.line');
+    if(typeof fn === 'function') fn(text, color, bold);
+  }
+  function _refreshStatus() {
+    const fn = _svc('runtime.status.refresh');
+    if(typeof fn === 'function') fn();
+  }
+  function _saveGame() {
+    const fn = _svc('runtime.game.save');
+    if(typeof fn === 'function') fn();
+  }
+
   function parseVariantArg(rawArg) {
     const txt = String(rawArg || '').trim();
     const m = txt.match(/^\[([^\]]+)\]\s*(.*)$/);
@@ -74,7 +100,7 @@ const ConcentracionSystem = (() => {
     const invalid = actions.find(a => !VERBOS_COMBO.has(a.verb));
     if(invalid) return { ok:false, error:`${invalid.verb} no se puede encadenar con concentración.` };
 
-    const p = Player.get();
+    const p = _player();
     const conc = Number(p.ext?.concentracion || 0);
     const focusBuff = Number(p._concentracion_focus || 0);
 
@@ -103,7 +129,7 @@ const ConcentracionSystem = (() => {
   }
 
   function entrenar() {
-    const p = Player.get();
+    const p = _player();
     p.ext = p.ext || {};
     p.ext.concentracion_max = p.ext.concentracion_max || 100;
     p.ext.concentracion = p.ext.concentracion || 10;
@@ -114,29 +140,29 @@ const ConcentracionSystem = (() => {
     const real = p.ext.concentracion - prev;
 
     p.stamina = Math.max(0, (p.stamina||0) - 8);
-    Clock.tick(1);
+    _clockTick(1);
 
-    Out.line(`Entrenas enfoque mental: Concentración +${real} (${p.ext.concentracion}/${p.ext.concentracion_max})`, 't-acc');
-    if(real===0) Out.line('Ya estás en el máximo de concentración actual.', 't-dim');
-    refreshStatus();
-    save();
+    _line(`Entrenas enfoque mental: Concentración +${real} (${p.ext.concentracion}/${p.ext.concentracion_max})`, 't-acc');
+    if(real===0) _line('Ya estás en el máximo de concentración actual.', 't-dim');
+    _refreshStatus();
+    _saveGame();
   }
 
   function cmdConcentracion(args) {
-    const getBattle = ServiceRegistry?.get?.('gameplay.battle.current');
+    const getBattle = _svc('runtime.battle.current');
     const battle = typeof getBattle === 'function' ? getBattle() : null;
     const inBattle = battle && battle.estado === 'activo';
     const txt = String(args||'').trim();
 
     if(inBattle && txt) {
-      const combatAction = ServiceRegistry?.get?.('gameplay.combat.action');
-      if(typeof combatAction === 'function') combatAction(battle.id, Player.get().id, 'concentracion', txt);
-      else Out.line('Servicio gameplay.combat.action no disponible para concentración en batalla.', 't-dim');
+      const combatAction = _svc('runtime.battle.action');
+      if(typeof combatAction === 'function') combatAction(battle.id, _player().id, 'concentracion', txt);
+      else _line('Servicio runtime.battle.action no disponible para concentración en batalla.', 't-dim');
       return;
     }
 
     if(inBattle && !txt) {
-      Out.line('En batalla: concentración atacar [variante] objetivo | magia [variante] hechizo', 't-acc');
+      _line('En batalla: concentración atacar [variante] objetivo | magia [variante] hechizo', 't-acc');
       return;
     }
 

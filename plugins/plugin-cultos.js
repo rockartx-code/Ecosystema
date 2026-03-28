@@ -10,6 +10,71 @@ const pluginCultos = (() => {
       ? ServiceRegistry.get(name)
       : null;
   }
+  function _player() {
+    const fn = _svc('runtime.player.current');
+    return typeof fn === 'function' ? fn() : null;
+  }
+  function _playerPos() {
+    const fn = _svc('runtime.player.position');
+    return typeof fn === 'function' ? fn() : null;
+  }
+  function _playerCombatStats(p = _player()) {
+    const fn = _svc('runtime.player.combat_stats');
+    const stats = typeof fn === 'function' ? (fn() || {}) : {};
+    return {
+      atk: Math.max(1, Math.floor(stats.atk || p?.atk || 1)),
+      def: Math.max(0, Math.floor(stats.def || p?.def || 0)),
+    };
+  }
+  function _playerAddItem(item) {
+    const fn = _svc('runtime.player.add_item');
+    return typeof fn === 'function' ? !!fn(item) : false;
+  }
+  function _worldNode(nodeId) {
+    const fn = _svc('runtime.world.node');
+    return typeof fn === 'function' ? fn(nodeId) : null;
+  }
+  function _worldMeta() {
+    const fn = _svc('runtime.world.read');
+    return typeof fn === 'function' ? (fn() || {}) : {};
+  }
+  function _clockCycle() {
+    const fn = _svc('runtime.clock.current');
+    const current = typeof fn === 'function' ? fn() : null;
+    return current?.cycle ?? 0;
+  }
+  function _gsAllNPCs() {
+    const fn = _svc('runtime.gs.all_npcs');
+    return typeof fn === 'function' ? (fn() || []) : [];
+  }
+  function _gsAddNPC(npc) {
+    const fn = _svc('runtime.gs.add_npc');
+    return typeof fn === 'function' ? !!fn(npc) : false;
+  }
+  function _gsMision(misionId) {
+    const fn = _svc('runtime.gs.mision');
+    return typeof fn === 'function' ? fn(misionId) : null;
+  }
+  function _gsAddMision(mision) {
+    const fn = _svc('runtime.gs.add_mision');
+    return typeof fn === 'function' ? !!fn(mision) : false;
+  }
+  function _gsAllMisiones() {
+    const fn = _svc('runtime.gs.all_misiones');
+    return typeof fn === 'function' ? (fn() || []) : [];
+  }
+  function _gsNpc(npcId) {
+    const fn = _svc('runtime.gs.npc');
+    return typeof fn === 'function' ? fn(npcId) : null;
+  }
+  function _line(text, color='t-out', bold=false) {
+    const fn = _svc('runtime.output.line');
+    if(typeof fn === 'function') fn(text, color, bold);
+  }
+  function _sp() {
+    const fn = _svc('runtime.output.sp');
+    if(typeof fn === 'function') fn();
+  }
 
   const PLUGIN_ID = 'plugin:cultos';
 
@@ -108,7 +173,7 @@ const pluginCultos = (() => {
   }
 
   function _playerState() {
-    const p = Player.get();
+    const p = _player();
     p.ext = p.ext || {};
     p.ext.cultos = p.ext.cultos || { culto_activo:null, items_entregados:{ alas_blancas:0, serpiente:0, tentaculos:0 } };
     return p.ext.cultos;
@@ -121,7 +186,7 @@ const pluginCultos = (() => {
 
   function _seccionFromPayload(payload) {
     if(payload?.seccion) return payload.seccion;
-    const sec = World.sectionCount || 1;
+    const sec = _worldMeta().sectionCount || 1;
     return sec < 1 ? 1 : sec;
   }
 
@@ -169,14 +234,14 @@ const pluginCultos = (() => {
     const nodes = _nodesFromPayload(payload);
     if(!nodes.length) return payload;
 
-    const rng = U.rng(`cultos:${seccion}:${payload?.seed || World.seed}`);
+    const rng = U.rng(`cultos:${seccion}:${payload?.seed || _worldMeta().seed}`);
     const cultos = Object.values(CULTOS);
 
     cultos.forEach((culto, idx) => {
       const nodeId = nodes[Math.floor(rng() * nodes.length)];
       if(!nodeId) return;
       const npc = _crearNPCCulto(culto, nodeId, seccion, idx);
-      GS.addNPC(npc);
+      _gsAddNPC(npc);
     });
 
     s.secciones[seccion] = true;
@@ -185,7 +250,7 @@ const pluginCultos = (() => {
 
   function _buscarMisionCulto(npc) {
     if(!npc?.culto_mision_id) return null;
-    return GS.mision(npc.culto_mision_id);
+    return _gsMision(npc.culto_mision_id);
   }
 
   function _crearMisionCulto(npc) {
@@ -207,13 +272,13 @@ const pluginCultos = (() => {
       completada: false,
       fallida: false,
       aceptada: false,
-      ciclo: Clock.cycle,
+      ciclo: _clockCycle(),
       culto_id: npc.culto_id,
       culto_especial: true,
     };
     npc.culto_mision_id = m.id;
     npc.misiones_ofrecidas.push(m.id);
-    GS.addMision(m);
+    _gsAddMision(m);
     return m;
   }
 
@@ -237,10 +302,10 @@ const pluginCultos = (() => {
     if(mision && !mision.aceptada) {
       payload.text = `${payload.text} "Tengo una misión para ti: ${mision.titulo}."`;
       setTimeout(() => {
-        Out.line(`◈ MISIÓN DE CULTO — "${mision.titulo}"`, 't-mag', true);
-        Out.line(mision.desc, 't-out');
-        Out.line(`Recompensa única: ${mision.recompensa}`, 't-cra');
-        Out.line('Escribe "aceptar" para jurar lealtad a este culto.', 't-dim');
+        _line(`◈ MISIÓN DE CULTO — "${mision.titulo}"`, 't-mag', true);
+        _line(mision.desc, 't-out');
+        _line(`Recompensa única: ${mision.recompensa}`, 't-cra');
+        _line('Escribe "aceptar" para jurar lealtad a este culto.', 't-dim');
       }, 40);
     }
 
@@ -256,14 +321,14 @@ const pluginCultos = (() => {
       estado: 'ligado',
       culto_id: cultoId,
       irrepetible: false,
-      obtenido_en_ciclo: Clock.cycle,
+      obtenido_en_ciclo: _clockCycle(),
     };
-    Player.addItem(item);
+    _playerAddItem(item);
     return item;
   }
 
   function _volverHostilesOtrosCultos(cultoElegido) {
-    GS.allNPCs().forEach(npc => {
+    _gsAllNPCs().forEach(npc => {
       if(!npc.culto_id || npc.estado !== 'vivo') return;
       if(npc.culto_id !== cultoElegido) {
         npc.culto_hostil = true;
@@ -279,9 +344,9 @@ const pluginCultos = (() => {
     const s = _store();
     const ps = _playerState();
 
-    GS.allMisiones().forEach(m => {
+    _gsAllMisiones().forEach(m => {
       if(!m?.culto_especial || !m.aceptada || s.misionesProcesadas[m.id]) return;
-      const npc = GS.npc(m.npc_id);
+      const npc = _gsNpc(m.npc_id);
       if(!npc?.culto_id) return;
 
       s.misionesProcesadas[m.id] = true;
@@ -293,18 +358,19 @@ const pluginCultos = (() => {
 
       _volverHostilesOtrosCultos(npc.culto_id);
 
-      Out.sp();
-      Out.line(`☩ Juramento sellado con el culto: ${npc.culto_id.replace(/_/g, ' ').toUpperCase()}`, 't-mag', true);
-      if(item) Out.line(`Obtienes ${item.nombre}.`, 't-cra');
-      Out.line('Los otros dos cultos te consideran objetivo inmediato.', 't-pel');
-      Out.sp();
+      _sp();
+      _line(`☩ Juramento sellado con el culto: ${npc.culto_id.replace(/_/g, ' ').toUpperCase()}`, 't-mag', true);
+      if(item) _line(`Obtienes ${item.nombre}.`, 't-cra');
+      _line('Los otros dos cultos te consideran objetivo inmediato.', 't-pel');
+      _sp();
     });
   }
 
   function _combatienteDesdeNPC(npc, p) {
+    const stats = _playerCombatStats(p);
     const hp = Math.max(28, Math.round((p.maxHp || 80) * 0.85));
-    const atk = Math.max(8, Math.round((Player.getAtk?.() || p.atk || 8) * 0.95));
-    const def = Math.max(2, Math.round((Player.getDef?.() || p.def || 3) * 0.9));
+    const atk = Math.max(8, Math.round((stats.atk || p.atk || 8) * 0.95));
+    const def = Math.max(2, Math.round((stats.def || p.def || 3) * 0.9));
     return {
       tipo:'npc',
       id:npc.id,
@@ -323,11 +389,12 @@ const pluginCultos = (() => {
   function _emboscadaHostil(nodeId) {
     const s = _store();
     if(!s.cultoElegido) return;
-    const getBattle = _svc('gameplay.battle.current');
+    const getBattle = _svc('runtime.battle.current');
     if(typeof getBattle === 'function' && getBattle()) return;
 
-    const p = Player.get();
-    const hostiles = GS.allNPCs().filter(npc =>
+    const p = _player();
+    const stats = _playerCombatStats(p);
+    const hostiles = _gsAllNPCs().filter(npc =>
       npc.nodeId === nodeId &&
       npc.estado !== 'muerto' &&
       npc.culto_id &&
@@ -336,32 +403,33 @@ const pluginCultos = (() => {
 
     if(!hostiles.length) return;
 
-    if(s.ultEmboscada.nodeId === nodeId && s.ultEmboscada.ciclo === Clock.cycle) return;
-    s.ultEmboscada = { nodeId, ciclo: Clock.cycle };
+    if(s.ultEmboscada.nodeId === nodeId && s.ultEmboscada.ciclo === _clockCycle()) return;
+    s.ultEmboscada = { nodeId, ciclo: _clockCycle() };
 
     const allies = [{
       tipo:'player', id:p.id, name:p.name,
-      hp:p.hp, maxHp:p.maxHp, atk:Player.getAtk(), def:Player.getDef(),
+      hp:p.hp, maxHp:p.maxHp, atk:stats.atk, def:stats.def,
       nodeId, playerId:p.id, vivo:true,
     }];
 
     const enemies = hostiles.slice(0, 2).map(npc => _combatienteDesdeNPC(npc, p));
-    Out.line('☠ Emboscada de cultistas hostiles: te atacan al verte.', 't-pel', true);
-    const startBattle = _svc('runtime.battle.start') || _svc('gameplay.battle.start');
+    _line('☠ Emboscada de cultistas hostiles: te atacan al verte.', 't-pel', true);
+    const startBattle = _svc('runtime.battle.start');
     if(typeof startBattle === 'function') startBattle(nodeId, [...allies, ...enemies]);
-    else Out.line('Servicio runtime.battle.start no disponible para emboscada de cultos.', 't-dim');
+    else _line('Servicio runtime.battle.start no disponible para emboscada de cultos.', 't-dim');
   }
 
   function _contarItemsCulto(cultoId) {
-    return (Player.get().inventory || []).filter(it => it?.culto_id === cultoId).length;
+    return (_player().inventory || []).filter(it => it?.culto_id === cultoId).length;
   }
 
   function _statsDios(enfoque) {
-    const p = Player.get();
+    const p = _player();
+    const stats = _playerCombatStats(p);
     const base = {
       hp: Math.max(60, Math.round((p.maxHp || 100) * 1.0)),
-      atk: Math.max(10, Math.round((Player.getAtk?.() || p.atk || 10) * 1.0)),
-      def: Math.max(4, Math.round((Player.getDef?.() || p.def || 4) * 1.0)),
+      atk: Math.max(10, Math.round((stats.atk || p.atk || 10) * 1.0)),
+      def: Math.max(4, Math.round((stats.def || p.def || 4) * 1.0)),
     };
     base[enfoque] = Math.max(base[enfoque], Math.round(base[enfoque] * 2));
     return base;
@@ -374,7 +442,7 @@ const pluginCultos = (() => {
     const culto = CULTOS[cultoId];
     if(!culto) return;
 
-    const n = World.node(nodeId);
+    const n = _worldNode(nodeId);
     if(!n) return;
 
     const st = _statsDios(culto.dios.enfoque);
@@ -396,16 +464,16 @@ const pluginCultos = (() => {
     });
 
     s.diosInvocado[cultoId] = true;
-    Out.sp();
-    Out.line(`⚚ ${culto.dios.nombre} desciende al mundo.`, 't-cor', true);
-    Out.line(`Estrategia: ${culto.dios.desc}`, 't-dim');
-    Out.sp();
+    _sp();
+    _line(`⚚ ${culto.dios.nombre} desciende al mundo.`, 't-cor', true);
+    _line(`Estrategia: ${culto.dios.desc}`, 't-dim');
+    _sp();
   }
 
   function _chequearInvocacionDios() {
     Object.keys(CULTOS).forEach(cultoId => {
       if(_contarItemsCulto(cultoId) >= 5) {
-        _invocarDiosCulto(cultoId, Player.pos());
+        _invocarDiosCulto(cultoId, _playerPos());
       }
     });
   }
@@ -413,7 +481,8 @@ const pluginCultos = (() => {
   function _dmg(actor, target, battle, raw, color='t-cor') {
     const dmg = Math.max(1, Math.round(raw));
     target.hp = Math.max(0, target.hp - dmg);
-    if(target.playerId === Player.get().id) Player.get().hp = target.hp;
+    const p = _player();
+    if(target.playerId === p.id) p.hp = target.hp;
     battleLog(battle, `${actor.name} → ${target.name}  −${dmg}HP  (${target.hp}/${target.maxHp})`, color);
     if(target.hp <= 0) { target.vivo = false; battleLog(battle, `${target.name} cae.`, 't-cor'); }
     return dmg;
@@ -491,9 +560,9 @@ const pluginCultos = (() => {
       no_obtenible_fuera: true,
     };
 
-    Player.addItem(acc);
-    Out.line(`✦ Botín exclusivo: ${acc.nombre}`, 't-cor', true);
-    Out.line(`Efecto único: ${acc.efecto_unico}`, 't-mag');
+    _playerAddItem(acc);
+    _line(`✦ Botín exclusivo: ${acc.nombre}`, 't-cor', true);
+    _line(`Efecto único: ${acc.efecto_unico}`, 't-mag');
     return payload;
   }
 
@@ -517,7 +586,7 @@ const pluginCultos = (() => {
         fn(payload) {
           _procesarAceptaciones();
           _chequearInvocacionDios();
-          _emboscadaHostil(payload?.nodeId || Player.pos());
+          _emboscadaHostil(payload?.nodeId || _playerPos());
           return payload;
         }
       },

@@ -48,6 +48,7 @@ Convenciones:
 - `module:loaded` (`domain/post`) → in: `{ meta? }`
 - `plugin:loaded` (`domain/post`) → in: `{ id }`
 - `plugin:unloaded` (`domain/post`) → in: `{ id }`
+- `plugin:error` (`domain/post`) → in: `{ id, errors[] }`
 
 ### Combate
 
@@ -85,8 +86,15 @@ Convenciones:
 - `player:tick` (`domain/post`) → in: `{ player? }`
 - `player:die` (`domain/post`) → in: `object`
 - `world:tick` (`domain/post`) → in: `{ cycle? }`
+- `world:after_gen` (`domain/post`) → in: `{ nodes, edges, seed }`
+- `world:node_enter` (`domain/post`) → in: `{ nodeId, node?, player? }`
+- `world:section_expand` (`domain/post`) → in: `{ nodeIds, fromNodeId, dir }`
 - `memory:run_start` (`domain/main`) → in: `object`
 - `memory:run_end` (`domain/post`) → in: `object`
+
+### Mundo / meta
+
+- `boss:defeated` (`domain/post`) → in: `{ boss?, loot?, xp? }`
 
 ---
 

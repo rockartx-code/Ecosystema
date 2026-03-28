@@ -31,19 +31,68 @@ const pluginGuarida = (() => {
     if(typeof saveMem === 'function') { saveMem(); return; }
   }
 
+  function _player() {
+    const fn = _svc('runtime.player.current');
+    return typeof fn === 'function' ? fn() : null;
+  }
+  function _playerPos() {
+    const fn = _svc('runtime.player.position');
+    return typeof fn === 'function' ? fn() : null;
+  }
+  function _playerAddItem(item) {
+    const fn = _svc('runtime.player.add_item');
+    return typeof fn === 'function' ? !!fn(item) : false;
+  }
+  function _playerRemoveItem(itemId) {
+    const fn = _svc('runtime.player.remove_item');
+    return typeof fn === 'function' ? !!fn(itemId) : false;
+  }
+  function _worldNode(nodeId) {
+    const fn = _svc('runtime.world.node');
+    return typeof fn === 'function' ? fn(nodeId) : null;
+  }
+  function _worldMeta() {
+    const fn = _svc('runtime.world.read');
+    return typeof fn === 'function' ? (fn() || {}) : {};
+  }
+  function _clockTick(delta=1) {
+    const fn = _svc('runtime.clock.tick');
+    return typeof fn === 'function' ? !!fn(delta) : false;
+  }
+  function _line(text, color='t-out', bold=false) {
+    const fn = _svc('runtime.output.line');
+    if(typeof fn === 'function') fn(text, color, bold);
+  }
+  function _sp() {
+    const fn = _svc('runtime.output.sp');
+    if(typeof fn === 'function') fn();
+  }
+  function _sep(ch='─', len=46) {
+    const fn = _svc('runtime.output.sep');
+    if(typeof fn === 'function') fn(ch, len);
+  }
+  function _refreshStatus() {
+    const fn = _svc('runtime.status.refresh');
+    if(typeof fn === 'function') fn();
+  }
+  function _saveGame() {
+    const fn = _svc('runtime.game.save');
+    if(typeof fn === 'function') fn();
+  }
+
   function _inRefuge() {
-    return !!Player.get()?.ext?.guarida?.enRefugio;
+    return !!_player()?.ext?.guarida?.enRefugio;
   }
 
   function _setRefugeMode(v) {
-    const p = Player.get();
+    const p = _player();
     p.ext = p.ext || {};
     p.ext.guarida = p.ext.guarida || {};
     p.ext.guarida.enRefugio = !!v;
   }
 
   function _currentNode() {
-    return World.node(Player.pos());
+    return _worldNode(_playerPos());
   }
 
   function _isLair(node) {
@@ -64,7 +113,7 @@ const pluginGuarida = (() => {
     const nodes = Object.values(nodesMap || {});
     if(!nodes.length) return 0;
 
-    const rng = U.rng(`${World.seed}:guarida:${salt}:${nodes.length}`);
+    const rng = U.rng(`${_worldMeta().seed || 'seed'}:guarida:${salt}:${nodes.length}`);
     const candidates = nodes.filter(n => n && n.tipo !== 'abismo');
     const target = Math.max(1, Math.floor(candidates.length * 0.12));
 
@@ -85,14 +134,14 @@ const pluginGuarida = (() => {
     if(!_isLair(payload?.node)) {
       if(_inRefuge()) {
         _setRefugeMode(false);
-        Out.line('Sales del modo refugio al abandonar la guarida.', 't-dim');
+        _line('Sales del modo refugio al abandonar la guarida.', 't-dim');
       }
       return payload;
     }
 
-    Out.sp();
-    Out.line('Este es un lugar apropiado para descansar.', 't-eco', true);
-    Out.line('Escribe "refugio" para entrar al modo refugio.', 't-dim');
+    _sp();
+    _line('Este es un lugar apropiado para descansar.', 't-eco', true);
+    _line('Escribe "refugio" para entrar al modo refugio.', 't-dim');
     return payload;
   }
 
@@ -102,7 +151,7 @@ const pluginGuarida = (() => {
     const allow = new Set(['cofre', 'descansar', 'refugio']);
     if(allow.has(payload.verb)) return payload;
 
-    Out.line('Estás en modo refugio. Solo puedes usar: cofre, descansar o refugio.', 't-dim');
+    _line('Estás en modo refugio. Solo puedes usar: cofre, descansar o refugio.', 't-dim');
     payload.cancelled = true;
     return payload;
   }
@@ -110,32 +159,32 @@ const pluginGuarida = (() => {
   function _cmdRefugio() {
     const node = _currentNode();
     if(!_isLair(node)) {
-      Out.line('Solo puedes usar "refugio" dentro de una guarida.', 't-dim');
+      _line('Solo puedes usar "refugio" dentro de una guarida.', 't-dim');
       return;
     }
 
     if(_inRefuge()) {
       _setRefugeMode(false);
-      Out.line('Sales del modo refugio.', 't-dim');
+      _line('Sales del modo refugio.', 't-dim');
       return;
     }
 
     _setRefugeMode(true);
-    Out.sp();
-    Out.sep('─');
-    Out.line('MODO REFUGIO ACTIVO', 't-acc', true);
-    Out.line('Comandos disponibles: cofre · descansar · refugio', 't-dim');
-    Out.sep('─');
-    Out.sp();
+    _sp();
+    _sep('─');
+    _line('MODO REFUGIO ACTIVO', 't-acc', true);
+    _line('Comandos disponibles: cofre · descansar · refugio', 't-dim');
+    _sep('─');
+    _sp();
   }
 
   function _cmdDescansar() {
     if(!_inRefuge()) {
-      Out.line('Debes entrar en modo refugio con "refugio".', 't-dim');
+      _line('Debes entrar en modo refugio con "refugio".', 't-dim');
       return;
     }
 
-    const p = Player.get();
+    const p = _player();
     p.hp = p.maxHp || p.hp;
     p.mana = p.maxMana || p.mana || 0;
     if(p.maxStamina != null) p.stamina = p.maxStamina;
@@ -145,15 +194,15 @@ const pluginGuarida = (() => {
     p.silenciado = false;
     p._silencio_turnos = 0;
 
-    Clock.tick(1);
-    Out.line('Descansas plenamente: HP, Maná y estados alterados restaurados.', 't-cra');
-    refreshStatus();
-    save();
+    _clockTick(1);
+    _line('Descansas plenamente: HP, Maná y estados alterados restaurados.', 't-cra');
+    _refreshStatus();
+    _saveGame();
   }
 
   function _cmdCofre(args = []) {
     if(!_inRefuge()) {
-      Out.line('Debes entrar en modo refugio con "refugio" para usar el cofre.', 't-dim');
+      _line('Debes entrar en modo refugio con "refugio" para usar el cofre.', 't-dim');
       return;
     }
 
@@ -161,14 +210,14 @@ const pluginGuarida = (() => {
     const sub = (args[0] || 'listar').toLowerCase();
 
     if(['listar', 'ver', 'ls'].includes(sub)) {
-      Out.line(`Cofre compartido: ${chest.length} objeto(s).`, 't-mem');
+      _line(`Cofre compartido: ${chest.length} objeto(s).`, 't-mem');
       if(!chest.length) {
-        Out.line('El cofre está vacío.', 't-dim');
+        _line('El cofre está vacío.', 't-dim');
       } else {
-        chest.slice(0, 20).forEach(it => Out.line(`  ▸ ${_formatItem(it)}`, 't-dim'));
-        if(chest.length > 20) Out.line(`  … y ${chest.length - 20} más`, 't-dim');
+        chest.slice(0, 20).forEach(it => _line(`  ▸ ${_formatItem(it)}`, 't-dim'));
+        if(chest.length > 20) _line(`  ... y ${chest.length - 20} más`, 't-dim');
       }
-      Out.line('Uso: cofre guardar <item> [cantidad] · cofre retirar <item> [cantidad]', 't-dim');
+      _line('Uso: cofre guardar <item> [cantidad] · cofre retirar <item> [cantidad]', 't-dim');
       return;
     }
 
@@ -176,11 +225,11 @@ const pluginGuarida = (() => {
       const query = (args[1] || '').trim();
       const qty = _parseQty(args[2]);
       if(!query) {
-        Out.line('Uso: cofre guardar <item> [cantidad]', 't-dim');
+        _line('Uso: cofre guardar <item> [cantidad]', 't-dim');
         return;
       }
 
-      const p = Player.get();
+      const p = _player();
       const q = query.toLowerCase().replace(/_/g, ' ');
       const matches = (p.inventory || []).filter(i => {
         const name = (i.nombre || i.blueprint || '').toLowerCase();
@@ -188,19 +237,19 @@ const pluginGuarida = (() => {
       });
 
       if(!matches.length) {
-        Out.line(`No tienes "${query}" en el inventario.`, 't-dim');
+        _line(`No tienes "${query}" en el inventario.`, 't-dim');
         return;
       }
 
       const toMove = matches.slice(0, qty);
       toMove.forEach(it => {
-        Player.rmItem(it.id);
+        _playerRemoveItem(it.id);
         chest.push(_clone(it));
       });
       _saveChest();
 
-      Out.line(`Guardaste ${toMove.length} objeto(s) en el cofre compartido.`, 't-cra');
-      save();
+      _line(`Guardaste ${toMove.length} objeto(s) en el cofre compartido.`, 't-cra');
+      _saveGame();
       return;
     }
 
@@ -208,7 +257,7 @@ const pluginGuarida = (() => {
       const query = (args[1] || '').trim();
       const qty = _parseQty(args[2]);
       if(!query) {
-        Out.line('Uso: cofre retirar <item> [cantidad]', 't-dim');
+        _line('Uso: cofre retirar <item> [cantidad]', 't-dim');
         return;
       }
 
@@ -222,7 +271,7 @@ const pluginGuarida = (() => {
       }
 
       if(!idxs.length) {
-        Out.line(`No hay "${query}" en el cofre.`, 't-dim');
+        _line(`No hay "${query}" en el cofre.`, 't-dim');
         return;
       }
 
@@ -232,15 +281,15 @@ const pluginGuarida = (() => {
         if(it) picked.push(it);
       });
 
-      picked.reverse().forEach(it => Player.addItem(_clone(it)));
+      picked.reverse().forEach(it => _playerAddItem(_clone(it)));
       _saveChest();
 
-      Out.line(`Retiraste ${picked.length} objeto(s) del cofre compartido.`, 't-cra');
-      save();
+      _line(`Retiraste ${picked.length} objeto(s) del cofre compartido.`, 't-cra');
+      _saveGame();
       return;
     }
 
-    Out.line('Subcomando no válido. Usa: cofre listar | guardar | retirar.', 't-dim');
+    _line('Subcomando no válido. Usa: cofre listar | guardar | retirar.', 't-dim');
   }
 
   return {
@@ -269,7 +318,7 @@ const pluginGuarida = (() => {
       'world:section_expand': {
         priority: 55,
         fn(payload) {
-          const nodes = Object.fromEntries((payload?.nodeIds || []).map(id => [id, World.node(id)]));
+          const nodes = Object.fromEntries((payload?.nodeIds || []).map(id => [id, _worldNode(id)]));
           _markRandomLairs(nodes, `sec:${payload?.seccion || 0}`);
           return payload;
         }

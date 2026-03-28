@@ -185,3 +185,12 @@ const Forge = {
     return { item, tension, rType, domTags:dom, bonus };
   },
 };
+
+if(typeof ServiceRegistry !== 'undefined') {
+  ServiceRegistry.register('runtime.imprint.gen', (blueprint, materials = [], ctx = {}, tension = 0) => {
+    return Imprint.gen(blueprint, materials, ctx, tension);
+  }, {
+    pluginId:'core',
+    version:'0.1.0',
+  });
+}
