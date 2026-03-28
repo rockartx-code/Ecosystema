@@ -37,3 +37,12 @@ El runtime soporta ahora:
 - OR lógico: `^2.0.0 || ^1.4.0`
 
 Referencia directa del test: `testPluginLoaderSemverAdvancedRanges` en `tests/runtime_smoke.js`.
+
+## Orden topológico con dependencias de servicio
+
+La resolución en batch considera dependencias declaradas por servicio:
+
+- Un plugin que requiere `requires.services: ['svc.x']` puede ordenarse detrás de otro plugin del mismo batch que provea `svc.x`.
+- Si hay ciclos entre servicios/plugins del mismo batch, el loader mantiene esos plugins en `pending` y reporta diagnóstico de ciclo.
+
+Referencia directa del test: `testPluginLoaderServiceDependencyOrderAndCycleDiagnostics` en `tests/runtime_smoke.js`.

@@ -164,6 +164,13 @@ En vez de exponer globals sueltas, entregar un objeto `runtime` versionado:
 
 Con esto, un plugin no llama `cmdMirar()` ni internals: llama un servicio estable (ej. `runtime.services.movement.moveAndTick(dir)` o `runtime.services.world.advanceTurn(...)`).
 
+Servicios gameplay adicionales expuestos por core:
+- `gameplay.combat.attack`, `gameplay.combat.escape`
+- `gameplay.combat.action` (bridge genérico hacia `Net.sendBattleAction`)
+- `gameplay.capture.start`
+- `gameplay.craft.forge`, `gameplay.craft.embody`, `gameplay.craft.conjure`
+- `gameplay.trade.start`, `gameplay.trade.accept`, `gameplay.trade.reject`, `gameplay.trade.offer`, `gameplay.trade.withdraw`, `gameplay.trade.confirm`, `gameplay.trade.cancel`
+
 ---
 
 ## C. Separar comandos de dominio del motor
@@ -238,6 +245,8 @@ El agregador de autocomplete soporta `cli_autocomplete.precedence` con estos val
 - `base_only`: usar sólo base.
 
 Esto permite migraciones graduales por entorno sin romper comandos legacy.
+En runtime, las sugerencias core ahora se publican como providers de capa `base`,
+mientras que plugins/extensiones usan capa `provider`; la precedencia decide cómo mezclar ambas capas.
 
 Estrategia sugerida de migración para plugins:
 1. Empezar en `base_first` para asegurar compatibilidad con comandos legacy.
@@ -264,6 +273,11 @@ Separar puertos por dominio:
 4. `TelemetryPort` (observabilidad): métricas, traces, profiling.
 
 El core sólo conoce estas interfaces, nunca clases concretas.
+
+Implementación runtime actual:
+- `OutputRouter` (`io.output_router.*`) para fanout de eventos `output:*` a múltiples adaptadores.
+- `ControlRouter` (`io.control_router.*`) para ingestar input externo y despachar vía `In.submit(...)`.
+- Engines de audio exponen servicios `audio.music.*` y `audio.sfx.*` + listeners `audio:music.play` / `audio:sfx.play`.
 
 ### 2) Contratos de eventos para audio/control
 Crear namespace estable:

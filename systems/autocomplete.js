@@ -33,6 +33,7 @@ const AC = (() => {
       priority: Number(def.priority ?? 50),
       provide: def.provide,
       pluginId: def.pluginId || 'externo',
+      layer: def.layer === 'base' ? 'base' : 'provider',
     });
     providers.sort((a,b)=>a.priority-b.priority);
     return true;
@@ -45,7 +46,7 @@ const AC = (() => {
       if(!okTrigger) continue;
       try {
         const res = p.provide(ctx) || [];
-        (Array.isArray(res)?res:[res]).forEach(i => i && out.push(i));
+        (Array.isArray(res)?res:[res]).forEach(i => i && out.push({ ...i, _acLayer:p.layer }));
       } catch(e) {
         console.warn(`[AC] provider ${p.id} falló:`, e);
       }
@@ -54,11 +55,23 @@ const AC = (() => {
   }
 
   function registerCoreProviders() {
+    const registerBase = (id, triggers, provide) => registerProvider({
+      id: `core.autocomplete.${id}`,
+      triggers,
+      priority: 20,
+      pluginId: 'core',
+      layer: 'base',
+      provide,
+    });
+
+    registerBase('movimiento', ['ir', 'go'], () => getSalidas());
+    registerBase('npcs', ['hablar', 'observar', 'traicionar'], () => getNPCsAqui());
     registerProvider({
       id: 'core.autocomplete.preguntar',
       triggers: ['preguntar'],
       priority: 20,
       pluginId: 'core',
+      layer: 'base',
       provide(ctx = {}) {
         const args = Array.isArray(ctx.args) ? ctx.args : [];
         const nargs = Number.isFinite(ctx.nargs) ? ctx.nargs : args.length;
@@ -73,6 +86,7 @@ const AC = (() => {
       triggers: ['atacar'],
       priority: 20,
       pluginId: 'core',
+      layer: 'base',
       provide() {
         return [...getNPCsAqui(), ...getEnemigosNodo(), ...getCriaturasNodo()];
       },
@@ -82,9 +96,55 @@ const AC = (() => {
       triggers: ['examinar', 'ex'],
       priority: 20,
       pluginId: 'core',
+      layer: 'base',
       provide() {
         return [...getInventario(), ...getHabilidades(), ...getMagias(), ...getCompañeros(), ...getNPCsAqui()];
       },
+    });
+    registerBase('capturar', ['capturar'], () => getCriaturasNodo());
+    registerBase('vincular', ['vincular'], () => getAnclas());
+    registerBase('suelo', ['recoger', 'tomar'], () => getSuelo());
+    registerBase('inventario', ['soltar', 'drop'], () => getInventario());
+    registerBase('equipar', ['equipar'], () => getEquipables());
+    registerBase('usar', ['usar'], () => getUsables());
+    registerBase('forjar', ['forjar'], (ctx={}) => getMaterialesInv(ctx.yaEscritos || []));
+    registerBase('encarnar', ['encarnar'], (ctx={}) => getMaterialesModo('corporal', ctx.yaEscritos || []));
+    registerBase('conjurar', ['conjurar'], (ctx={}) => getMaterialesModo('mágico', ctx.yaEscritos || []));
+    registerBase('fusionar', ['fusionar'], (ctx={}) => {
+      const usedSet = new Set(ctx.yaEscritos || []);
+      return [
+        ...getInventario(i => !usedSet.has((i.nombre || i.blueprint || '').toLowerCase().replace(/\s+/g, '_'))),
+        ...getHabilidades().filter(h => !usedSet.has(h.value)),
+        ...getMagias().filter(m => !usedSet.has(m.value)),
+      ];
+    });
+    registerBase('lanzar', ['lanzar'], () => getMagias(true));
+    registerBase('recargar', ['recargar'], (ctx={}) => {
+      const nargs = Number.isFinite(ctx.nargs) ? ctx.nargs : (ctx.args || []).length;
+      const endsSpace = !!ctx.endsSpace;
+      if(nargs <= 1 || (!endsSpace && nargs === 1)) return getMagias();
+      return getMatRecarga();
+    });
+    registerBase('companeros', ['liberar', 'nombrar'], () => getCompañeros());
+    registerBase('modo', ['modo'], (ctx={}) => {
+      const nargs = Number.isFinite(ctx.nargs) ? ctx.nargs : (ctx.args || []).length;
+      const endsSpace = !!ctx.endsSpace;
+      if(nargs <= 1 || (!endsSpace && nargs === 1)) return getCompañeros();
+      return MODOS.map(m => ({ label: m, value: m, hint: 'modo de IA', color: 't-cri', group: 'modo' }));
+    });
+    registerBase('criar', ['criar'], (ctx={}) => {
+      const ya = new Set(ctx.yaEscritos || []);
+      return getCompañeros(c => c.afinidad >= 60 && !ya.has(c.nombre.split('-')[0].toLowerCase()));
+    });
+    registerBase('misiones_aceptar', ['aceptar'], () => getMisiones(false).filter(m => !GS.mision(m.value)?.aceptada));
+    registerBase('misiones_rechazar', ['rechazar'], () => getMisiones(false));
+    registerBase('misiones_completar', ['completar'], () => getMisiones(true));
+    registerBase('ayuda', ['ayuda', 'help', '?'], () => getTemasAyuda());
+    registerBase('plugins', ['descargar_plugin'], () => getPlugins());
+    registerBase('nombre', ['nombre'], () => [{ label: Player.get().name, value: Player.get().name.replace(/\s+/g, '_'), hint: 'nombre actual', color: 't-npc', group: 'nombre' }]);
+    registerBase('asignar', ['asignar', 'assign'], () => {
+      if(typeof XP === 'undefined') return [];
+      return Object.entries(XP.ATRIBUTOS || {}).map(([k, def]) => ({ label: k, value: k, hint: def.desc, color: def.color, group: 'atributo' }));
     });
   }
 
@@ -205,7 +265,8 @@ const AC = (() => {
       const k = `${_normToken(item.value || item.label)}::${item.group || ''}`;
       if(seen.has(k)) return;
       seen.add(k);
-      merged.push(item);
+      const { _acLayer, ...clean } = item;
+      merged.push(clean);
     };
 
     const first = policy === 'providers_first' ? providerList : baseList;
@@ -369,109 +430,24 @@ const AC = (() => {
 
     const yaEscritos = endsSpace ? args : args.slice(0, -1);
 
-    let result = null;
-    switch(verb) {
-      case 'ir': case 'go':
-        result = { list: getSalidas() };
-        break;
-      case 'hablar': case 'observar': case 'traicionar':
-        result = { list: getNPCsAqui() };
-        break;
-      case 'preguntar':
-      case 'atacar':
-      case 'examinar':
-      case 'ex':
-        result = { list: [] };
-        break;
-      case 'capturar':
-        result = { list: getCriaturasNodo() };
-        break;
-      case 'vincular':
-        result = { list: getAnclas() };
-        break;
-      case 'recoger': case 'tomar':
-        result = { list: getSuelo() };
-        break;
-      case 'soltar': case 'drop':
-        result = { list: getInventario() };
-        break;
-      case 'equipar':
-        result = { list: getEquipables() };
-        break;
-      case 'usar':
-        result = { list: getUsables() };
-        break;
-      case 'forjar':
-        result = { list: getMaterialesInv(yaEscritos) };
-        break;
-      case 'encarnar':
-        result = { list: getMaterialesModo('corporal', yaEscritos) };
-        break;
-      case 'conjurar':
-        result = { list: getMaterialesModo('mágico', yaEscritos) };
-        break;
-      case 'fusionar': {
-        const usedSet = new Set(yaEscritos);
-        result = { list: [...getInventario(i => !usedSet.has((i.nombre || i.blueprint || '').toLowerCase().replace(/\s+/g, '_'))), ...getHabilidades().filter(h => !usedSet.has(h.value)), ...getMagias().filter(m => !usedSet.has(m.value))] };
-        break;
-      }
-      case 'lanzar':
-        result = { list: getMagias(true) };
-        break;
-      case 'recargar':
-        if(nargs <= 1 || (!endsSpace && nargs === 1)) result = { list: getMagias() };
-        else result = { list: getMatRecarga() };
-        break;
-      case 'liberar': case 'nombrar':
-        result = { list: getCompañeros() };
-        break;
-      case 'modo':
-        if(nargs <= 1 || (!endsSpace && nargs === 1)) result = { list: getCompañeros() };
-        else result = { list: MODOS.map(m => ({ label: m, value: m, hint: 'modo de IA', color: 't-cri', group: 'modo' })) };
-        break;
-      case 'criar': {
-        const ya = new Set(yaEscritos);
-        result = { list: getCompañeros(c => c.afinidad >= 60 && !ya.has(c.nombre.split('-')[0].toLowerCase())) };
-        break;
-      }
-      case 'aceptar':
-        result = { list: getMisiones(false).filter(m => !GS.mision(m.value)?.aceptada) };
-        break;
-      case 'rechazar':
-        result = { list: getMisiones(false) };
-        break;
-      case 'completar':
-        result = { list: getMisiones(true) };
-        break;
-      case 'ayuda': case 'help': case '?':
-        result = { list: getTemasAyuda() };
-        break;
-      case 'descargar_plugin':
-        result = { list: getPlugins() };
-        break;
-      case 'nombre':
-        result = { list: [{ label: Player.get().name, value: Player.get().name.replace(/\s+/g, '_'), hint: 'nombre actual', color: 't-npc', group: 'nombre' }] };
-        break;
-      case 'asignar': case 'assign':
-        if(typeof XP === 'undefined') result = { list: [] };
-        else result = { list: Object.entries(XP.ATRIBUTOS || {}).map(([k, def]) => ({ label: k, value: k, hint: def.desc, color: def.color, group: 'atributo' })) };
-        break;
-      default:
-        result = { list: [] };
-    }
+    const result = { list: [] };
     const fromProviders = requestProviders({
       verb, args, partial,
       nargs,
       endsSpace,
+      yaEscritos,
       precedence: getPrecedencePolicy(),
       mode: (typeof Net!=='undefined' && Net.getMyBattle?.()) ? 'battle' : 'world',
       player: _safe(()=>Player.get(), null),
       nodeId: _safe(()=>Player.pos(), null),
     });
 
-    const baseList = (result && Array.isArray(result.list)) ? result.list : [];
+    const legacyBaseList = (result && Array.isArray(result.list)) ? result.list : [];
+    const baseProviderList = fromProviders.filter(i => i?._acLayer === 'base');
+    const pluginProviderList = fromProviders.filter(i => i?._acLayer !== 'base');
+    const baseList = [...legacyBaseList, ...baseProviderList];
     const policy = getPrecedencePolicy();
-    return { list: mergeSuggestions(baseList, fromProviders, policy) };
+    return { list: mergeSuggestions(baseList, pluginProviderList, policy) };
   }
 
   function filter(list, partial) {
@@ -568,7 +544,7 @@ const AC = (() => {
     hide,
     update,
     registerProvider,
-    providers: () => providers.map(p=>({ id:p.id, triggers:[...p.triggers], priority:p.priority, pluginId:p.pluginId })),
+    providers: () => providers.map(p=>({ id:p.id, triggers:[...p.triggers], priority:p.priority, pluginId:p.pluginId, layer:p.layer })),
     moveDown() { if(!items.length) return false; setSel(sel < 0 ? 0 : sel + 1); return true; },
     moveUp() { if(!items.length) return false; setSel(sel <= 0 ? 0 : sel - 1); return true; },
     accept() {

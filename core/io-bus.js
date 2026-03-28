@@ -171,10 +171,70 @@ function _refreshStatus() {
 // (reemplaza todos los R.upd() esparcidos)
 const refreshStatus = _refreshStatus;
 
+const OutputRouter = {
+  _adapters: {},
+  _wired: false,
+  register(id, adapter={}) {
+    if(!id || typeof adapter.emit !== 'function') return false;
+    this._adapters[id] = adapter;
+    return true;
+  },
+  unregister(id) {
+    delete this._adapters[id];
+  },
+  list() {
+    return Object.keys(this._adapters);
+  },
+  route(event, payload) {
+    for(const [id, a] of Object.entries(this._adapters)) {
+      try { a.emit(event, payload, { id }); } catch(e) { console.warn(`[OutputRouter] ${id} falló en ${event}:`, e); }
+    }
+  },
+  wireEvents() {
+    if(this._wired) return;
+    this._wired = true;
+    const events = ['output:line','output:sep','output:space','output:echo','output:typewriter','output:status','output:clear','output:boot'];
+    events.forEach(ev => EventBus.on(ev, (payload)=>{ this.route(ev, payload); return payload; }, 'core:output_router', { phase:'observe', priority:98 }));
+  },
+};
+
+const ControlRouter = {
+  _adapters: {},
+  register(id, adapter={}) {
+    if(!id || typeof adapter.submit !== 'function') return false;
+    this._adapters[id] = adapter;
+    return true;
+  },
+  unregister(id) {
+    delete this._adapters[id];
+  },
+  list() {
+    return Object.keys(this._adapters);
+  },
+  async submit(raw, meta={ source:'router' }) {
+    const text = String(raw || '').trim();
+    if(!text) return false;
+    for(const [id, a] of Object.entries(this._adapters)) {
+      try { a.submit(text, { ...meta, id }); } catch(e) { console.warn(`[ControlRouter] ${id} falló:`, e); }
+    }
+    await In.submit(text);
+    return true;
+  },
+};
+
+OutputRouter.wireEvents();
+
 if(typeof ServiceRegistry !== 'undefined') {
   ServiceRegistry.register('io.out.line',   (text, color='t-out', bold=false)=>Out.line(text, color, bold), { pluginId:'core', version:'2.1.0' });
   ServiceRegistry.register('io.out.status', (slots)=>Out.status(slots), { pluginId:'core', version:'2.1.0' });
   ServiceRegistry.register('io.out.clear',  ()=>Out.clear(), { pluginId:'core', version:'2.1.0' });
   ServiceRegistry.register('io.in.submit',  (raw)=>In.submit(raw), { pluginId:'core', version:'2.1.0' });
   ServiceRegistry.register('io.status.refresh', ()=>refreshStatus(), { pluginId:'core', version:'2.1.0' });
+  ServiceRegistry.register('io.output_router.register', (id, adapter)=>OutputRouter.register(id, adapter), { pluginId:'core', version:'2.2.0' });
+  ServiceRegistry.register('io.output_router.unregister', (id)=>OutputRouter.unregister(id), { pluginId:'core', version:'2.2.0' });
+  ServiceRegistry.register('io.output_router.list', ()=>OutputRouter.list(), { pluginId:'core', version:'2.2.0' });
+  ServiceRegistry.register('io.control_router.register', (id, adapter)=>ControlRouter.register(id, adapter), { pluginId:'core', version:'2.2.0' });
+  ServiceRegistry.register('io.control_router.unregister', (id)=>ControlRouter.unregister(id), { pluginId:'core', version:'2.2.0' });
+  ServiceRegistry.register('io.control_router.list', ()=>ControlRouter.list(), { pluginId:'core', version:'2.2.0' });
+  ServiceRegistry.register('io.control_router.submit', (raw, meta)=>ControlRouter.submit(raw, meta), { pluginId:'core', version:'2.2.0' });
 }

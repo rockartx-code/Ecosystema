@@ -89,6 +89,7 @@ const EventBus = {
   _specs:     {},
   _dispatchId: 0,
   _validationPolicy: 'dev',
+  _health: {},
 
   on(event, handler, pluginId='core', opts={}) {
     if(!this._listeners[event]) this._listeners[event]=[];
@@ -97,6 +98,8 @@ const EventBus = {
       priority: opts.priority ?? 50,
       once:     opts.once    ?? false,
       phase:    opts.phase   ?? 'main',
+      timeoutMs: Number(opts.timeoutMs ?? 0) || 0,
+      onTimeout: ['warn','cancel','error'].includes(opts.onTimeout) ? opts.onTimeout : 'warn',
     });
     this._listeners[event].sort((a,b)=>{
       const phaseOrder = { pre:0, main:1, post:2, observe:3 };
@@ -132,6 +135,20 @@ const EventBus = {
     if(this._validationPolicy === 'strict') throw new Error(msg);
     if(this._validationPolicy === 'dev') console.warn(msg);
   },
+  _touchHealth(pluginId='core', patch={}) {
+    const h = this._health[pluginId] || { calls:0, errors:0, timeouts:0, totalMs:0, lastMs:0, lastEvent:null, lastTs:null };
+    const next = { ...h };
+    if(patch.calls) next.calls += patch.calls;
+    if(patch.errors) next.errors += patch.errors;
+    if(patch.timeouts) next.timeouts += patch.timeouts;
+    if(typeof patch.ms === 'number') {
+      next.lastMs = patch.ms;
+      next.totalMs += patch.ms;
+    }
+    if(patch.event) next.lastEvent = patch.event;
+    next.lastTs = Date.now();
+    this._health[pluginId] = next;
+  },
   _validateIn(event, payload) {
     const spec = this._specs[event];
     if(typeof spec?.validateIn === 'function') {
@@ -165,12 +182,23 @@ const EventBus = {
       const t0 = Date.now();
       try {
         const result = l.handler(current, CTX);
+        const elapsed = Date.now()-t0;
+        const timedOut = l.timeoutMs > 0 && elapsed > l.timeoutMs;
         if(result !== undefined) current = result;
         if(l.once) toRemove.push(l);
+        this._touchHealth(l.pluginId, { calls:1, ms:elapsed, event });
+        if(timedOut) {
+          this._touchHealth(l.pluginId, { timeouts:1, event });
+          const msg = `[EventBus] timeout ${l.pluginId} → ${event}: ${elapsed}ms > ${l.timeoutMs}ms`;
+          if(l.onTimeout === 'error') throw new Error(msg);
+          if(l.onTimeout === 'cancel' && current && typeof current === 'object') current.cancelled = true;
+          console.warn(msg);
+        }
         if(current?.cancelled) break;
-        this._traces.push({ id:dispatchId, event, pluginId:l.pluginId, phase:l.phase, ms:(Date.now()-t0), ok:true, ts:Date.now() });
+        this._traces.push({ id:dispatchId, event, pluginId:l.pluginId, phase:l.phase, ms:elapsed, ok:true, timeout:timedOut, ts:Date.now() });
       } catch(e) {
         console.warn(`[EventBus] ${l.pluginId} → ${event}:`, e);
+        this._touchHealth(l.pluginId, { errors:1, ms:(Date.now()-t0), event });
         this._traces.push({ id:dispatchId, event, pluginId:l.pluginId, phase:l.phase, ms:(Date.now()-t0), ok:false, err:String(e?.message||e), ts:Date.now() });
       }
       if(this._traces.length>800) this._traces.shift();
@@ -215,6 +243,10 @@ const EventBus = {
   history(n=20) { return this._history.slice(-n); },
   listeners(event) { return [...(this._listeners[event]||[])].map(l=>({ pluginId:l.pluginId, priority:l.priority, phase:l.phase, once:l.once })); },
   trace(n=50)   { return this._traces.slice(-n); },
+  health(pluginId=null) {
+    if(pluginId) return this._health[pluginId] || null;
+    return Object.entries(this._health).map(([id, h]) => ({ pluginId:id, ...h, avgMs:h.calls ? Number((h.totalMs/h.calls).toFixed(2)) : 0 }));
+  },
   spec(event)   { return this._specs[event]||null; },
 };
 
@@ -285,6 +317,11 @@ const PluginLoader = {
     if(!m) return { id:String(raw), range:'*' };
     return { id:m[1], range:(m[2]||'*').trim() || '*' };
   },
+  _providedServices(def={}) {
+    const fromInline = Object.keys(def.services || {});
+    const fromManifest = (def.provides?.services || []).filter(Boolean);
+    return [...new Set([...fromInline, ...fromManifest])];
+  },
   _dependencyErrors(def) {
     const errs = [];
     const req = def.requires || {};
@@ -310,9 +347,16 @@ const PluginLoader = {
   },
   _dependencyOrder(defs=[]) {
     const map = new Map(defs.filter(Boolean).map(d=>[d.id, d]));
+    const serviceProviders = new Map();
     const indeg = new Map();
     const out = new Map();
     for(const id of map.keys()) { indeg.set(id, 0); out.set(id, new Set()); }
+    for(const d of map.values()) {
+      for(const svc of this._providedServices(d)) {
+        if(!serviceProviders.has(svc)) serviceProviders.set(svc, new Set());
+        serviceProviders.get(svc).add(d.id);
+      }
+    }
 
     const addEdge = (from, to) => {
       if(!map.has(from) || !map.has(to) || from===to) return;
@@ -326,6 +370,10 @@ const PluginLoader = {
       (req.plugins||[]).forEach(raw => {
         const dep = this._parseDep(raw);
         addEdge(dep.id, d.id);
+      });
+      (req.services||[]).forEach(svc => {
+        const providers = [...(serviceProviders.get(svc) || [])];
+        providers.forEach(pid => addEdge(pid, d.id));
       });
       const load = d.load || {};
       (load.after||[]).forEach(afterId => addEdge(afterId, d.id));
@@ -346,7 +394,24 @@ const PluginLoader = {
       }
     }
     const unresolved = [...map.keys()].filter(id => !sorted.find(d=>d.id===id)).map(id => map.get(id));
-    return { sorted, unresolved };
+    const unresolvedSet = new Set(unresolved.map(d=>d.id));
+    const cycles = [];
+    for(const d of unresolved) {
+      const deps = [];
+      const req = d.requires || {};
+      for(const raw of (req.plugins||[])) {
+        const dep = this._parseDep(raw).id;
+        if(unresolvedSet.has(dep)) deps.push(`plugin:${dep}`);
+      }
+      for(const svc of (req.services||[])) {
+        const providers = [...(serviceProviders.get(svc) || [])].filter(pid => unresolvedSet.has(pid));
+        if(providers.length) deps.push(`service:${svc}→[${providers.join(',')}]`);
+      }
+      for(const dep of (d.load?.after||[])) if(unresolvedSet.has(dep)) deps.push(`after:${dep}`);
+      for(const dep of (d.load?.before||[])) if(unresolvedSet.has(dep)) deps.push(`before:${dep}`);
+      if(deps.length) cycles.push({ id:d.id, deps });
+    }
+    return { sorted, unresolved, cycles };
   },
   registerMany(defs=[]) {
     const orderRes = this._dependencyOrder(defs);
@@ -366,9 +431,17 @@ const PluginLoader = {
       }
     }
     if(pending.length) {
-      this._pending = pending.map(d=>({ id:d.id, errors:this._dependencyErrors(d) }));
+      const cycleById = new Map((orderRes.cycles||[]).map(c => [c.id, c]));
+      this._pending = pending.map(d=>{
+        const errors = this._dependencyErrors(d);
+        const cyc = cycleById.get(d.id);
+        if(cyc) errors.push(`Posible ciclo de dependencias: ${cyc.deps.join(' ; ')}`);
+        return { id:d.id, errors };
+      });
       pending.forEach(d=>{
-        const errs = this._dependencyErrors(d);
+        const cyc = cycleById.get(d.id);
+        const errs = [...this._dependencyErrors(d)];
+        if(cyc) errs.push(`Posible ciclo de dependencias: ${cyc.deps.join(' ; ')}`);
         console.warn(`[PluginLoader] pendiente ${d.id}:`, errs.join(' | '));
       });
     } else {
