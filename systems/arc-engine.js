@@ -25,14 +25,24 @@
 
   function genArc(npc, npcs) {
     if(GS.arcsActivos().length >= 2) return null;
+    const temasDisponibles = Object.keys(TEMAS || {});
+    if(!temasDisponibles.length) return null;
+
     const rng        = U.rng(npc.id + Clock.cycle + Date.now());
     const sesgos     = { protector:['sacrificio','redención'], corrompido:['traición','poder'], visionario:['ascenso','poder'], superviviente:['pérdida','venganza'], manipulador:['traición','secreto'], leal:['sacrificio','redención'], errante:['pérdida','secreto'], predador:['venganza','poder'] };
-    let pool         = Object.keys(TEMAS);
+    const pool       = [...temasDisponibles];
     const sesg       = sesgos[npc.arq_vis] || sesgos[npc.arq_ocu];
-    if(sesg) sesg.forEach(t => { pool.push(t); pool.push(t); });
+    if(sesg) sesg.forEach(t => { if(TEMAS[t]) { pool.push(t); pool.push(t); } });
+
     const tema       = U.pick(pool, rng);
     const def        = TEMAS[tema];
-    const plantillas = PLANTILLAS_ACTO[tema] || PLANTILLAS_ACTO.venganza;
+    if(!tema || !def) return null;
+
+    const plantillas = Array.isArray(PLANTILLAS_ACTO[tema])
+      ? PLANTILLAS_ACTO[tema]
+      : (Array.isArray(PLANTILLAS_ACTO.venganza) ? PLANTILLAS_ACTO.venganza : []);
+    if(!plantillas.length) return null;
+
     const secNPCs    = npcs.filter(n=>n.id!==npc.id&&n.estado==='vivo');
     const antagonista= secNPCs.find(n=>(D.npcs?.arquetipos_hostiles||[]).includes(n.arq_ocu)) || U.pick(secNPCs,rng) || npc;
 
