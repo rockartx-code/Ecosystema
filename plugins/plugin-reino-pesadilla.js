@@ -165,30 +165,17 @@ const pluginReinoPesadilla = (() => {
       Out.line('No se pudo crear la nueva sección.', 't-pel');
       return;
     }
-
-    Player.setPos(dest);
-    Clock.tick(1);
-    EventBus.emit('player:tick', { player: Player.get() });
-    World.visit(dest);
-
-    const nodoActual = World.node(dest);
-    if(!nodoActual?.visitado_prev) {
-      nodoActual.visitado_prev = true;
-      if(typeof XP !== 'undefined') XP.ganar('exploración', 10 + (nodoActual?.seccion || 0) * 5, 'nodo nuevo');
-      if(nodoActual?.dificultad >= 2.5) Out.line(`⚠ ZONA HOSTIL — Enemigos ×${(nodoActual.dificultad || 1).toFixed(1)}`, 't-pel');
-    } else if(typeof XP !== 'undefined') {
-      XP.ganar('exploración', 2, 'movimiento');
+    const enterNode = ServiceRegistry?.get?.('gameplay.enter_node');
+    if(typeof enterNode === 'function') {
+      enterNode(dest, { tick:1, showLook:true, saveAfter:true, grantXP:true });
+    } else {
+      Player.setPos(dest);
+      Clock.tick(1);
+      EventBus.emit('player:tick', { player: Player.get() });
+      World.visit(dest);
+      if(typeof cmdMirar === 'function') cmdMirar();
+      save();
     }
-
-    EventBus.emit('world:tick', { cycle: Clock.cycle });
-    GS.aliveNPCs().forEach(n => {
-      if(U.chance(0.12)) n.desesperacion = U.clamp(n.desesperacion + U.rand(1, 5), 0, 100);
-      if(U.chance(0.07)) n.corrupcion = U.clamp(n.corrupcion + U.rand(1, 3), 0, 100);
-      if(n.desesperacion >= 90 && U.chance(0.15)) setTimeout(() => NPCEngine.consecuenciaDesperación(n), 500);
-    });
-
-    if(typeof cmdMirar === 'function') cmdMirar();
-    save();
   }
 
   function _onCommandBefore(payload) {

@@ -33,7 +33,7 @@ const RCompat = {
 
 const CTX = {
   // Core
-  U, EventBus, ModuleLoader, PluginLoader, CommandRegistry, D,
+  U, EventBus, ModuleLoader, PluginLoader, CommandRegistry, ServiceRegistry, D,
   EntityRegistry,
 
   // Estado del juego
@@ -62,6 +62,77 @@ const CTX = {
   findMision: (q)=>findMision(q),
 };
 
+CTX.runtime = {
+  version: '2.1.0',
+  events: EventBus,
+  modules: ModuleLoader,
+  plugins: PluginLoader,
+  commands: CommandRegistry,
+  services: ServiceRegistry,
+  data: {
+    get: (path)=>ModuleLoader.get(path),
+    listModules: ()=>ModuleLoader.list(),
+  },
+};
+
+const _isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+const _isStr = (v) => typeof v === 'string';
+const _isNum = (v) => typeof v === 'number' && Number.isFinite(v);
+
+EventBus.defineEvents({
+  'output:line': {
+    kind:'ui', phase:'observe',
+    validateIn: (p)=>_isObj(p) && _isStr(p.text),
+  },
+  'output:status': {
+    kind:'ui', phase:'observe',
+    validateIn: (p)=>_isObj(p) && _isObj(p.slots),
+  },
+  'input:command': {
+    kind:'command', phase:'pre',
+    validateIn: (p)=>_isObj(p) && _isStr(p.verb) && Array.isArray(p.args),
+  },
+  'audio:sfx.play': {
+    kind:'command', phase:'post',
+    validateIn: (p)=>_isObj(p) && _isStr(p.cue || p.type || ''),
+  },
+  'audio:music.play': {
+    kind:'command', phase:'post',
+    validateIn: (p)=>_isObj(p) && _isStr(p.track || p.theme || ''),
+  },
+  'control:action': {
+    kind:'command', phase:'pre',
+    validateIn: (p)=>_isObj(p) && _isStr(p.verb || ''),
+  },
+  'plugin:loaded': {
+    kind:'domain', phase:'post',
+    validateIn: (p)=>_isObj(p) && _isStr(p.id || ''),
+  },
+  'plugin:unloaded': {
+    kind:'domain', phase:'post',
+    validateIn: (p)=>_isObj(p) && _isStr(p.id || ''),
+  },
+  'combat:resolve_magia': {
+    kind:'query', phase:'main',
+    validateIn: (p)=>_isObj(p) && _isObj(p.actor || {}),
+    validateOut: (p)=>_isObj(p) && typeof p.handled === 'boolean',
+  },
+  'combat:resolve_habilidad': {
+    kind:'query', phase:'main',
+    validateIn: (p)=>_isObj(p) && _isObj(p.actor || {}),
+    validateOut: (p)=>_isObj(p) && typeof p.handled === 'boolean',
+  },
+  'combat:resolve_ia': {
+    kind:'query', phase:'main',
+    validateIn: (p)=>_isObj(p) && _isObj(p.actor || {}) && _isObj(p.battle || {}),
+    validateOut: (p)=>_isObj(p) && (p.action == null || _isStr(p.action)),
+  },
+  'world:tick': {
+    kind:'domain', phase:'post',
+    validateIn: (p)=>_isObj(p) && (_isNum(p.cycle) || p.cycle == null),
+  },
+});
+
 
 // Compatibilidad global: algunos sistemas legacy referencian `Combat.active`.
 if(typeof globalThis.Combat === 'undefined') {
@@ -76,27 +147,24 @@ if(typeof globalThis.Combat.active === 'undefined') {
 // como plugins registrados. Cada uno recibe CTX en sus handlers.
 
 function _registerCoreSystems() {
-
-  // ── Plugin: Criaturas ─────────────────────────────────────────
-  PluginLoader.register(pluginCreaturas);
-
-  // ── Plugin: Habilidades ───────────────────────────────────────
-  PluginLoader.register(pluginHabilidades);
-
-  // ── Plugin: Magias ────────────────────────────────────────────
-  PluginLoader.register(pluginMagias);
-  if(typeof pluginIABatalla !== 'undefined') PluginLoader.register(pluginIABatalla);
-  if(typeof pluginFacciones !== 'undefined') PluginLoader.register(pluginFacciones);
-  if(typeof pluginBosses !== 'undefined')    PluginLoader.register(pluginBosses);
-  if(typeof pluginTricksters !== 'undefined')PluginLoader.register(pluginTricksters);
-  if(typeof pluginSombraHerrante !== 'undefined') PluginLoader.register(pluginSombraHerrante);
-  if(typeof pluginArbolVida !== 'undefined') PluginLoader.register(pluginArbolVida);
-  if(typeof pluginTransformaciones !== 'undefined') PluginLoader.register(pluginTransformaciones);
-  if(typeof pluginGuarida !== 'undefined') PluginLoader.register(pluginGuarida);
-  if(typeof pluginInvocaciones !== 'undefined') PluginLoader.register(pluginInvocaciones);
-  if(typeof pluginCultos !== 'undefined') PluginLoader.register(pluginCultos);
-  if(typeof pluginReinoPesadilla !== 'undefined') PluginLoader.register(pluginReinoPesadilla);
-  if(typeof pluginConcentracion !== 'undefined') PluginLoader.register(pluginConcentracion);
+  const corePluginDefs = [
+    typeof pluginCreaturas        !== 'undefined' ? pluginCreaturas : null,
+    typeof pluginHabilidades      !== 'undefined' ? pluginHabilidades : null,
+    typeof pluginMagias           !== 'undefined' ? pluginMagias : null,
+    typeof pluginIABatalla        !== 'undefined' ? pluginIABatalla : null,
+    typeof pluginFacciones        !== 'undefined' ? pluginFacciones : null,
+    typeof pluginBosses           !== 'undefined' ? pluginBosses : null,
+    typeof pluginTricksters       !== 'undefined' ? pluginTricksters : null,
+    typeof pluginSombraHerrante   !== 'undefined' ? pluginSombraHerrante : null,
+    typeof pluginArbolVida        !== 'undefined' ? pluginArbolVida : null,
+    typeof pluginTransformaciones !== 'undefined' ? pluginTransformaciones : null,
+    typeof pluginGuarida          !== 'undefined' ? pluginGuarida : null,
+    typeof pluginInvocaciones     !== 'undefined' ? pluginInvocaciones : null,
+    typeof pluginCultos           !== 'undefined' ? pluginCultos : null,
+    typeof pluginReinoPesadilla   !== 'undefined' ? pluginReinoPesadilla : null,
+    typeof pluginConcentracion    !== 'undefined' ? pluginConcentracion : null,
+  ].filter(Boolean);
+  PluginLoader.registerMany(corePluginDefs);
 
   // ── Plugin: Supervivencia (hambre, heridas fuera de combate) ──
   // Antes era Player.hungerTick() inline en cmdIr.
