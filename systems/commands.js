@@ -571,21 +571,139 @@ function cmdExaminar(q) {
   const npc = findNPC(q);
   if(npc) { cmdObservar(q); return; }
   const item = Player.findItem(q);
-  if(item) { Out.line(`${item.nombre||item.blueprint}  [${item.tipo}]${item.atk?' ATK+'+item.atk:''}${item.def?' DEF+'+item.def:''}${item.poder?' POD:'+item.poder:''}`, 't-out'); Out.line(item.desc||'—','t-dim'); if(item.imprint)Out.line(`Impronta #${item.imprint.hash}  Tensión:${((item.imprint.tension||0)*100).toFixed(0)}%  Muts:${item.imprint.mutations?.join(',')||'—'}`,'t-dim'); return; }
+  if(item) {
+    const nombre = item.nombre || item.blueprint || 'objeto';
+    const tipo = item.tipo || item.categoria || 'desconocido';
+    const pares = [
+      ['Blueprint', item.blueprint],
+      ['ID', item.id],
+      ['Tipo', tipo],
+      ['Categoría', item.categoria],
+      ['Estado', item.estado],
+      ['Raridad', item.raridad],
+      ['Slot', item.slot || item.slot_preferido],
+      ['ATK', item.atk],
+      ['DEF', item.def],
+      ['Poder', item.poder],
+      ['Crit', item.crit],
+      ['Evasión', item.evasion],
+      ['Valor', item.valor],
+      ['Efecto', item.efecto],
+      ['Elemento', item.elemento],
+      ['Duración', item.dur],
+      ['Durabilidad', item.durabilidad != null ? `${item.durabilidad}%` : null],
+      ['Cargas', (item.cargas != null || item.cargas_max != null) ? `${item.cargas ?? '?'} / ${item.cargas_max ?? '?'}` : null],
+      ['Fragilidad', item.fragilidad != null ? `${item.fragilidad}%` : null],
+      ['NPC origen', item.npc_origen],
+      ['Forjado', item.forjado ? 'sí' : null],
+    ].filter(([, v]) => v != null && String(v).trim() !== '');
+
+    Out.sp();
+    Out.line(`— EXAMINAR OBJETO: ${nombre} —`, 't-out', true);
+    if(item.desc) Out.line(item.desc, 't-dim');
+    else Out.line('Sin descripción.', 't-dim');
+
+    pares.forEach(([k, v]) => Out.line(`  ${k}: ${v}`, 't-out'));
+
+    if(Array.isArray(item.tags) && item.tags.length) {
+      Out.line(`  Tags: ${item.tags.join(', ')}`, 't-cra');
+    }
+
+    if(item.efecto_accesorio?.stat || item.efecto_accesorio?.valor != null) {
+      const ea = item.efecto_accesorio;
+      Out.line(`  Efecto accesorio: ${ea.stat || '—'}${ea.valor != null ? ` +${ea.valor}` : ''}`, 't-mag');
+    }
+
+    if(item._elemento_temporal) {
+      const durEl = item._elemento_dur != null ? ` (${item._elemento_dur} uso${item._elemento_dur===1?'':'s'})` : '';
+      Out.line(`  Infusión temporal: ${item._elemento_temporal}${durEl}`, 't-mag');
+    }
+
+    if(item.imprint) {
+      Out.line(`  Impronta: #${item.imprint.hash || '—'}`, 't-dim');
+      if(item.imprint.tension != null) Out.line(`  Tensión de impronta: ${((item.imprint.tension||0)*100).toFixed(0)}%`, 't-dim');
+      if(item.imprint.seed != null) Out.line(`  Seed: ${item.imprint.seed}`, 't-dim');
+      if(item.imprint.mutations?.length) Out.line(`  Mutaciones: ${item.imprint.mutations.join(', ')}`, 't-dim');
+      else Out.line('  Mutaciones: —', 't-dim');
+    }
+
+    const extras = Object.keys(item)
+      .filter(k => ![
+        'id','blueprint','nombre','tipo','categoria','estado','raridad','slot','slot_preferido',
+        'atk','def','poder','crit','evasion','valor','efecto','elemento','dur','durabilidad',
+        'cargas','cargas_max','fragilidad','npc_origen','forjado','desc','tags','efecto_accesorio',
+        '_elemento_temporal','_elemento_dur','imprint'
+      ].includes(k))
+      .sort();
+    if(extras.length) Out.line(`  Extras: ${extras.join(', ')}`, 't-dim');
+    Out.sp();
+    return;
+  }
   Out.line(`No encuentras "${q}".`,'t-dim');
 }
 
 function cmdEstado() {
   const p = Player.get(); const c = Clock.get(); const n = World.node(Player.pos());
   Out.sp(); Out.line(`— ${p.name} —`, 't-acc');
+  Out.line(`ID: ${p.id||'—'}  Clase: ${p.clase||'—'}  Nivel: ${p.level??1}`, 't-dim');
   Out.line(`HP: ${p.hp}/${p.maxHp}  ATK: ${Player.getAtk()}  DEF: ${Player.getDef()}`, 't-out');
   Out.line(`Hambre: ${p.hunger}/${p.maxHunger||100}  Stamina: ${p.stamina??100}/${p.maxStamina||100}  Maná: ${p.mana??60}/${p.maxMana||60}`, 't-dim');
-  Out.line(`Nodo: ${n?.name||'?'}  [${n?.tipo||'?'}]  Ciclo: ${c.cycle} ${c.name}`, 't-dim');
+  Out.line(`Nodo: ${n?.name||'?'}  [${n?.tipo||'?'}]  ID:${Player.pos()||'?'}  Ciclo: ${c.cycle} ${c.name}`, 't-dim');
+
+  const attrs = p.attrs || p.atributos;
+  if(attrs && typeof attrs === 'object') {
+    const attrsTxt = Object.entries(attrs).map(([k,v]) => `${k}:${v}`).join(' · ');
+    if(attrsTxt) Out.line(`Atributos: ${attrsTxt}`, 't-acc');
+  }
+
   if((p.heridas||[]).length) Out.line(`Heridas: ${p.heridas.join(', ')}`, 't-pel');
-  if(p.equipped?.mano_derecha||p.equipped?.mano_izquierda) Out.line(`Manos: ${p.equipped.mano_izquierda?(p.equipped.mano_izquierda.nombre||p.equipped.mano_izquierda.blueprint):'—'} / ${p.equipped.mano_derecha?(p.equipped.mano_derecha.nombre||p.equipped.mano_derecha.blueprint):'—'}`, 't-pel');
-  if(p.equipped?.casco||p.equipped?.peto||p.equipped?.guantes||p.equipped?.botas) Out.line(`Armadura: ${p.equipped.casco?'casco ':''}${p.equipped.peto?'peto ':''}${p.equipped.guantes?'guantes ':''}${p.equipped.botas?'botas':''}`.trim(), 't-sis');
+  else Out.line('Heridas: ninguna', 't-dim');
+
+  const eq = p.equipped || {};
+  const slotsEq = ['arma','mano_izquierda','mano_derecha','casco','peto','guantes','botas','accesorio'];
+  Out.line('Equipo:', 't-sis');
+  slotsEq.forEach(slot => {
+    const it = eq[slot];
+    if(!it) return Out.line(`  ${slot}: —`, 't-dim');
+    const nom = it.nombre || it.blueprint || 'objeto';
+    const dur = it.durabilidad != null ? ` · Dur:${it.durabilidad}%` : '';
+    const stats = `${it.atk?` · ATK+${it.atk}`:''}${it.def?` · DEF+${it.def}`:''}`;
+    Out.line(`  ${slot}: ${nom}${stats}${dur}`, 't-sis');
+  });
+
+  const inv = p.inventory || [];
+  Out.line(`Inventario: ${inv.length} objeto(s)`, 't-cra');
+  if(inv.length) {
+    const resumen = {};
+    inv.forEach(i => {
+      const t = i.tipo || i.categoria || 'varios';
+      resumen[t] = (resumen[t] || 0) + 1;
+    });
+    const invTxt = Object.entries(resumen).map(([k,v]) => `${k}:${v}`).join(' · ');
+    Out.line(`  Por tipo: ${invTxt}`, 't-dim');
+  }
+
+  const habs = p.ext?.habilidades || p.habilidades || [];
+  const mags = p.ext?.magias || p.magias || [];
+  Out.line(`Habilidades: ${habs.length}  ·  Magias: ${mags.length}`, 't-hab');
+  if(mags.length) {
+    const magsTxt = mags.slice(0, 5).map(m => `${m.nombre||m.id||'magia'}(${m.cargas??'?'}${m.cargas_max!=null?`/${m.cargas_max}`:''})`).join(' · ');
+    Out.line(`  Magias: ${magsTxt}${mags.length>5?' · ...':''}`, 't-mag');
+  }
+
+  const comps = p.ext?.compañeros || p.compañeros || [];
+  Out.line(`Compañeros: ${comps.length}`, 't-cri');
+  if(comps.length) {
+    Out.line(`  ${comps.map(x => `${x.nombre||x.id||'comp'} [${x.modo||'activo'}]`).join(' · ')}`, 't-dim');
+  }
+
   if((p._resonance?.habilidades||[]).length) Out.line(`Resonancias: ${p._resonance.habilidades.join(' · ')}`, 't-mag');
-  if(p.stats) Out.line(`Kills: ${p.stats.kills}  Pasos: ${p.stats.steps}  Forjado: ${p.stats.crafted}`, 't-dim');
+  if(p.stats) Out.line(`Stats: Kills:${p.stats.kills||0}  Pasos:${p.stats.steps||0}  Forjado:${p.stats.crafted||0}`, 't-dim');
+
+  if(p.ext && typeof p.ext === 'object') {
+    const extKeys = Object.keys(p.ext).sort();
+    if(extKeys.length) Out.line(`Extensiones activas: ${extKeys.join(', ')}`, 't-mem');
+  }
   Out.sp();
 }
 
