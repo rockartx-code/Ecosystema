@@ -37,8 +37,8 @@
 - [x] **[E5]** Migrar más plugins al uso de servicios de gameplay (captura, trade, forja).
 
 ### Pendientes de E6
-- [ ] **[E6]** Añadir tests de regresión para comandos de diagnóstico (`plugins_orden`, `plugins_pendientes`, `eventos_trace`).
-- [ ] **[E6]** Añadir smoke de servicios gameplay (`gameplay.enter_node`, `gameplay.move_and_tick`) con stubs de mundo.
+- [x] **[E6]** Añadir tests de regresión para comandos de diagnóstico (`plugins_orden`, `plugins_pendientes`, `eventos_trace`).
+- [x] **[E6]** Añadir smoke de servicios gameplay (`gameplay.enter_node`, `gameplay.move_and_tick`) con stubs de mundo.
 
 ### Pendientes de E7
 - [x] **[E7]** Completar `EventSpec` para más eventos de combate, narrativa, inventario y red.

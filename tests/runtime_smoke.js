@@ -23,6 +23,84 @@ function loadCore() {
   return sandbox.__core;
 }
 
+function loadCommandsSandbox() {
+  const { EventBus, ServiceRegistry, PluginLoader, CommandRegistry } = loadCore();
+  const outLines = [];
+  const worldNodes = {
+    n1: { id:'n1', name:'Nodo 1', tipo:'hub', estado:'calmo', atmos:'ok', exits:{ norte:'n2' }, loot:[], enemies:[], creatures:[], visitado:false, visitado_prev:false, dificultad:1, seccion:0 },
+    n2: { id:'n2', name:'Nodo 2', tipo:'bosque', estado:'calmo', atmos:'ok', exits:{ norte:'n3', sur:'n1' }, loot:[], enemies:[], creatures:[], visitado:false, visitado_prev:false, dificultad:1, seccion:1 },
+    n3: { id:'n3', name:'Nodo 3', tipo:'ruina', estado:'calmo', atmos:'ok', exits:{ sur:'n2' }, loot:[], enemies:[], creatures:[], visitado:false, visitado_prev:false, dificultad:1, seccion:1 },
+  };
+  const player = { id:'p1', name:'Tester', nodeId:'n1', flags:[], ext:{} };
+  const sandbox = {
+    console,
+    globalThis: null,
+    setTimeout: (fn)=>{ fn(); return 0; },
+    clearTimeout: ()=>{},
+    EventBus,
+    ServiceRegistry,
+    PluginLoader: {
+      list: () => [{ id:'plugin:a', version:'1.0.0', descripcion:'A' }],
+      lastBatchOrder: () => ['plugin:a', 'plugin:b'],
+      pending: () => [{ id:'plugin:pend', errors:['Falta servicio svc.x'] }],
+      registerFromJSON: () => true,
+    },
+    CommandRegistry,
+    ModuleLoader: { list: () => ['base'], get: () => ({}) },
+    Out: {
+      line: (text)=>{ outLines.push(String(text)); },
+      sp: ()=>{},
+      sep: ()=>{},
+      clear: ()=>{},
+    },
+    Player: {
+      get: ()=>player,
+      pos: ()=>player.nodeId,
+      setPos: (id)=>{ player.nodeId = id; },
+      rename: (name)=>{ player.name = name; },
+      findItem: ()=>null,
+    },
+    World: {
+      seed: 'seed',
+      sectionCount: 1,
+      all: ()=>worldNodes,
+      node: (id)=>worldNodes[id] || null,
+      exits: (id)=>({ ...(worldNodes[id]?.exits || {}) }),
+      visit: (id)=>{ if(worldNodes[id]) worldNodes[id].visitado = true; },
+      isBorder: ()=>false,
+      expandSection: ()=>null,
+    },
+    Clock: { cycle:0, tick:(n=1)=>{ sandbox.Clock.cycle += n; } },
+    GS: {
+      aliveNPCs: ()=>[],
+      npcEnNodo: ()=>[],
+      mision: ()=>null,
+      allMisiones: ()=>[],
+      activas: ()=>[],
+    },
+    U: {
+      chance: ()=>false,
+      clamp: (v,min,max)=>Math.max(min, Math.min(max, v)),
+      rand: (a)=>a,
+    },
+    NPCEngine: { consecuenciaDesperación: ()=>{} },
+    refreshStatus: ()=>{},
+    save: ()=>{},
+    localStorage: { removeItem: ()=>{} },
+    init: async ()=>{},
+    exportarPartida: ()=>{},
+    importarPartida: ()=>{},
+    Combat: { active:false },
+    XP: { ganar: ()=>{} },
+    D: {},
+  };
+  sandbox.globalThis = sandbox;
+  vm.createContext(sandbox);
+  const src = fs.readFileSync('systems/commands.js', 'utf8');
+  vm.runInContext(src, sandbox, { filename:'systems/commands.js' });
+  return { sandbox, outLines };
+}
+
 (function testEventBusPhasesAndTrace() {
   const { EventBus } = loadCore();
   const seq = [];
@@ -211,6 +289,40 @@ function loadCore() {
   assert.ok(hWarn && hWarn.timeouts >= 1);
   assert.ok(hCancel && hCancel.timeouts >= 1);
   assert.ok(hError && hError.errors >= 1);
+})();
+
+(function testDiagnosticCommandsSmoke() {
+  const { sandbox, outLines } = loadCommandsSandbox();
+
+  sandbox.cmdPluginsOrden();
+  assert.ok(outLines.some(l => l.includes('plugin:a')));
+  assert.ok(outLines.some(l => l.includes('plugin:b')));
+
+  sandbox.cmdPluginsPendientes();
+  assert.ok(outLines.some(l => l.includes('plugin:pend')));
+  assert.ok(outLines.some(l => l.includes('Falta servicio svc.x')));
+
+  sandbox.EventBus.on('t:diag', (p)=>p, 'p:diag');
+  sandbox.EventBus.emit('t:diag', { ok:true });
+  sandbox.cmdEventosTrace(5);
+  assert.ok(outLines.some(l => l.includes('t:diag')));
+})();
+
+(function testGameplayServicesWithWorldStubs() {
+  const { sandbox } = loadCommandsSandbox();
+  const { ServiceRegistry } = sandbox;
+
+  assert.strictEqual(ServiceRegistry.has('gameplay.enter_node'), true);
+  assert.strictEqual(ServiceRegistry.has('gameplay.move_and_tick'), true);
+
+  const outEnter = ServiceRegistry.call('gameplay.enter_node', 'n2', { tick:2, showLook:false, saveAfter:false, grantXP:false });
+  assert.strictEqual(outEnter, 'n2');
+  assert.strictEqual(sandbox.Player.pos(), 'n2');
+  assert.strictEqual(sandbox.Clock.cycle, 2);
+
+  ServiceRegistry.call('gameplay.move_and_tick', 'norte');
+  assert.strictEqual(sandbox.Player.pos(), 'n3');
+  assert.strictEqual(sandbox.Clock.cycle, 3);
 })();
 
 console.log('OK runtime_smoke');
