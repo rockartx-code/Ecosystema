@@ -1,290 +1,107 @@
 # Event Catalog Spec
 
 Version: **0.1.0**  
-Estado: **draft**  
-Fuente: eventos declarados en `EventBus.defineEvents(...)` del bootstrap.  
-Runtime sync: `CTX.runtime.eventsVersion = '0.1.0'`.
+Estado: **draft operativo**  
+Fuente de verdad: `EventBus.defineEvents(...)` en `core/main.js`.
 
-## Contrato
+## Contrato base
+
+Cada evento define:
 
 - `kind`: `command | query | domain | ui`
 - `phase`: `pre | main | post | observe`
-- `validateIn(payload)`: contrato mínimo de entrada
-- `validateOut(payload)`: contrato mínimo de salida (si aplica)
+- `validateIn(payload)`
+- `validateOut(payload)` (solo en eventos query con respuesta)
 
-## Convenciones de payload
+Convenciones:
 
 - `required`: campos obligatorios.
 - `optional`: campos opcionales.
-- `example`: payload mínimo recomendado.
-- En eventos `query`, un handler debe devolver payload compatible con `validateOut`.
+- En eventos `query`, el handler debe devolver payload compatible con `validateOut`.
 
 ---
 
-## IO / UI
+## Catálogo compacto (vigente)
 
-### `output:line` (`ui/observe`)
-- required: `text:string`
-- optional: `color:string`, `bold:boolean`
-- example:
-```json
-{ "text": "Hola", "color": "t-out", "bold": false }
-```
+### IO / UI
 
-### `output:status` (`ui/observe`)
-- required: `slots:object`
-- optional: —
-- example:
-```json
-{ "slots": { "hp": { "text":"45/50", "color":"t-cra" } } }
-```
+- `output:line` (`ui/observe`) → in: `{ text }`
+- `output:status` (`ui/observe`) → in: `{ slots }`
+- `input:command` (`command/pre`) → in: `{ verb, args }`
 
-### `input:command` (`command/pre`)
-- required: `verb:string`, `args:array`
-- optional: `raw:string`
-- example:
-```json
-{ "verb":"mirar", "args":[], "raw":"mirar" }
-```
+### Audio
 
----
+- `audio:sfx.play` (`command/post`) → in: `{ cue|type }`
+- `audio:music.play` (`command/post`) → in: `{ track|theme }`
+- `audio:sfx.played` (`domain/observe`) → in: `{ cue? }`
+- `audio:music.changed` (`domain/observe`) → in: `{ track? }`
+- `audio:error` (`domain/observe`) → in: `object`
 
-## Audio
+### Control / binding
 
-### `audio:sfx.play` (`command/post`)
-- required: `cue:string` (o `type:string`)
-- optional: `volume:number`
-- example:
-```json
-{ "cue":"click" }
-```
+- `control:action` (`command/pre`) → in: `{ verb }`
+- `control:binding.request` (`query/pre`) → in: `object`, out: `object|null`
+- `control:binding.changed` (`domain/post`) → in: `object`
 
-### `audio:music.play` (`command/post`)
-- required: `track:string` (o `theme:string`)
-- optional: `fadeMs:number`
-- example:
-```json
-{ "track":"explore" }
-```
+### Módulo / plugins
 
-### `audio:sfx.played` (`domain/observe`)
-- required: —
-- optional: `cue:string|null`
-- example:
-```json
-{ "cue":"click" }
-```
+- `module:loaded` (`domain/post`) → in: `{ meta? }`
+- `plugin:loaded` (`domain/post`) → in: `{ id }`
+- `plugin:unloaded` (`domain/post`) → in: `{ id }`
 
-### `audio:music.changed` (`domain/observe`)
-- required: —
-- optional: `track:string|null`
-- example:
-```json
-{ "track":"battle" }
-```
+### Combate
 
-### `audio:error` (`domain/observe`)
-- required: objeto válido
-- optional: `scope:string`, `message:string`
-- example:
-```json
-{ "scope":"music", "message":"device unavailable" }
-```
+- `combat:start` (`domain/main`) → in: `{ battle, enemy? }`
+- `combat:before_attack` (`query/pre`) → in: `{ attacker }`, out: `object`
+- `combat:before_damage_apply` (`query/pre`) → in: `{ dmg? }`, out: `{ dmg? }`
+- `combat:after_attack` (`domain/post`) → in: `{ attacker }`
+- `combat:after_damage_apply` (`domain/post`) → in: `{ actor|target }`
+- `combat:resolve_magia` (`query/main`) → in: `{ actor }`, out: `{ handled:boolean, ... }`
+- `combat:resolve_habilidad` (`query/main`) → in: `{ actor }`, out: `{ handled:boolean, ... }`
+- `combat:resolve_ia` (`query/main`) → in: `{ actor, battle }`, out: `{ action?:string|null }`
+- `combat:enemy_used_magia` (`domain/post`) → in: `{ actor? }`
+- `combat:player_hit` (`domain/post`) → in: `{ damage? }`
+- `combat:enemy_defeat` (`domain/post`) → in: `{ enemy? }`
+- `combat:loot` (`domain/post`) → in: `{ items? }`
+
+### Narrativa
+
+- `narrative:npc_gen` (`domain/main`) → in: `{ npc? }`
+- `narrative:npc_speak` (`domain/main`) → in: `{ text? }`
+- `narrative:npc_interact` (`domain/main`) → in: `{ npc? }`
+- `narrative:npc_death` (`domain/post`) → in: `{ npc? }`
+- `narrative:npc_twist` (`domain/post`) → in: `{ twist? }`
+- `narrative:mission_gen` (`domain/main`) → in: `{ mision? }`
+- `narrative:mission_complete` (`domain/post`) → in: `{ mision? }`
+- `narrative:mission_fail` (`domain/post`) → in: `{ mision? }`
+
+### Player / World / Memory
+
+- `player:create` (`domain/main`) → in: `{ player? }`
+- `player:stat_change` (`domain/post`) → in: `{ stat? }`
+- `player:item_add` (`domain/post`) → in: `{ item? }`
+- `player:item_remove` (`domain/post`) → in: `{ item? }`
+- `player:equip` (`domain/post`) → in: `{ item? }`
+- `player:tick` (`domain/post`) → in: `{ player? }`
+- `player:die` (`domain/post`) → in: `object`
+- `world:tick` (`domain/post`) → in: `{ cycle? }`
+- `memory:run_start` (`domain/main`) → in: `object`
+- `memory:run_end` (`domain/post`) → in: `object`
 
 ---
 
-## Control / binding
+## Ejemplos mínimos
 
-### `control:action` (`command/pre`)
-- required: `verb:string`
-- optional: `args:array`
-- example:
 ```json
-{ "verb":"atacar", "args":["lobo"] }
+{ "name": "input:command", "payload": { "verb": "mirar", "args": [] } }
 ```
 
-### `control:binding.request` (`query/pre`)
-- required: objeto válido
-- optional: `verb:string`, `context:string`
-- salida (`validateOut`): `object|null`
-- example in:
 ```json
-{ "verb":"atacar" }
-```
-- example out:
-```json
-{ "binding":"KeyA" }
+{ "name": "combat:resolve_habilidad", "payload": { "actor": {}, "battle": {} } }
 ```
 
-### `control:binding.changed` (`domain/post`)
-- required: objeto válido
-- optional: `verb:string`, `binding:string`
+## Mantenimiento
 
----
-
-## Module / plugin lifecycle
-
-### `module:loaded` (`domain/post`)
-- required: objeto válido
-- optional: `meta:object|null`, `data:object`
-
-### `plugin:loaded` (`domain/post`)
-- required: `id:string`
-- optional: `version:string`
-
-### `plugin:unloaded` (`domain/post`)
-- required: `id:string`
-- optional: `reason:string`
-
----
-
-## Combate
-
-### `combat:start` (`domain/main`)
-- required: `battle:object`
-- optional: `enemy:object|null`
-
-### `combat:before_attack` (`query/pre`)
-- required: `attacker:object`
-- optional: `target:object`, `battle:object`
-- salida: `object`
-
-### `combat:before_damage_apply` (`query/pre`)
-- required: objeto válido
-- optional: `dmg:number|null`, `target:object`
-- salida: `object` (si devuelve `dmg`, debe ser número o `null`)
-
-### `combat:after_attack` (`domain/post`)
-- required: `attacker:object`
-- optional: `target:object`, `battle:object`
-
-### `combat:after_damage_apply` (`domain/post`)
-- required: `actor:object` o `target:object`
-- optional: `dmg:number`, `battle:object`
-
-### `combat:resolve_magia` (`query/main`)
-- required: `actor:object`
-- optional: `target:object`, `battle:object`, `input:string`
-- salida requerida: `{ handled:boolean, ... }`
-
-### `combat:resolve_habilidad` (`query/main`)
-- required: `actor:object`
-- optional: `target:object`, `battle:object`, `input:string`
-- salida requerida: `{ handled:boolean, ... }`
-
-### `combat:resolve_ia` (`query/main`)
-- required: `actor:object`, `battle:object`
-- optional: `target:object`
-- salida: `object` con `action:string|null` opcional
-
-### `combat:enemy_used_magia` (`domain/post`)
-- required: objeto válido
-- optional: `actor:object|null`, `mag:object`, `battle:object`
-
-### `combat:player_hit` (`domain/post`)
-- required: objeto válido
-- optional: `damage:number|null`, `source:object`
-
-### `combat:enemy_defeat` (`domain/post`)
-- required: objeto válido
-- optional: `enemy:object|null`, `battle:object`
-
-### `combat:loot` (`domain/post`)
-- required: objeto válido
-- optional: `items:array|null`, `source:string`
-
----
-
-## Narrativa
-
-### `narrative:npc_gen` (`domain/main`)
-- required: objeto válido
-- optional: `npc:object|null`, `context:object`
-
-### `narrative:npc_speak` (`domain/main`)
-- required: objeto válido
-- optional: `text:string|null`, `npc:object`
-
-### `narrative:npc_interact` (`domain/main`)
-- required: objeto válido
-- optional: `npc:object|null`, `action:string`
-
-### `narrative:npc_death` (`domain/post`)
-- required: objeto válido
-- optional: `npc:object|null`, `cause:string`
-
-### `narrative:npc_twist` (`domain/post`)
-- required: objeto válido
-- optional: `twist:object|null`, `npc:object`
-
-### `narrative:mission_gen` (`domain/main`)
-- required: objeto válido
-- optional: `mision:object|null`, `npc:object`
-
-### `narrative:mission_complete` (`domain/post`)
-- required: objeto válido
-- optional: `mision:object|null`, `reward:object`
-
-### `narrative:mission_fail` (`domain/post`)
-- required: objeto válido
-- optional: `mision:object|null`, `reason:string`
-
----
-
-## Player / World / Memory
-
-### `player:create` (`domain/main`)
-- required: objeto válido
-- optional: `player:object|null`
-
-### `player:stat_change` (`domain/post`)
-- required: objeto válido
-- optional: `stat:string|null`, `before:number`, `after:number`
-
-### `player:item_add` (`domain/post`)
-- required: objeto válido
-- optional: `item:object|null`
-
-### `player:item_remove` (`domain/post`)
-- required: objeto válido
-- optional: `item:object|null`
-
-### `player:equip` (`domain/post`)
-- required: objeto válido
-- optional: `item:object|null`, `slot:string`
-
-### `player:tick` (`domain/post`)
-- required: objeto válido
-- optional: `player:object|null`, `cycle:number`
-
-### `player:die` (`domain/post`)
-- required: objeto válido
-- optional: `reason:string`, `battle:object`
-
-### `world:tick` (`domain/post`)
-- required: objeto válido
-- optional: `cycle:number|null`
-
-### `memory:run_start` (`domain/main`)
-- required: objeto válido
-- optional: `seed:string`, `meta:object`
-
----
-
-## Compatibilidad recomendada para plugins
-
-Se recomienda añadir en cada plugin:
-
-```js
-requires: {
-  events: {
-    'combat:resolve_habilidad': '^0.1.0',
-    'player:tick': '^0.1.0'
-  }
-}
-```
-
-Y validar contra una versión publicada del catálogo (`CTX.runtime.eventsVersion`).
-
-El `PluginLoader` valida `requires.events` contra `CTX.runtime.eventsVersion`;
-si el evento no existe o el rango no coincide, el plugin no carga.
+1. Actualizar este archivo cuando cambie `defineEvents(...)`.
+2. Sincronizar versión con `CTX.runtime.eventsVersion`.
+3. Validar con `npm test` (incluye `events_contract_smoke`).
