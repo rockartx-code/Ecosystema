@@ -283,7 +283,7 @@ const ServiceRegistry = {
 // Gestiona datos declarativos JSON. Los plugins y el módulo base
 // escriben aquí; los sistemas leen de aquí.
 const ModuleLoader = {
-  loaded: [], data: {},
+  loaded: [], data: {}, bundle: { plugins:[], systems:[] },
 
   get(path)    { return path.split('.').reduce((o,k)=>o?.[k], this.data); },
   apply(json)  {
@@ -299,6 +299,26 @@ const ModuleLoader = {
     return this.loaded[this.loaded.length-1];
   },
   fromString(str) { this.apply(JSON.parse(str)); return this.loaded[this.loaded.length-1]; },
+  fromBundle(bundle={}) {
+    const b = bundle && typeof bundle === 'object' ? bundle : {};
+    this.bundle = {
+      plugins: Array.isArray(b.plugins) ? b.plugins : [],
+      systems: Array.isArray(b.systems) ? b.systems : [],
+    };
+    if(b.module && typeof b.module === 'object') this.apply(b.module);
+    EventBus.emit('module:bundle_loaded', { meta:b.meta || null, plugins:this.bundle.plugins.length, systems:this.bundle.systems.length });
+    return this.bundle;
+  },
+  getSystemData(name, fallback={}) {
+    const row = (this.bundle.systems || []).find(s => s && s.name === name);
+    const data = row?.data;
+    return data && typeof data === 'object' && !Array.isArray(data) ? data : fallback;
+  },
+  getPluginDefs() {
+    return (this.bundle.plugins || [])
+      .map(p => p?.data)
+      .filter(p => p && typeof p === 'object');
+  },
   list() { return this.loaded; },
 };
 

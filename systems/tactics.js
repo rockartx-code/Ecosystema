@@ -12,16 +12,9 @@ const Tactics = (() => {
   };
 
   function loadTacticsData() {
-    try {
-      if (typeof XMLHttpRequest === 'undefined') return TACTICS_DATA_FALLBACK;
-      const req = new XMLHttpRequest();
-      req.open('GET', 'systems/tactics/data.json', false);
-      req.send(null);
-      if (req.status >= 200 && req.status < 300 && req.responseText) {
-        const parsed = JSON.parse(req.responseText);
-        if (parsed && typeof parsed === 'object') return parsed;
-      }
-    } catch {}
+    // Fuente consolidada en data/module.json (legacy: systems/tactics/data.json)
+    try { return ModuleLoader?.getSystemData?.('tactics', TACTICS_DATA_FALLBACK) || TACTICS_DATA_FALLBACK; }
+    catch {}
     return TACTICS_DATA_FALLBACK;
   }
 

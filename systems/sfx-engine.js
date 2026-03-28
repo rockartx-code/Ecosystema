@@ -11,16 +11,9 @@ const SFXEngine = (() => {
   };
 
   function loadSFXData() {
-    try {
-      if (typeof XMLHttpRequest === 'undefined') return SFX_DATA_FALLBACK;
-      const req = new XMLHttpRequest();
-      req.open('GET', 'systems/sfx/data.json', false);
-      req.send(null);
-      if (req.status >= 200 && req.status < 300 && req.responseText) {
-        const parsed = JSON.parse(req.responseText);
-        if (parsed && typeof parsed === 'object') return parsed;
-      }
-    } catch {}
+    // Fuente consolidada en data/module.json (legacy: systems/sfx/data.json)
+    try { return ModuleLoader?.getSystemData?.('sfx', SFX_DATA_FALLBACK) || SFX_DATA_FALLBACK; }
+    catch {}
     return SFX_DATA_FALLBACK;
   }
 

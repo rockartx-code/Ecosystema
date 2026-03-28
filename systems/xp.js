@@ -35,16 +35,9 @@ const XP = (() => {
   };
 
   function loadXPData() {
-    try {
-      if (typeof XMLHttpRequest === 'undefined') return XP_DATA_FALLBACK;
-      const req = new XMLHttpRequest();
-      req.open('GET', 'systems/xp/data.json', false);
-      req.send(null);
-      if (req.status >= 200 && req.status < 300 && req.responseText) {
-        const parsed = JSON.parse(req.responseText);
-        if (parsed && typeof parsed === 'object') return parsed;
-      }
-    } catch {}
+    // Fuente consolidada en data/module.json (legacy: systems/xp/data.json)
+    try { return ModuleLoader?.getSystemData?.('xp', XP_DATA_FALLBACK) || XP_DATA_FALLBACK; }
+    catch {}
     return XP_DATA_FALLBACK;
   }
 

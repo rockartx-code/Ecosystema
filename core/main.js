@@ -401,7 +401,7 @@ function _registerCoreSystems() {
 }
 
 // ── Registrar plugins JSON declarativos de los <script> tags ──────
-function _registerJSONPlugins() {
+function _registerJSONPluginsFromDOM() {
   document.querySelectorAll('script[type="application/json+plugin"]').forEach(el => {
     try {
       const def = JSON.parse(el.textContent);
@@ -412,14 +412,34 @@ function _registerJSONPlugins() {
   });
 }
 
+async function _loadConsolidatedModule() {
+  const fallback = { module:null, plugins:[], systems:[] };
+  try {
+    if(typeof fetch !== 'function') return fallback;
+    const res = await fetch('data/module.json', { cache:'no-store' });
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    const parsed = await res.json();
+    ModuleLoader.fromBundle(parsed);
+    return {
+      module: parsed?.module || null,
+      plugins: Array.isArray(parsed?.plugins) ? parsed.plugins : [],
+      systems: Array.isArray(parsed?.systems) ? parsed.systems : [],
+    };
+  } catch(e) {
+    console.warn('[Boot] No se pudo cargar data/module.json:', e);
+    return fallback;
+  }
+}
+
 // ── Secuencia de boot ─────────────────────────────────────────────
 // No toca el DOM directamente — usa Out.boot() para el boot screen
 // y Renderer.setHeader() para la cabecera (único punto de contacto UI).
 async function bootSeq() {
   if(typeof RunMem !== 'undefined') RunMem.load?.();
 
-  Out.boot('b1', '▸ Cargando módulo base...', 'pending');
-  ModuleLoader.fromElement('module-base');
+  Out.boot('b1', '▸ Cargando módulo consolidado...', 'pending');
+  const consolidated = await _loadConsolidatedModule();
+  if(!consolidated.module) ModuleLoader.fromElement('module-base');
   Out.boot('b1', '✓ Módulo base', 'ok');
 
   Out.boot('b2', '▸ Inicializando sistemas core...', 'pending');
@@ -430,7 +450,11 @@ async function bootSeq() {
   Out.boot('b3', '✓ Sistemas: criaturas, habilidades, magias, supervivencia, dificultad, enemigos', 'ok');
 
   Out.boot('b4', '▸ Cargando plugins JSON...', 'plug');
-  _registerJSONPlugins();
+  if(consolidated.plugins.length) {
+    ModuleLoader.getPluginDefs().forEach(def => PluginLoader.registerFromJSON(def));
+  } else {
+    _registerJSONPluginsFromDOM();
+  }
   const pluginsJSON = PluginLoader.list().filter(p=>p).map(p=>p.nombre);
   Out.boot('b4',
     pluginsJSON.length

@@ -8,16 +8,9 @@ const Net = (() => {
   };
 
   function loadNetData() {
-    try {
-      if (typeof XMLHttpRequest === 'undefined') return NET_DATA_FALLBACK;
-      const req = new XMLHttpRequest();
-      req.open('GET', 'systems/net/data.json', false);
-      req.send(null);
-      if (req.status >= 200 && req.status < 300 && req.responseText) {
-        const parsed = JSON.parse(req.responseText);
-        if (parsed && typeof parsed === 'object') return parsed;
-      }
-    } catch {}
+    // Fuente consolidada en data/module.json (legacy: systems/net/data.json)
+    try { return ModuleLoader?.getSystemData?.('net', NET_DATA_FALLBACK) || NET_DATA_FALLBACK; }
+    catch {}
     return NET_DATA_FALLBACK;
   }
 

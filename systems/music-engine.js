@@ -5,16 +5,9 @@ const MusicEngine = (() => {
   const MUSIC_DATA_FALLBACK = { themes: {} };
 
   function loadMusicData() {
-    try {
-      if (typeof XMLHttpRequest === 'undefined') return MUSIC_DATA_FALLBACK;
-      const req = new XMLHttpRequest();
-      req.open('GET', 'systems/music/data.json', false);
-      req.send(null);
-      if (req.status >= 200 && req.status < 300 && req.responseText) {
-        const parsed = JSON.parse(req.responseText);
-        if (parsed && typeof parsed === 'object') return parsed;
-      }
-    } catch {}
+    // Fuente consolidada en data/module.json (legacy: systems/music/data.json)
+    try { return ModuleLoader?.getSystemData?.('music', MUSIC_DATA_FALLBACK) || MUSIC_DATA_FALLBACK; }
+    catch {}
     return MUSIC_DATA_FALLBACK;
   }
 

@@ -1,0 +1,2379 @@
+{
+  "meta": {
+    "id": "ecosystema-consolidated",
+    "nombre": "Ecosistema Consolidado",
+    "version": "2.0.0"
+  },
+  "module": {
+    "meta": {
+      "id": "base",
+      "nombre": "Ecosistema Base",
+      "version": "2.0.0"
+    },
+    "player": {
+      "hp_base": 50,
+      "atk_base": 5,
+      "def_base": 1,
+      "hunger_base": 100,
+      "slots_habilidades": 3,
+      "slots_magias": 2,
+      "slots_compañeros": 1
+    },
+    "world": {
+      "node_count": 32,
+      "tipos_nodo": [
+        "caverna",
+        "ruina",
+        "bosque",
+        "grieta",
+        "hub",
+        "vacío",
+        "umbral",
+        "abismo"
+      ],
+      "npc_nodos_permitidos": [
+        "hub",
+        "ruina",
+        "umbral",
+        "bosque"
+      ],
+      "npc_chance": 0.55,
+      "enemy_chance": 0.38,
+      "creature_chance": 0.35,
+      "loot_chance": 0.6,
+      "nombres_nodo": {
+        "caverna": [
+          "Hueco Profundo",
+          "Cámara Resonante",
+          "Galería Oscura",
+          "Fosa del Eco"
+        ],
+        "ruina": [
+          "Estructura Olvidada",
+          "Columna Caída",
+          "Sala sin Techo",
+          "Umbral Roto"
+        ],
+        "bosque": [
+          "Arboleda Torcida",
+          "Claro Silencioso",
+          "Raíces Expuestas",
+          "Sendero Bifurcado"
+        ],
+        "grieta": [
+          "Fisura Vertical",
+          "Hendidura Pulsante",
+          "Abertura Inestable",
+          "Portal Menor"
+        ],
+        "hub": [
+          "Intersección",
+          "Nodo Compartido",
+          "Confluencia",
+          "Cruce de Caminos"
+        ],
+        "vacío": [
+          "Espacio Abierto",
+          "Extensión Gris",
+          "Campo Inerte",
+          "Llanura Sin Nombre"
+        ],
+        "umbral": [
+          "Puerta Sin Marco",
+          "Límite Perceptible",
+          "Transición",
+          "Borde del Conocido"
+        ],
+        "abismo": [
+          "Caída Sin Fondo",
+          "Pozo de Inestabilidad",
+          "Precipicio",
+          "Foso Resonante"
+        ]
+      },
+      "atmósferas": [
+        "El aire tiene un peso extraño.",
+        "Algo resuena aquí sin fuente visible.",
+        "El silencio se comporta de forma irregular.",
+        "Una luz sin origen ilumina débilmente.",
+        "Las sombras se mueven más despacio.",
+        "Hay olor a tierra húmeda y metal quemado.",
+        "El suelo vibra en una frecuencia apenas perceptible.",
+        "El eco de tus pasos llega antes de que camines.",
+        "Cristales de resonancia crecen en las paredes.",
+        "La temperatura cae hacia el centro del nodo.",
+        "Una marca en la pared que reconoce tu presencia.",
+        "Una sensación de haber estado aquí antes sin haberlo hecho.",
+        "El tiempo fluye de forma discontinua aquí."
+      ],
+      "loot_por_tipo": {
+        "caverna": [
+          "hierro_roto",
+          "hueso_antiguo",
+          "cristal_grieta",
+          "ancla_resonante"
+        ],
+        "ruina": [
+          "fragmento_origen",
+          "tejido_antiguo",
+          "hierro_roto",
+          "ancla_antigua"
+        ],
+        "bosque": [
+          "fibra_oscura",
+          "raiz_antigua",
+          "hongo_bifurco",
+          "ancla_resonante"
+        ],
+        "grieta": [
+          "cristal_grieta",
+          "vacío_cristalizado",
+          "polvo_echo",
+          "ancla_inestable"
+        ],
+        "hub": [
+          "carne_seca",
+          "eco_condensado",
+          "extracto_raiz"
+        ],
+        "vacío": [
+          "cristal_vacio",
+          "fibra_oscura",
+          "ancla_inestable"
+        ],
+        "umbral": [
+          "fragmento_verdad",
+          "piedra_eco",
+          "ancla_antigua",
+          "ancla_inestable"
+        ],
+        "abismo": [
+          "mineral_oscuro",
+          "susurro_corrupto",
+          "vacío_cristalizado",
+          "ancla_corrupta"
+        ]
+      },
+      "criaturas_por_tipo": {
+        "caverna": [
+          "eco_encarnado",
+          "corrupto_menor"
+        ],
+        "ruina": [
+          "guardián_dormido",
+          "antiguo_menor"
+        ],
+        "bosque": [
+          "resonante_bestia",
+          "eco_encarnado"
+        ],
+        "grieta": [
+          "bifurcado",
+          "fragmento_vivo"
+        ],
+        "hub": [
+          "fragmento_vivo"
+        ],
+        "abismo": [
+          "antiguo_menor",
+          "vacío_animado"
+        ],
+        "vacío": [
+          "vacío_animado",
+          "bifurcado"
+        ],
+        "umbral": [
+          "bifurcado",
+          "antiguo_menor"
+        ]
+      }
+    },
+    "fases": [
+      {
+        "id": "ALBA",
+        "color": "t-mem",
+        "bonus_tags": [
+          "resonante"
+        ]
+      },
+      {
+        "id": "DÍA",
+        "color": "t-out",
+        "bonus_tags": []
+      },
+      {
+        "id": "CREPÚSCULO",
+        "color": "t-acc",
+        "bonus_tags": []
+      },
+      {
+        "id": "NOCHE",
+        "color": "t-sis",
+        "bonus_tags": [
+          "inestable"
+        ],
+        "stat_mult": 1.3
+      }
+    ],
+    "materiales": {
+      "hierro_roto": {
+        "tags": [
+          "metal",
+          "básico"
+        ],
+        "desc": "Fragmento de hierro fracturado."
+      },
+      "hueso_antiguo": {
+        "tags": [
+          "orgánico",
+          "antiguo"
+        ],
+        "desc": "Hueso de criatura que ya no existe."
+      },
+      "cristal_grieta": {
+        "tags": [
+          "mineral",
+          "inestable"
+        ],
+        "desc": "Cristal del borde de una fisura."
+      },
+      "fibra_oscura": {
+        "tags": [
+          "orgánico",
+          "corrupto"
+        ],
+        "desc": "Fibra que absorbe la luz."
+      },
+      "piedra_eco": {
+        "tags": [
+          "mineral",
+          "resonante"
+        ],
+        "desc": "Piedra que repite el último sonido."
+      },
+      "fragmento_origen": {
+        "tags": [
+          "antiguo",
+          "inestable"
+        ],
+        "desc": "Fragmento que no debería existir."
+      },
+      "polvo_echo": {
+        "tags": [
+          "resonante",
+          "corrupto"
+        ],
+        "desc": "Polvo brillante de origen incierto."
+      },
+      "mineral_oscuro": {
+        "tags": [
+          "mineral",
+          "corrupto"
+        ],
+        "desc": "Mineral que irradia anomalía."
+      },
+      "raiz_antigua": {
+        "tags": [
+          "orgánico",
+          "antiguo",
+          "resonante"
+        ],
+        "desc": "Raíz del primer ciclo."
+      },
+      "cristal_vacio": {
+        "tags": [
+          "mineral",
+          "vacío"
+        ],
+        "desc": "Cristal que contiene ausencia."
+      },
+      "tendón_templado": {
+        "tags": [
+          "orgánico",
+          "tendón",
+          "básico"
+        ],
+        "desc": "Tendón endurecido.",
+        "categoria": "corporal"
+      },
+      "nervio_resonante": {
+        "tags": [
+          "orgánico",
+          "nervio",
+          "resonante"
+        ],
+        "desc": "Nervio que vibra con el entorno.",
+        "categoria": "corporal"
+      },
+      "hueso_endurecido": {
+        "tags": [
+          "orgánico",
+          "hueso",
+          "mineral"
+        ],
+        "desc": "Hueso cristalizado.",
+        "categoria": "corporal"
+      },
+      "sangre_corrupta": {
+        "tags": [
+          "orgánico",
+          "sangre",
+          "corrupto"
+        ],
+        "desc": "Sangre con poder oscuro.",
+        "categoria": "corporal"
+      },
+      "tejido_antiguo": {
+        "tags": [
+          "orgánico",
+          "tejido",
+          "antiguo"
+        ],
+        "desc": "Tejido con memoria muscular.",
+        "categoria": "corporal"
+      },
+      "médula_inestable": {
+        "tags": [
+          "orgánico",
+          "médula",
+          "inestable"
+        ],
+        "desc": "Médula que muta.",
+        "categoria": "corporal"
+      },
+      "eco_condensado": {
+        "tags": [
+          "resonante",
+          "básico"
+        ],
+        "desc": "Eco puro sin fuente.",
+        "categoria": "mágico"
+      },
+      "fragmento_verdad": {
+        "tags": [
+          "antiguo",
+          "mineral"
+        ],
+        "desc": "Verdad cristalizada.",
+        "categoria": "mágico"
+      },
+      "susurro_corrupto": {
+        "tags": [
+          "corrupto",
+          "susurro",
+          "orgánico"
+        ],
+        "desc": "Susurro que tomó forma.",
+        "categoria": "mágico"
+      },
+      "cristal_memoria": {
+        "tags": [
+          "mineral",
+          "cristal",
+          "resonante"
+        ],
+        "desc": "Almacena experiencias.",
+        "categoria": "mágico",
+        "efecto_pasivo": "+1_slot_magia"
+      },
+      "vacío_cristalizado": {
+        "tags": [
+          "inestable",
+          "vacío",
+          "antiguo"
+        ],
+        "desc": "Vacío que aprendió a persistir.",
+        "categoria": "mágico"
+      },
+      "llama_sin_fuente": {
+        "tags": [
+          "corrupto",
+          "llama",
+          "resonante"
+        ],
+        "desc": "Llama sin origen.",
+        "categoria": "mágico"
+      },
+      "carne_seca": {
+        "tags": [
+          "orgánico",
+          "alimento"
+        ],
+        "desc": "Carne preservada.",
+        "hunger": 20
+      },
+      "hongo_bifurco": {
+        "tags": [
+          "orgánico",
+          "inestable",
+          "alimento"
+        ],
+        "desc": "Hongo bifurcante.",
+        "hunger": 10,
+        "hp": 5
+      },
+      "extracto_raiz": {
+        "tags": [
+          "orgánico",
+          "curativo"
+        ],
+        "desc": "Extracto de raíces.",
+        "hp": 15
+      },
+      "semilla_vida": {
+        "tags": [
+          "vida",
+          "semilla",
+          "resonante"
+        ],
+        "desc": "Semilla que puede convertirse en un Árbol de la Vida."
+      },
+      "ancla_resonante": {
+        "tags": [
+          "resonante",
+          "mineral"
+        ],
+        "desc": "Ancla para ecos y resonantes.",
+        "categoria": "ancla"
+      },
+      "ancla_corrupta": {
+        "tags": [
+          "corrupto",
+          "metal"
+        ],
+        "desc": "Ancla para corruptos.",
+        "categoria": "ancla"
+      },
+      "ancla_antigua": {
+        "tags": [
+          "antiguo",
+          "orgánico"
+        ],
+        "desc": "Ancla para antiguos.",
+        "categoria": "ancla"
+      },
+      "ancla_inestable": {
+        "tags": [
+          "inestable",
+          "vacío"
+        ],
+        "desc": "Ancla de alta varianza.",
+        "categoria": "ancla"
+      }
+    },
+    "criaturas": {
+      "fragmento_vivo": {
+        "nombre": "Fragmento Errante",
+        "tags": [
+          "inestable",
+          "básico"
+        ],
+        "hp": 14,
+        "atk": 4,
+        "def": 1,
+        "desc": "Residuo del sistema.",
+        "anclas": [
+          "ancla_inestable",
+          "ancla_resonante"
+        ]
+      },
+      "eco_encarnado": {
+        "nombre": "Eco Encarnado",
+        "tags": [
+          "resonante",
+          "orgánico"
+        ],
+        "hp": 10,
+        "atk": 3,
+        "def": 0,
+        "desc": "Un eco que tomó forma.",
+        "anclas": [
+          "ancla_resonante"
+        ]
+      },
+      "resonante_bestia": {
+        "nombre": "Bestia Resonante",
+        "tags": [
+          "resonante",
+          "mineral"
+        ],
+        "hp": 18,
+        "atk": 7,
+        "def": 2,
+        "desc": "Vibra en frecuencias dañinas.",
+        "anclas": [
+          "ancla_resonante",
+          "ancla_antigua"
+        ]
+      },
+      "corrupto_menor": {
+        "nombre": "Corrupto Menor",
+        "tags": [
+          "corrupto",
+          "inestable"
+        ],
+        "hp": 12,
+        "atk": 6,
+        "def": 1,
+        "desc": "Nacida de la inestabilidad.",
+        "anclas": [
+          "ancla_corrupta"
+        ]
+      },
+      "guardián_dormido": {
+        "nombre": "Guardián Dormido",
+        "tags": [
+          "antiguo",
+          "mineral"
+        ],
+        "hp": 25,
+        "atk": 8,
+        "def": 4,
+        "desc": "Estructura de defensa que despertó.",
+        "anclas": [
+          "ancla_antigua"
+        ]
+      },
+      "bifurcado": {
+        "nombre": "Bifurcado",
+        "tags": [
+          "inestable",
+          "vacío"
+        ],
+        "hp": 8,
+        "atk": 5,
+        "def": 0,
+        "desc": "Existe en dos estados.",
+        "anclas": [
+          "ancla_inestable"
+        ]
+      },
+      "vacío_animado": {
+        "nombre": "Vacío Animado",
+        "tags": [
+          "vacío",
+          "inestable"
+        ],
+        "hp": 9,
+        "atk": 4,
+        "def": 1,
+        "desc": "Forma que tomó el espacio.",
+        "anclas": [
+          "ancla_inestable",
+          "ancla_corrupta"
+        ]
+      },
+      "antiguo_menor": {
+        "nombre": "Antiguo Menor",
+        "tags": [
+          "antiguo",
+          "resonante"
+        ],
+        "hp": 20,
+        "atk": 6,
+        "def": 3,
+        "desc": "Superviviente de un ciclo anterior.",
+        "anclas": [
+          "ancla_antigua",
+          "ancla_resonante"
+        ]
+      },
+      "hidra_liminal": {
+        "nombre": "Hidra Liminal",
+        "tags": [
+          "vacío",
+          "corrupto"
+        ],
+        "hp": 34,
+        "atk": 10,
+        "def": 4,
+        "desc": "Bestia de múltiples pulsos de vacío.",
+        "anclas": [
+          "ancla_inestable",
+          "ancla_corrupta"
+        ]
+      },
+      "ciervo_oracular": {
+        "nombre": "Ciervo Oracular",
+        "tags": [
+          "antiguo",
+          "resonante"
+        ],
+        "hp": 24,
+        "atk": 9,
+        "def": 3,
+        "desc": "Rastrea ecos del futuro cercano.",
+        "anclas": [
+          "ancla_antigua",
+          "ancla_resonante"
+        ]
+      },
+      "mantis_fractal": {
+        "nombre": "Mantis Fractal",
+        "tags": [
+          "inestable",
+          "mineral"
+        ],
+        "hp": 19,
+        "atk": 11,
+        "def": 2,
+        "desc": "Su filo vibra entre planos.",
+        "anclas": [
+          "ancla_inestable",
+          "ancla_resonante"
+        ]
+      }
+    },
+    "criatura_familias": {
+      "resonante": [
+        "eco_encarnado",
+        "resonante_bestia",
+        "antiguo_menor"
+      ],
+      "corrupto": [
+        "corrupto_menor",
+        "fragmento_vivo",
+        "bifurcado"
+      ],
+      "antiguo": [
+        "guardián_dormido",
+        "antiguo_menor",
+        "eco_encarnado"
+      ],
+      "vacío": [
+        "vacío_animado",
+        "bifurcado"
+      ]
+    },
+    "criatura_nombres": {
+      "prefijos": [
+        "Eco",
+        "Sombra",
+        "Grieta",
+        "Velo",
+        "Forma",
+        "Nexo",
+        "Pulso",
+        "Marca"
+      ],
+      "sufijos": [
+        "Profundo",
+        "Olvidado",
+        "Resonante",
+        "Bifurcado",
+        "Antiguo",
+        "Inestable",
+        "Sellado",
+        "Corrupto"
+      ]
+    },
+    "enemigos": [
+      {
+        "id": "fragmento_errante",
+        "nombre": "Fragmento Errante",
+        "hp": 10,
+        "atk": 4,
+        "def": 0,
+        "desc": "Residuo del sistema.",
+        "loot": [
+          "hierro_roto",
+          "fibra_oscura"
+        ]
+      },
+      {
+        "id": "eco_corrupto",
+        "nombre": "Eco Corrupto",
+        "hp": 14,
+        "atk": 6,
+        "def": 1,
+        "desc": "Eco que absorbió inestabilidad.",
+        "loot": [
+          "polvo_echo"
+        ]
+      },
+      {
+        "id": "guardian_oxidado",
+        "nombre": "Guardián Oxidado",
+        "hp": 20,
+        "atk": 8,
+        "def": 3,
+        "desc": "Estructura de defensa degradada.",
+        "loot": [
+          "hierro_roto",
+          "piedra_eco"
+        ]
+      },
+      {
+        "id": "resonante_hueco",
+        "nombre": "Resonante Hueco",
+        "hp": 8,
+        "atk": 5,
+        "def": 0,
+        "desc": "Vibra en frecuencias dañinas.",
+        "loot": [
+          "eco_condensado"
+        ]
+      },
+      {
+        "id": "grieta_animada",
+        "nombre": "Grieta Animada",
+        "hp": 28,
+        "atk": 11,
+        "def": 2,
+        "desc": "Una fisura que aprendió a moverse.",
+        "loot": [
+          "vacío_cristalizado"
+        ]
+      },
+      {
+        "id": "antiguo_menor_e",
+        "nombre": "Antiguo Menor",
+        "hp": 22,
+        "atk": 7,
+        "def": 4,
+        "desc": "Superviviente de un ciclo.",
+        "loot": [
+          "fragmento_origen",
+          "tejido_antiguo"
+        ]
+      },
+      {
+        "id": "templario_hueco",
+        "nombre": "Templario Hueco",
+        "hp": 30,
+        "atk": 12,
+        "def": 5,
+        "desc": "Guardián de armadura fracturada.",
+        "loot": [
+          "hierro_roto",
+          "mineral_oscuro",
+          "ancla_antigua"
+        ]
+      },
+      {
+        "id": "bruja_umbra",
+        "nombre": "Bruja de Umbra",
+        "hp": 18,
+        "atk": 14,
+        "def": 2,
+        "desc": "Canaliza maldiciones de fase.",
+        "loot": [
+          "susurro_corrupto",
+          "eco_condensado"
+        ]
+      },
+      {
+        "id": "quimera_fulgor",
+        "nombre": "Quimera de Fulgor",
+        "hp": 26,
+        "atk": 13,
+        "def": 3,
+        "desc": "Combina llama, rayo y eco.",
+        "loot": [
+          "llama_sin_fuente",
+          "cristal_grieta",
+          "nervio_resonante"
+        ]
+      }
+    ],
+    "tag_afinidades": {
+      "metal:mineral": {
+        "resultado": "arma",
+        "fuerza": 0.78
+      },
+      "metal:resonante": {
+        "resultado": "arma",
+        "fuerza": 0.72
+      },
+      "orgánico:tendón": {
+        "resultado": "arma",
+        "fuerza": 0.68
+      },
+      "orgánico:antiguo": {
+        "resultado": "armadura",
+        "fuerza": 0.7
+      },
+      "corrupto:vacío": {
+        "resultado": "magia",
+        "fuerza": 0.84
+      },
+      "resonante:mineral": {
+        "resultado": "magia",
+        "fuerza": 0.76
+      },
+      "nervio:resonante": {
+        "resultado": "habilidad",
+        "fuerza": 0.8
+      },
+      "hueso:mineral": {
+        "resultado": "habilidad",
+        "fuerza": 0.66
+      },
+      "antiguo:resonante": {
+        "resultado": "reliquia",
+        "fuerza": 0.73
+      },
+      "inestable:vacío": {
+        "resultado": "anomalía",
+        "fuerza": 0.82
+      }
+    },
+    "tag_opuestos": [
+      [
+        "metal",
+        "orgánico"
+      ],
+      [
+        "corrupto",
+        "básico"
+      ],
+      [
+        "antiguo",
+        "inestable"
+      ],
+      [
+        "resonante",
+        "vacío"
+      ],
+      [
+        "fuego",
+        "hielo"
+      ]
+    ],
+    "arquetipos_forja": {
+      "arma": {
+        "adjetivos": [
+          "Bifurcada",
+          "Rúnica",
+          "Voraz",
+          "Liminal",
+          "Solar",
+          "Abisal"
+        ],
+        "sustantivos": [
+          "Lanza",
+          "Mandoble",
+          "Alabarda",
+          "Maza",
+          "Guja",
+          "Espadón"
+        ],
+        "stats": {
+          "atk": {
+            "base": 7,
+            "escala": 12,
+            "rng": 4,
+            "min": 5,
+            "max": 38
+          },
+          "def": {
+            "base": 0,
+            "escala": 2,
+            "rng": 2,
+            "min": 0,
+            "max": 8
+          }
+        }
+      },
+      "habilidad": {
+        "adjetivos": [
+          "Instinto",
+          "Ritmo",
+          "Golpe",
+          "Pulso",
+          "Fase",
+          "Vínculo"
+        ],
+        "sustantivos": [
+          "Cinético",
+          "Mutante",
+          "Roto",
+          "Afilado",
+          "Somático",
+          "Ascendente"
+        ],
+        "stats": {
+          "valor": {
+            "base": 2,
+            "escala": 4,
+            "rng": 3,
+            "min": 1,
+            "max": 22
+          }
+        }
+      },
+      "magia": {
+        "adjetivos": [
+          "Cántico",
+          "Hex",
+          "Órbita",
+          "Sello",
+          "Nexo",
+          "Convergencia"
+        ],
+        "sustantivos": [
+          "Arcano",
+          "Sombrío",
+          "Resonante",
+          "Fractal",
+          "Abyecto",
+          "Radiante"
+        ],
+        "stats": {
+          "poder": {
+            "base": 7,
+            "escala": 9,
+            "rng": 5,
+            "min": 4,
+            "max": 40
+          }
+        }
+      },
+      "armadura": {
+        "adjetivos": [
+          "Malla",
+          "Peto",
+          "Guarda",
+          "Custodia",
+          "Égida",
+          "Costra"
+        ],
+        "sustantivos": [
+          "Resonante",
+          "Férrea",
+          "Aural",
+          "Vacía",
+          "Telúrica",
+          "Bastión"
+        ],
+        "stats": {
+          "def": {
+            "base": 3,
+            "escala": 6,
+            "rng": 3,
+            "min": 1,
+            "max": 20
+          },
+          "hp": {
+            "base": 0,
+            "escala": 7,
+            "rng": 4,
+            "min": 0,
+            "max": 28
+          }
+        }
+      },
+      "reliquia": {
+        "adjetivos": [
+          "Ídolo",
+          "Reliquia",
+          "Símbolo",
+          "Catalizador",
+          "Talismán"
+        ],
+        "sustantivos": [
+          "Ancestral",
+          "Roto",
+          "Umbral",
+          "de Eco",
+          "Bifásico"
+        ],
+        "stats": {
+          "crit": {
+            "base": 0,
+            "escala": 6,
+            "rng": 3,
+            "min": 0,
+            "max": 20
+          },
+          "mana_max": {
+            "base": 4,
+            "escala": 8,
+            "rng": 4,
+            "min": 0,
+            "max": 35
+          }
+        }
+      },
+      "anomalía": {
+        "adjetivos": [
+          "Espiral",
+          "Brote",
+          "Quiebre",
+          "Eco"
+        ],
+        "sustantivos": [
+          "Ilegal",
+          "Liminal",
+          "Incierto",
+          "de Ruptura"
+        ],
+        "stats": {
+          "atk": {
+            "base": 4,
+            "escala": 8,
+            "rng": 6,
+            "min": 2,
+            "max": 28
+          },
+          "poder": {
+            "base": 4,
+            "escala": 8,
+            "rng": 6,
+            "min": 2,
+            "max": 28
+          }
+        }
+      }
+    },
+    "habilidades_pool": [
+      {
+        "nombre": "Embate Sísmico",
+        "efecto": "atk_mult",
+        "valor": 2.1,
+        "desc": "Descarga física de corto alcance.",
+        "evolucion_umbral": 8
+      },
+      {
+        "nombre": "Corte de Tendón",
+        "efecto": "atk_drain",
+        "valor": 1.7,
+        "desc": "Ataque brutal con coste corporal.",
+        "evolucion_umbral": 10
+      },
+      {
+        "nombre": "Piel de Basalto",
+        "efecto": "def_pasiva",
+        "valor": 4,
+        "desc": "Endurece temporalmente la defensa.",
+        "evolucion_umbral": 9
+      },
+      {
+        "nombre": "Paso Fantasma",
+        "efecto": "evasion",
+        "valor": 0.35,
+        "desc": "Reduce drásticamente la probabilidad de impacto.",
+        "evolucion_umbral": 11
+      },
+      {
+        "nombre": "Rugido de Ruptura",
+        "efecto": "poise_break",
+        "valor": 999,
+        "desc": "Colapsa la postura enemiga.",
+        "evolucion_umbral": 14
+      }
+    ],
+    "magias_pool": [
+      {
+        "nombre": "Astilla Prisma",
+        "efecto": "dmg_dist",
+        "poder": 10,
+        "cargas": 3,
+        "fragilidad_base": 4,
+        "desc": "Proyectil resonante de alta precisión."
+      },
+      {
+        "nombre": "Velo Quiral",
+        "efecto": "invisibilidad",
+        "poder": 0,
+        "cargas": 2,
+        "fragilidad_base": 8,
+        "desc": "Distorsiona tu presencia en combate."
+      },
+      {
+        "nombre": "Sifón Nulo",
+        "efecto": "mana_drain",
+        "poder": 14,
+        "cargas": 2,
+        "fragilidad_base": 15,
+        "desc": "Drena energía arcana del objetivo."
+      },
+      {
+        "nombre": "Maleficio de Hiedra",
+        "efecto": "maldicion",
+        "poder": 9,
+        "cargas": 2,
+        "fragilidad_base": 11,
+        "desc": "Maldición persistente de daño gradual."
+      },
+      {
+        "nombre": "Pacto de Derrumbe",
+        "efecto": "corrupcion_total",
+        "poder": 18,
+        "cargas": 1,
+        "fragilidad_base": 28,
+        "desc": "Descarga total de vacío y corrosión."
+      }
+    ],
+    "items_inicio": [
+      "hierro_roto",
+      "fibra_oscura",
+      "carne_seca",
+      "eco_condensado",
+      "tendón_templado"
+    ],
+    "ciclo_hunger_perdida": 3,
+    "hunger_cero_hp_perdida": 2,
+    "npc_desesperacion_tick_chance": 0.12,
+    "npc_desesperacion_tick_max": 5,
+    "npc_corrupcion_tick_chance": 0.07,
+    "npc_corrupcion_tick_max": 3,
+    "npc_quiebre_chance": 0.15
+  },
+  "plugins": [
+    {
+      "name": "resonance_field",
+      "data": {
+        "id": "resonance_field",
+        "nombre": "Campo de Resonancia",
+        "version": "1.0.0",
+        "descripcion": "Acumula resonancia en combate y la libera en área.",
+        "modulo": {
+          "materiales": {
+            "núcleo_resonante": {
+              "tags": [
+                "resonante",
+                "resonante",
+                "mineral"
+              ],
+              "desc": "Amplifica campos de resonancia.",
+              "categoria": "especial"
+            }
+          }
+        },
+        "statusBar": [
+          {
+            "id": "resonance",
+            "label": "RES",
+            "getValue": "player.resonance||0",
+            "color": "t-mag"
+          }
+        ],
+        "hooks": {
+          "player:create": {
+            "fn": "onPlayerCreate"
+          },
+          "combat:after_attack": {
+            "fn": "onAttack"
+          },
+          "world:tick": {
+            "fn": "onTick"
+          },
+          "render:node_extra": {
+            "fn": "onNodeExtra"
+          }
+        },
+        "comandos": {
+          "resonancia": {
+            "fn": "cmdResonancia"
+          },
+          "liberar_resonancia": {
+            "fn": "cmdLiberarResonancia"
+          }
+        },
+        "handlers": {
+          "onPlayerCreate": "payload.player.resonance=0;payload.player.maxResonance=100;return payload;",
+          "onAttack": "if(payload.isPlayer){ctx.Player.get().resonance=ctx.U.clamp((ctx.Player.get().resonance||0)+Math.floor(payload.damage/3),0,100);}return payload;",
+          "onTick": "const p=ctx.Player.get();if(p.resonance>0)p.resonance=Math.max(0,p.resonance-1);return payload;",
+          "onNodeExtra": "const res=ctx.Player.get().resonance||0;if(res>50)payload.lines.push({text:`Campo resonante activo: ${res}/100`,color:'t-mag'});return payload;",
+          "cmdResonancia": "const p=ctx.Player.get();ctx.R.w(`Resonancia acumulada: ${p.resonance||0}/100`,'t-mag');if((p.resonance||0)>=80)ctx.R.w('Listo para liberar. Usa \"liberar_resonancia\"','t-mag');",
+          "cmdLiberarResonancia": "const p=ctx.Player.get();if((p.resonance||0)<50){ctx.R.w('Resonancia insuficiente (mín. 50).','t-dim');return;}const n=ctx.World.node(ctx.Player.pos());if(n?.enemies?.length){const dmg=Math.floor(p.resonance*0.8);n.enemies.forEach(e=>{e.hp_current-=dmg;ctx.R.w(`Descarga resonante → ${e.nombre} -${dmg}HP`,'t-mag');if(e.hp_current<=0){ctx.World.rmEnemy(ctx.Player.pos(),e.id);ctx.R.w(`${e.nombre} colapsa.`,'t-cra');}});}else ctx.R.w('Sin objetivos en el nodo.','t-dim');p.resonance=0;ctx.R.upd();"
+        }
+      }
+    }
+  ],
+  "systems": [
+    {
+      "name": "arc-engine",
+      "data": {
+        "temas": {
+          "venganza": {
+            "color": "t-pel",
+            "icon": "⚔",
+            "desc": "Alguien debe pagar. La pregunta es quién y a qué precio."
+          },
+          "redención": {
+            "color": "t-mem",
+            "icon": "◎",
+            "desc": "Un pasado que pesa. Una oportunidad de cambiar el peso."
+          },
+          "poder": {
+            "color": "t-cor",
+            "icon": "◈",
+            "desc": "Algo cambia el equilibrio. Todos quieren controlarlo."
+          },
+          "pérdida": {
+            "color": "t-dim",
+            "icon": "◇",
+            "desc": "Lo que era ya no es. Queda la pregunta de qué hacer con eso."
+          },
+          "traición": {
+            "color": "t-twi",
+            "icon": "⟁",
+            "desc": "Alguien no es lo que parece. O todos lo son."
+          },
+          "ascenso": {
+            "color": "t-cra",
+            "icon": "▲",
+            "desc": "Una figura sube. Otras caen."
+          },
+          "secreto": {
+            "color": "t-eco",
+            "icon": "◉",
+            "desc": "Algo se guarda. Descubrirlo tiene consecuencias."
+          },
+          "sacrificio": {
+            "color": "t-mis",
+            "icon": "✦",
+            "desc": "Un precio que alguien debe pagar. ¿Quién?"
+          }
+        },
+        "plantillas_acto": {
+          "venganza": [
+            {
+              "titulo": "La deuda pendiente",
+              "tipo_mision": "deuda",
+              "desviaciones": [
+                {
+                  "trigger": "completado",
+                  "sig": "acto_1"
+                },
+                {
+                  "trigger": "traicionado",
+                  "sig": "acto_traicion"
+                },
+                {
+                  "trigger": "npc_muerto",
+                  "sig": "acto_colapso"
+                }
+              ]
+            },
+            {
+              "id": "acto_1",
+              "titulo": "El rastro",
+              "tipo_mision": "búsqueda",
+              "desviaciones": [
+                {
+                  "trigger": "completado",
+                  "sig": "acto_final"
+                },
+                {
+                  "trigger": "fallido",
+                  "sig": "acto_degradado"
+                },
+                {
+                  "trigger": "npc_muerto",
+                  "sig": "acto_colapso"
+                }
+              ]
+            },
+            {
+              "id": "acto_traicion",
+              "titulo": "La verdad envenenada",
+              "tipo_mision": "traición",
+              "desviaciones": [
+                {
+                  "trigger": "completado",
+                  "sig": "acto_final_oscuro"
+                },
+                {
+                  "trigger": "fallido",
+                  "sig": "acto_colapso"
+                }
+              ]
+            },
+            {
+              "id": "acto_degradado",
+              "titulo": "Las consecuencias",
+              "tipo_mision": "protección",
+              "desviaciones": [
+                {
+                  "trigger": "completado",
+                  "sig": "acto_final_ambiguo"
+                },
+                {
+                  "trigger": "fallido",
+                  "sig": "acto_colapso"
+                }
+              ]
+            },
+            {
+              "id": "acto_final",
+              "titulo": "El ajuste de cuentas",
+              "tipo_mision": "venganza",
+              "es_final": true,
+              "resultado": "victoria"
+            },
+            {
+              "id": "acto_final_oscuro",
+              "titulo": "Un precio justo",
+              "tipo_mision": "sacrificio",
+              "es_final": true,
+              "resultado": "tragedia"
+            },
+            {
+              "id": "acto_final_ambiguo",
+              "titulo": "Lo que queda",
+              "tipo_mision": "ambigua",
+              "es_final": true,
+              "resultado": "ambiguo"
+            },
+            {
+              "id": "acto_colapso",
+              "titulo": "El fin prematuro",
+              "tipo_mision": "imposible",
+              "es_final": true,
+              "resultado": "colapso"
+            }
+          ],
+          "secreto": [
+            {
+              "titulo": "El rumor",
+              "tipo_mision": "revelación",
+              "desviaciones": [
+                {
+                  "trigger": "completado",
+                  "sig": "acto_1"
+                },
+                {
+                  "trigger": "traicionado",
+                  "sig": "acto_traicion"
+                },
+                {
+                  "trigger": "npc_muerto",
+                  "sig": "acto_colapso"
+                }
+              ]
+            },
+            {
+              "id": "acto_1",
+              "titulo": "Lo que se guarda",
+              "tipo_mision": "búsqueda",
+              "desviaciones": [
+                {
+                  "trigger": "completado_lealtad_alta",
+                  "sig": "acto_final"
+                },
+                {
+                  "trigger": "completado",
+                  "sig": "acto_1b"
+                },
+                {
+                  "trigger": "fallido",
+                  "sig": "acto_degradado"
+                },
+                {
+                  "trigger": "npc_muerto",
+                  "sig": "acto_colapso"
+                }
+              ]
+            },
+            {
+              "id": "acto_1b",
+              "titulo": "Verdad a medias",
+              "tipo_mision": "protección",
+              "desviaciones": [
+                {
+                  "trigger": "completado",
+                  "sig": "acto_final_ambiguo"
+                },
+                {
+                  "trigger": "fallido",
+                  "sig": "acto_final_oscuro"
+                }
+              ]
+            },
+            {
+              "id": "acto_traicion",
+              "titulo": "El guardián del secreto",
+              "tipo_mision": "traición",
+              "desviaciones": [
+                {
+                  "trigger": "completado",
+                  "sig": "acto_final_oscuro"
+                },
+                {
+                  "trigger": "fallido",
+                  "sig": "acto_colapso"
+                }
+              ]
+            },
+            {
+              "id": "acto_degradado",
+              "titulo": "Fragmentos",
+              "tipo_mision": "búsqueda",
+              "desviaciones": [
+                {
+                  "trigger": "completado",
+                  "sig": "acto_final_ambiguo"
+                },
+                {
+                  "trigger": "fallido",
+                  "sig": "acto_colapso"
+                }
+              ]
+            },
+            {
+              "id": "acto_final",
+              "titulo": "La revelación completa",
+              "tipo_mision": "revelación",
+              "es_final": true,
+              "resultado": "victoria"
+            },
+            {
+              "id": "acto_final_oscuro",
+              "titulo": "El precio de saber",
+              "tipo_mision": "sacrificio",
+              "es_final": true,
+              "resultado": "tragedia"
+            },
+            {
+              "id": "acto_final_ambiguo",
+              "titulo": "Suficiente verdad",
+              "tipo_mision": "ambigua",
+              "es_final": true,
+              "resultado": "ambiguo"
+            },
+            {
+              "id": "acto_colapso",
+              "titulo": "El secreto perduró",
+              "tipo_mision": "imposible",
+              "es_final": true,
+              "resultado": "colapso"
+            }
+          ],
+          "traición": [
+            {
+              "titulo": "La sospecha",
+              "tipo_mision": "revelación",
+              "desviaciones": [
+                {
+                  "trigger": "completado",
+                  "sig": "acto_1"
+                },
+                {
+                  "trigger": "npc_muerto",
+                  "sig": "acto_colapso"
+                }
+              ]
+            },
+            {
+              "id": "acto_1",
+              "titulo": "Confirmar",
+              "tipo_mision": "búsqueda",
+              "desviaciones": [
+                {
+                  "trigger": "completado",
+                  "sig": "acto_final"
+                },
+                {
+                  "trigger": "fallido",
+                  "sig": "acto_degradado"
+                },
+                {
+                  "trigger": "traicionado",
+                  "sig": "acto_final_oscuro"
+                }
+              ]
+            },
+            {
+              "id": "acto_degradado",
+              "titulo": "Sin pruebas",
+              "tipo_mision": "protección",
+              "desviaciones": [
+                {
+                  "trigger": "completado",
+                  "sig": "acto_final_ambiguo"
+                },
+                {
+                  "trigger": "fallido",
+                  "sig": "acto_colapso"
+                }
+              ]
+            },
+            {
+              "id": "acto_final",
+              "titulo": "Desenmascarar",
+              "tipo_mision": "traición",
+              "es_final": true,
+              "resultado": "victoria"
+            },
+            {
+              "id": "acto_final_oscuro",
+              "titulo": "Traicionado",
+              "tipo_mision": "imposible",
+              "es_final": true,
+              "resultado": "tragedia"
+            },
+            {
+              "id": "acto_final_ambiguo",
+              "titulo": "Sin respuesta",
+              "tipo_mision": "ambigua",
+              "es_final": true,
+              "resultado": "ambiguo"
+            },
+            {
+              "id": "acto_colapso",
+              "titulo": "La red persiste",
+              "tipo_mision": "imposible",
+              "es_final": true,
+              "resultado": "colapso"
+            }
+          ],
+          "sacrificio": [
+            {
+              "titulo": "El precio",
+              "tipo_mision": "sacrificio",
+              "desviaciones": [
+                {
+                  "trigger": "completado",
+                  "sig": "acto_1"
+                },
+                {
+                  "trigger": "fallido",
+                  "sig": "acto_degradado"
+                },
+                {
+                  "trigger": "npc_muerto",
+                  "sig": "acto_colapso"
+                }
+              ]
+            },
+            {
+              "id": "acto_1",
+              "titulo": "La decisión",
+              "tipo_mision": "ambigua",
+              "desviaciones": [
+                {
+                  "trigger": "completado",
+                  "sig": "acto_final"
+                },
+                {
+                  "trigger": "fallido",
+                  "sig": "acto_final_oscuro"
+                },
+                {
+                  "trigger": "traicionado",
+                  "sig": "acto_colapso"
+                }
+              ]
+            },
+            {
+              "id": "acto_degradado",
+              "titulo": "El peso",
+              "tipo_mision": "protección",
+              "desviaciones": [
+                {
+                  "trigger": "completado",
+                  "sig": "acto_final_ambiguo"
+                },
+                {
+                  "trigger": "fallido",
+                  "sig": "acto_colapso"
+                }
+              ]
+            },
+            {
+              "id": "acto_final",
+              "titulo": "Valió la pena",
+              "tipo_mision": "legado",
+              "es_final": true,
+              "resultado": "victoria"
+            },
+            {
+              "id": "acto_final_oscuro",
+              "titulo": "Todo para nada",
+              "tipo_mision": "ambigua",
+              "es_final": true,
+              "resultado": "tragedia"
+            },
+            {
+              "id": "acto_final_ambiguo",
+              "titulo": "Quizás valió",
+              "tipo_mision": "ambigua",
+              "es_final": true,
+              "resultado": "ambiguo"
+            },
+            {
+              "id": "acto_colapso",
+              "titulo": "El sacrificio vacío",
+              "tipo_mision": "imposible",
+              "es_final": true,
+              "resultado": "colapso"
+            }
+          ]
+        },
+        "consecuencias_resultado": {
+          "victoria": {
+            "xp": 120,
+            "xp_rama": "narrativa",
+            "npc_lealtad": 30,
+            "npc_desep": -25,
+            "msg": "⚑ El arco se cierra con resolución.",
+            "color": "t-cra"
+          },
+          "tragedia": {
+            "xp": 80,
+            "xp_rama": "narrativa",
+            "npc_lealtad": -20,
+            "npc_desep": 30,
+            "msg": "⚑ El arco termina en tragedia. Algo se perdió.",
+            "color": "t-pel"
+          },
+          "ambiguo": {
+            "xp": 90,
+            "xp_rama": "narrativa",
+            "npc_lealtad": 5,
+            "npc_desep": 5,
+            "msg": "⚑ El arco queda sin respuesta clara.",
+            "color": "t-mem"
+          },
+          "colapso": {
+            "xp": 30,
+            "xp_rama": "narrativa",
+            "npc_lealtad": -10,
+            "npc_desep": 20,
+            "msg": "⚑ El arco colapsa. Misiones restantes imposibles.",
+            "color": "t-twi"
+          }
+        },
+        "epitafios": {
+          "venganza": {
+            "victoria": "Cobró la deuda.",
+            "tragedia": "La venganza lo consumió.",
+            "ambiguo": "Nunca supo si fue suficiente.",
+            "colapso": "La venganza quedó sin cobrar."
+          },
+          "secreto": {
+            "victoria": "Lo descubrió todo.",
+            "tragedia": "El secreto lo mató.",
+            "ambiguo": "Murió sabiendo a medias.",
+            "colapso": "El secreto sobrevivió."
+          },
+          "traición": {
+            "victoria": "Desenmascaró la red.",
+            "tragedia": "Fue traicionado al final.",
+            "ambiguo": "No supo en quién confiar.",
+            "colapso": "La traición quedó impune."
+          },
+          "redención": {
+            "victoria": "Se redimió.",
+            "tragedia": "No pudo redimirse.",
+            "ambiguo": "Tal vez fue suficiente.",
+            "colapso": "La redención fue imposible."
+          },
+          "sacrificio": {
+            "victoria": "Valió la pena.",
+            "tragedia": "Nadie lo recordó.",
+            "ambiguo": "El costo fue ambiguo.",
+            "colapso": "El sacrificio fue en vano."
+          },
+          "poder": {
+            "victoria": "Tomó el control.",
+            "tragedia": "El poder lo destruyó.",
+            "ambiguo": "El poder cambió de manos.",
+            "colapso": "El poder se fragmentó."
+          },
+          "pérdida": {
+            "victoria": "Encontró paz.",
+            "tragedia": "Murió perdiendo más.",
+            "ambiguo": "Aprendió a vivir con ello.",
+            "colapso": "La pérdida fue total."
+          },
+          "ascenso": {
+            "victoria": "Llegó a la cima.",
+            "tragedia": "Cayó desde lo alto.",
+            "ambiguo": "Subió lo suficiente.",
+            "colapso": "Nunca ascendió."
+          }
+        },
+        "titulos": {
+          "venganza": [
+            "La deuda de {npc}",
+            "Lo que {ant} debe",
+            "El precio de {npc}",
+            "Cuentas pendientes"
+          ],
+          "secreto": [
+            "Lo que {npc} guarda",
+            "El silencio de {ant}",
+            "La verdad enterrada",
+            "Lo que no se dice"
+          ],
+          "traición": [
+            "La red de {ant}",
+            "Quién traicionó a {npc}",
+            "Cara de dos lados",
+            "Lo que {npc} no vio"
+          ],
+          "redención": [
+            "{npc} y el peso viejo",
+            "El camino de vuelta",
+            "Lo que {npc} debe",
+            "La oportunidad"
+          ],
+          "poder": [
+            "El ascenso de {ant}",
+            "Lo que {npc} controla",
+            "El equilibrio roto",
+            "Por encima de todo"
+          ],
+          "pérdida": [
+            "Lo que perdió {npc}",
+            "El vacío de {ant}",
+            "Lo que ya no está",
+            "El costo de existir"
+          ],
+          "sacrificio": [
+            "{npc} y el precio",
+            "Lo que {ant} pide",
+            "El costo final",
+            "Hasta dónde llega {npc}"
+          ],
+          "ascenso": [
+            "La subida de {ant}",
+            "El camino de {npc}",
+            "Quién llega primero",
+            "El trono vacío"
+          ]
+        }
+      }
+    },
+    {
+      "name": "music",
+      "data": {
+        "themes": {
+          "MAIN_THEME": {
+            "bpm": 135,
+            "desc": "Leitmotiv Heroico: La esencia de la aventura. Marcha triunfal en Do Menor.",
+            "lead": "C4,1|Eb4,1|G4,1|C5,1|Bb4,1|G4,1|F4,1|Eb4,1|C4,1|R,1|G4,1|R,1|C5,2",
+            "bass": "C2,2|G1,2|Ab1,2|F1,2|C2,2|G1,2|Ab1,2|Bb1,2",
+            "drums": "K,1|H,1|S,1|H,1|K,1|K,1|S,1|H,1"
+          },
+          "BATTLE_NORMAL": {
+            "bpm": 155,
+            "desc": "Combate Normal: Versión rítmica y agresiva del Leitmotiv para encuentros aleatorios.",
+            "lead": "C4,1|Eb4,1|G4,1|C5,1|Bb4,1|G4,1|F4,1|Eb4,1|D4,1|C4,1|G3,1|C4,1|Eb4,1|F4,1|G4,1|R,1",
+            "bass": "C2,1|C2,1|G1,1|G1,1|Ab1,1|Ab1,1|F1,1|F1,1",
+            "drums": "K,1|H,1|S,1|H,1|K,1|H,1|S,1|H,1"
+          },
+          "BOSS_WINNING": {
+            "bpm": 165,
+            "desc": "Ventaja de Jefe: El Leitmotiv transmuta a Do Mayor. Sensación de triunfo inminente.",
+            "lead": "C4,1|E4,1|G4,1|C5,1|B4,1|G4,1|A4,1|G4,1|C5,1|D5,1|E5,1|G5,1|C6,4",
+            "bass": "C2,1|G2,1|C2,1|G2,1|F2,1|A2,1|G2,1|B2,1",
+            "drums": "K,0.5|K,0.5|S,1|K,1|S,1"
+          },
+          "BOSS_LOSING": {
+            "bpm": 140,
+            "desc": "Peligro de Jefe: El Leitmotiv se rompe con tritonos y escalas disminuidas.",
+            "lead": "C4,1|Eb4,1|Gb4,1|C5,1|Bb4,1|Gb4,1|F4,1|Eb4,1|Gb3,4|F3,4|C3,4|R,4",
+            "bass": "C1,4|Gb0,4|F1,4|Db1,4",
+            "drums": "K,2|S,2|K,2|S,2"
+          },
+          "CRITICAL_HP": {
+            "bpm": 210,
+            "desc": "Estado Crítico: Alarma rítmica síncrona con el Leitmotiv acelerado. <10% HP.",
+            "lead": "C6,0.5|R,0.5|C6,0.5|R,0.5|C4,0.5|Eb4,0.5|G4,0.5|C5,0.5|C6,0.5|R,0.5|C6,0.5|R,0.5|G4,0.5|F4,0.5|Eb4,0.5|D4,0.5",
+            "bass": "C2,0.5|C2,0.5|Gb1,0.5|Gb1,0.5",
+            "drums": "K,0.5|S,0.5|H,0.5|H,0.5"
+          },
+          "HUB_SAFE_HAVEN": {
+            "bpm": 110,
+            "desc": "Pueblo / Hub: Tranquilidad y seguridad. Melodía armónica en Do Mayor.",
+            "lead": "C4,1|E4,1|G4,1|C5,1|B4,1|G4,1|A4,1|G4,1|F4,1|E4,1|D4,1|C4,1|G3,1|A3,1|B3,1|C4,1",
+            "bass": "C2,4|G1,4|A1,4|F1,4",
+            "drums": "K,1|H,1|S,1|H,1"
+          },
+          "TEMPLO_ANTIGUO": {
+            "bpm": 90,
+            "desc": "Templo: Escala frigia/menor armónica. Atmósfera de antigüedad mística.",
+            "lead": "A3,2|C4,2|E4,2|G#4,2|A4,4|E4,4|F4,4|D4,4",
+            "bass": "A1,8|E1,8|F1,8|D1,8",
+            "drums": "H,2|H,2|S,2|H,2"
+          },
+          "UMBRAL_MISTERIO": {
+            "bpm": 100,
+            "desc": "Umbral: Zona de misterio. Melodía suspendida que no resuelve.",
+            "lead": "E4,3|G4,1|A4,3|B4,1|C5,2|B4,2|G4,4",
+            "bass": "E1,4|A1,4|C2,4|G1,4",
+            "drums": "K,2|R,2|S,2|R,2"
+          },
+          "CAVERNA_ECOS": {
+            "bpm": 80,
+            "desc": "Caverna: Minimalismo y goteo rítmico. Aprovecha el delay del motor.",
+            "lead": "C5,0.5|R,1.5|Eb5,0.5|R,1.5|G5,0.5|R,1.5|C6,0.5|R,1.5",
+            "bass": "C2,1|R,3|Eb1,1|R,3",
+            "drums": "H,0.5|R,3.5"
+          },
+          "VACIO_ETÉREO": {
+            "bpm": 60,
+            "desc": "El Vacío: Disonancia larga y etérea. Sin percusión definida.",
+            "lead": "C4,4|Gb3,4|F3,4|Db3,4",
+            "bass": "C1,8|Gb0,8",
+            "drums": "R,1"
+          },
+          "ABISMO_OSCURO": {
+            "bpm": 75,
+            "desc": "Abismo: Bajos pesados y opresión. Escala cromática descendente.",
+            "lead": "C3,1|B2,1|Bb2,1|A2,1|Ab2,1|G2,1|Gb2,1|F2,1",
+            "bass": "C1,2|C1,2|Db1,2|Db1,2",
+            "drums": "K,1|R,1"
+          },
+          "PANTANO_TÓXICO": {
+            "bpm": 105,
+            "desc": "Pantano: Sonidos 'fangosos' usando intervalos de segunda menor.",
+            "lead": "F#3,1|G3,1|F#3,1|D3,1|F#3,1|G3,1|Bb3,1|A3,1",
+            "bass": "F#1,2|G1,2|Bb1,2|A1,2",
+            "drums": "K,1|S,1|R,1|S,1"
+          },
+          "GRIETA_TEMPORAL": {
+            "bpm": 160,
+            "desc": "Grieta: Inestabilidad temporal. Arpegios de gran velocidad.",
+            "lead": "C4,0.5|E4,0.5|G4,0.5|C5,0.5|Eb4,0.5|G4,0.5|Bb4,0.5|Eb5,0.5",
+            "bass": "C2,1|Eb2,1|G2,1|Bb2,1",
+            "drums": "H,0.5|H,0.5|S,0.5|H,0.5"
+          },
+          "YERMO_DESOLADO": {
+            "bpm": 95,
+            "desc": "Yermo: Melodía solitaria que evoca el viento y el vacío.",
+            "lead": "G3,4|R,2|D4,2|C4,6|R,2",
+            "bass": "G1,8|C1,8",
+            "drums": "H,4|R,4"
+          },
+          "BOSQUE_VITAL": {
+            "bpm": 135,
+            "desc": "Bosque: Naturaleza vibrante. Ritmo sincopado y bajo saltarín.",
+            "lead": "F4,1|A4,1|C5,1|A4,1|G4,1|Bb4,1|D5,1|Bb4,1",
+            "bass": "F2,2|G2,2|A2,2|Bb2,2",
+            "drums": "K,1|H,1|S,1|H,1"
+          },
+          "FANFARE_VICTORY": {
+            "bpm": 150,
+            "desc": "Victoria: Fanfarria clásica de triunfo. Brillo en metales (Square wave).",
+            "lead": "C4,0.5|E4,0.5|G4,0.5|C5,1.5|F4,0.5|A4,0.5|C5,0.5|F5,1.5|C6,4|R,8",
+            "bass": "C2,3|F2,3|G2,3|C3,4|R,8",
+            "drums": "K,1|S,1|K,0.5|K,0.5|S,1|R,8"
+          },
+          "FANFARE_DEFEAT": {
+            "bpm": 90,
+            "desc": "Derrota: Cierre lúgubre. Armonía descendente.",
+            "lead": "C4,1|Eb4,1|Gb4,1|F4,2|Eb4,1|Db4,1|C4,4|R,8",
+            "bass": "C2,4|Ab1,4|Gb1,4|F1,4|C1,4|R,8",
+            "drums": "K,4|R,12"
+          },
+          "ITEM_LEGENDARY": {
+            "bpm": 160,
+            "desc": "Ítem Legendario: Arpegio ascendente cristalino (0.25 ticks).",
+            "lead": "C5,0.25|E5,0.25|G5,0.25|B5,0.25|C6,0.25|E6,0.25|G6,0.25|B6,0.25|C7,4|R,8",
+            "bass": "C3,4|G3,4|C4,4|R,8",
+            "drums": "H,0.5|H,0.5|H,0.5|H,0.5|R,8"
+          },
+          "ESCAPE_FRANTIC": {
+            "bpm": 195,
+            "desc": "Escapada: Huida rápida del combate. Escala cromática ascendente.",
+            "lead": "C4,0.5|Db4,0.5|D4,0.5|Eb4,0.5|E4,0.5|F4,0.5|Gb4,0.5|G4,0.5|R,8",
+            "bass": "C2,0.5|Db2,0.5|D2,0.5|Eb2,0.5|R,8",
+            "drums": "H,0.25|H,0.25|H,0.25|H,0.25|R,8"
+          }
+        }
+      }
+    },
+    {
+      "name": "net",
+      "data": {
+        "max_clients": 7,
+        "colors": [
+          "t-eco",
+          "t-mem",
+          "t-acc",
+          "t-mag",
+          "t-cri",
+          "t-mis",
+          "t-cor"
+        ]
+      }
+    },
+    {
+      "name": "sfx",
+      "data": {
+        "sfx_list": [
+          "accept",
+          "fail",
+          "move",
+          "talk",
+          "trade",
+          "map",
+          "attack",
+          "damage",
+          "hurt",
+          "poison",
+          "burn",
+          "flee",
+          "cast",
+          "skill",
+          "upgrade",
+          "levelup",
+          "forge",
+          "enchant",
+          "train",
+          "catch",
+          "execute"
+        ]
+      }
+    },
+    {
+      "name": "tactics",
+      "data": {
+        "elementos": {
+          "MOJADO": {
+            "color": "t-sis",
+            "icon": "💧",
+            "desc": "Aumenta daño eléctrico, congela con frío"
+          },
+          "ARDIENDO": {
+            "color": "t-pel",
+            "icon": "🔥",
+            "desc": "Daño por turno, reacciona con agua y hielo"
+          },
+          "CONGELADO": {
+            "color": "t-acc",
+            "icon": "❄",
+            "desc": "Reduce velocidad, rompe con fuego o golpe físico"
+          },
+          "ELECTRIZADO": {
+            "color": "t-mag",
+            "icon": "⚡",
+            "desc": "Daño por turno, paraliza al acumular"
+          },
+          "RESONANTE": {
+            "color": "t-eco",
+            "icon": "◎",
+            "desc": "Amplifica siguiente golpe, potenciado en cavernas"
+          },
+          "VACÍO": {
+            "color": "t-cor",
+            "icon": "◇",
+            "desc": "Ignora parte de la defensa, no reacciona con nada"
+          },
+          "ENVENENADO": {
+            "color": "t-mem",
+            "icon": "☠",
+            "desc": "Daño por turno que escala"
+          },
+          "SANGRANDO": {
+            "color": "t-pel",
+            "icon": "🩸",
+            "desc": "Pierde HP cada turno, no cura natural"
+          }
+        },
+        "reacciones": {
+          "MOJADO+ELECTRIZADO": {
+            "nombre": "Electrocución",
+            "mult": 1.5,
+            "area": true,
+            "efecto": "stun_1t",
+            "color": "t-mag",
+            "desc": "Daño x1.5 a todos los mojados"
+          },
+          "MOJADO+CONGELADO": {
+            "nombre": "Congelación",
+            "mult": 1.2,
+            "dura": 2,
+            "efecto": "inmovil",
+            "color": "t-acc",
+            "desc": "Objetivo inmóvil 2 turnos"
+          },
+          "MOJADO+ARDIENDO": {
+            "nombre": "Vapor",
+            "mult": 0.8,
+            "niebla": true,
+            "efecto": "evasion+",
+            "color": "t-dim",
+            "desc": "Niebla: +30% fallo de ataques"
+          },
+          "ARDIENDO+MOJADO": {
+            "nombre": "Extinción",
+            "mult": 0.6,
+            "remove": "ARDIENDO",
+            "color": "t-sis",
+            "desc": "Apaga fuego, daño reducido"
+          },
+          "ARDIENDO+CONGELADO": {
+            "nombre": "Sublimación",
+            "mult": 1.3,
+            "def_break": true,
+            "color": "t-cor",
+            "desc": "Elimina toda la DEF este turno"
+          },
+          "CONGELADO+ARDIENDO": {
+            "nombre": "Termal",
+            "mult": 1.4,
+            "remove": "CONGELADO",
+            "color": "t-pel",
+            "desc": "Rompe hielo con explosión térmica"
+          },
+          "CONGELADO+RESONANTE": {
+            "nombre": "Cristal Sonoro",
+            "mult": 1.6,
+            "poise_dmg": 40,
+            "color": "t-eco",
+            "desc": "Daño masivo a la postura"
+          },
+          "RESONANTE+RESONANTE": {
+            "nombre": "Eco Amplificado",
+            "mult": 2,
+            "color": "t-cor",
+            "desc": "Doble resonancia: daño x2"
+          },
+          "VACÍO+ARDIENDO": {
+            "nombre": "Aniquilación",
+            "mult": 1.8,
+            "ignore_def": true,
+            "color": "t-twi",
+            "desc": "Ignora defensa completamente"
+          },
+          "VACÍO+CONGELADO": {
+            "nombre": "Supresión",
+            "mult": 1.5,
+            "silence": true,
+            "color": "t-acc",
+            "desc": "Objetivo no puede usar magias"
+          },
+          "ELECTRIZADO+MOJADO": {
+            "nombre": "Tormenta",
+            "mult": 1.7,
+            "area": true,
+            "color": "t-mag",
+            "desc": "Área eléctrica, todos reciben daño"
+          },
+          "ELECTRIZADO+RESONANTE": {
+            "nombre": "Sobrecarga",
+            "mult": 1.9,
+            "stun": true,
+            "color": "t-cor",
+            "desc": "Aturde al objetivo 1 turno"
+          }
+        },
+        "climas_nodo": {
+          "hub": {
+            "nombre": "Refugio",
+            "mult_reac": 1,
+            "elemento_base": null,
+            "desc": "Sin efectos especiales"
+          },
+          "ruina": {
+            "nombre": "Ruina Antigua",
+            "mult_reac": 1.2,
+            "elemento_base": "RESONANTE",
+            "desc": "Resonancia ambiental: +20% reacciones"
+          },
+          "bosque": {
+            "nombre": "Bosque",
+            "mult_reac": 1.1,
+            "elemento_base": "MOJADO",
+            "desc": "Humedad: todos empiezan mojados"
+          },
+          "caverna": {
+            "nombre": "Caverna",
+            "mult_reac": 1.3,
+            "elemento_base": "RESONANTE",
+            "desc": "Eco: ataques resonantes ×1.3"
+          },
+          "abismo": {
+            "nombre": "Abismo",
+            "mult_reac": 2,
+            "elemento_base": "VACÍO",
+            "desc": "Todas las reacciones ×2"
+          },
+          "pantano": {
+            "nombre": "Pantano",
+            "mult_reac": 1.2,
+            "elemento_base": "MOJADO",
+            "desc": "Veneno ambiental"
+          },
+          "cumbre": {
+            "nombre": "Cumbre",
+            "mult_reac": 1.1,
+            "elemento_base": "CONGELADO",
+            "desc": "Frío extremo"
+          },
+          "yermo": {
+            "nombre": "Yermo",
+            "mult_reac": 1.1,
+            "elemento_base": "ARDIENDO",
+            "desc": "Calor seco: fuego amplificado"
+          },
+          "templo": {
+            "nombre": "Templo",
+            "mult_reac": 1.5,
+            "elemento_base": "RESONANTE",
+            "desc": "Resonancia sagrada: magias ×1.5"
+          },
+          "umbral": {
+            "nombre": "Umbral",
+            "mult_reac": 1.4,
+            "elemento_base": "VACÍO",
+            "desc": "Entre mundos: vacío amplificado"
+          }
+        },
+        "reacciones_superficie": {
+          "mojada+ARDIENDO": {
+            "resultado": "niebla",
+            "dur": 3
+          },
+          "mojada+ELECTRIZADO": {
+            "resultado": "electrificada",
+            "dur": 4
+          },
+          "ardiente+MOJADO": {
+            "resultado": "ceniza",
+            "dur": 2
+          },
+          "congelada+ARDIENDO": {
+            "resultado": "agua",
+            "dur": 2
+          },
+          "normal+MOJADO": {
+            "resultado": "mojada",
+            "dur": 3
+          },
+          "normal+ARDIENDO": {
+            "resultado": "ardiente",
+            "dur": 3
+          },
+          "normal+CONGELADO": {
+            "resultado": "congelada",
+            "dur": 3
+          },
+          "normal+ELECTRIZADO": {
+            "resultado": "electrificada",
+            "dur": 3
+          }
+        },
+        "efectos_superficie": {
+          "niebla": {
+            "icon": "🌫",
+            "color": "t-dim",
+            "desc": "30% fallo de ataques"
+          },
+          "electrificada": {
+            "icon": "⚡",
+            "color": "t-mag",
+            "desc": "2 daño/turno a todos"
+          },
+          "mojada": {
+            "icon": "💧",
+            "color": "t-sis",
+            "desc": "Todos quedan MOJADOS al inicio del turno"
+          },
+          "ardiente": {
+            "icon": "🔥",
+            "color": "t-pel",
+            "desc": "1 daño/turno"
+          },
+          "ceniza": {
+            "icon": "🌑",
+            "color": "t-dim",
+            "desc": "Reduce iniciativa"
+          },
+          "congelada": {
+            "icon": "❄",
+            "color": "t-acc",
+            "desc": "Moverse cuesta +10 stamina"
+          },
+          "agua": {
+            "icon": "🌊",
+            "color": "t-sis",
+            "desc": "Zona mojada, +daño eléctrico"
+          },
+          "normal": {
+            "icon": "",
+            "color": "t-dim",
+            "desc": "Sin efectos"
+          }
+        },
+        "heridas": {
+          "FRACTURA": {
+            "icon": "🦴",
+            "color": "t-pel",
+            "desc": "ATK −30%, requiere reposo largo o medicina",
+            "turnosDuracion": -1
+          },
+          "HEMORRAGIA": {
+            "icon": "🩸",
+            "color": "t-pel",
+            "desc": "Pierde 3HP/turno al moverse, requiere venda",
+            "turnosDuracion": -1
+          },
+          "CONMOCION": {
+            "icon": "💫",
+            "color": "t-dim",
+            "desc": "Magias fallan 40%, desorientado",
+            "turnosDuracion": 5
+          },
+          "QUEMADURA": {
+            "icon": "🔥",
+            "color": "t-mem",
+            "desc": "DEF −20%, dolores agudos",
+            "turnosDuracion": 3
+          },
+          "ENVENENAMIENTO": {
+            "icon": "☠",
+            "color": "t-mem",
+            "desc": "Pierde 2HP/turno fuera de combate",
+            "turnosDuracion": -1
+          }
+        }
+      }
+    },
+    {
+      "name": "world-ai",
+      "data": {
+        "migration_interval": 5,
+        "preferencias": {
+          "enemy": {
+            "abismo": 3,
+            "ruina": 2,
+            "umbral": 2,
+            "yermo": 2,
+            "hub": 0
+          },
+          "creature": {
+            "bosque": 3,
+            "pantano": 2,
+            "caverna": 2,
+            "ruina": 1,
+            "hub": 0
+          },
+          "npc": {
+            "hub": 3,
+            "templo": 2,
+            "ruina": 1,
+            "bosque": 1,
+            "abismo": 0
+          }
+        },
+        "heuristicas": {
+          "patrullero_keywords": [
+            "guardián",
+            "custodio"
+          ],
+          "errante_keywords": [
+            "errante",
+            "eco"
+          ],
+          "cazador_keywords": [
+            "cazador",
+            "grieta"
+          ],
+          "creature_migrante_chance": 0.5,
+          "enemy_cazador_chance": 0.4,
+          "npc_roaming_roles": [
+            "comerciante",
+            "errante",
+            "heraldo"
+          ],
+          "npc_move_chance": 0.3
+        }
+      }
+    },
+    {
+      "name": "xp",
+      "data": {
+        "ramas": {
+          "combate": {
+            "label": "COMBATE",
+            "color": "t-pel",
+            "icon": "⚔"
+          },
+          "forja": {
+            "label": "FORJA",
+            "color": "t-hab",
+            "icon": "⚒"
+          },
+          "exploración": {
+            "label": "EXPLORACIÓN",
+            "color": "t-sis",
+            "icon": "◉"
+          },
+          "narrativa": {
+            "label": "NARRATIVA",
+            "color": "t-npc",
+            "icon": "◈"
+          },
+          "criaturas": {
+            "label": "CRIATURAS",
+            "color": "t-cri",
+            "icon": "✦"
+          },
+          "cuerpo": {
+            "label": "CUERPO",
+            "color": "t-cra",
+            "icon": "◆"
+          },
+          "mente": {
+            "label": "MENTE",
+            "color": "t-mag",
+            "icon": "◇"
+          },
+          "suerte": {
+            "label": "SUERTE",
+            "color": "t-mem",
+            "icon": "✧"
+          }
+        },
+        "atributos": {
+          "fuerza": {
+            "label": "Fuerza",
+            "desc": "ATK base +1",
+            "color": "t-pel",
+            "effect": "atk_plus_1"
+          },
+          "aguante": {
+            "label": "Aguante",
+            "desc": "HP máx +5",
+            "color": "t-cra",
+            "effect": "hp_plus_5"
+          },
+          "defensa": {
+            "label": "Defensa",
+            "desc": "DEF base +1",
+            "color": "t-sis",
+            "effect": "def_plus_1"
+          },
+          "velocidad": {
+            "label": "Velocidad",
+            "desc": "Evasión +3% (cap 60%)",
+            "color": "t-mem",
+            "effect": "evasion_plus_3pct"
+          },
+          "voluntad": {
+            "label": "Voluntad",
+            "desc": "Maná máx +8, slot mágico c/3pts",
+            "color": "t-mag",
+            "effect": "mana_plus_8"
+          },
+          "vigor": {
+            "label": "Vigor",
+            "desc": "Stamina máx +10, slot corporal c/3pts",
+            "color": "t-hab",
+            "effect": "stamina_plus_10"
+          },
+          "presencia": {
+            "label": "Presencia",
+            "desc": "Lealtad inicial NPC +3",
+            "color": "t-npc",
+            "effect": "presencia_plus_1"
+          },
+          "suerte": {
+            "label": "Suerte",
+            "desc": "Drop chance +2%",
+            "color": "t-mem",
+            "effect": "suerte_plus_1"
+          }
+        }
+      }
+    }
+  ]
+}
