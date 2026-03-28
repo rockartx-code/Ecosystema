@@ -331,6 +331,7 @@ const PluginLoader = {
   order:   [],
   _pending: [],
   _lastBatchOrder: [],
+  _eventsVersion: '0.1.0',
 
   _parseDep(raw='') {
     const m = String(raw).match(/^([^<>=\s]+)\s*(.*)$/);
@@ -341,6 +342,17 @@ const PluginLoader = {
     const fromInline = Object.keys(def.services || {});
     const fromManifest = (def.provides?.services || []).filter(Boolean);
     return [...new Set([...fromInline, ...fromManifest])];
+  },
+  setEventsVersion(v='0.1.0') {
+    this._eventsVersion = String(v || '0.1.0');
+  },
+  eventsVersion() {
+    return this._eventsVersion || '0.1.0';
+  },
+  _eventsVersionFromRuntime() {
+    const v = CTX?.runtime?.eventsVersion;
+    if(typeof v === 'string' && v.trim()) return v.trim();
+    return this.eventsVersion();
   },
   _dependencyErrors(def) {
     const errs = [];
@@ -356,6 +368,15 @@ const PluginLoader = {
     const reqServices = req.services || [];
     for(const s of reqServices)
       if(!ServiceRegistry.has(s)) errs.push(`Falta servicio requerido: ${s}`);
+    const reqEvents = req.events || {};
+    const runtimeEventsVersion = this._eventsVersionFromRuntime();
+    for(const [ev, range] of Object.entries(reqEvents)) {
+      const spec = EventBus.spec(ev);
+      if(!spec) { errs.push(`Falta evento requerido: ${ev}`); continue; }
+      const wanted = String(range || '*').trim() || '*';
+      if(wanted !== '*' && !_satisfiesVersion(runtimeEventsVersion, wanted))
+        errs.push(`Versión de contrato de eventos inválida para ${ev}: ${runtimeEventsVersion} !~ ${wanted}`);
+    }
     for(const c of (def.conflicts||[]))
       if(this.plugins[c]) errs.push(`Conflicto con plugin activo: ${c}`);
     const load = def.load || {};

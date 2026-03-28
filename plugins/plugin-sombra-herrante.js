@@ -20,8 +20,18 @@ const SombraHerrante = (() => {
   function _clone(v) {
     return JSON.parse(JSON.stringify(v));
   }
+  function _svc(name) {
+    return (typeof ServiceRegistry !== 'undefined' && typeof ServiceRegistry.get === 'function')
+      ? ServiceRegistry.get(name)
+      : null;
+  }
 
   function _lastRun() {
+    const getRuns = _svc('runtime.memory.runs');
+    if(typeof getRuns === 'function') {
+      const runs = getRuns() || [];
+      return runs.length ? runs[runs.length - 1] : null;
+    }
     if(typeof RunMem === 'undefined') return null;
     const runs = RunMem.runs?.() || [];
     return runs.length ? runs[runs.length - 1] : null;

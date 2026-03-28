@@ -8,8 +8,21 @@ const pluginGuarida = (() => {
   function _clone(v) {
     return JSON.parse(JSON.stringify(v));
   }
+  function _svc(name) {
+    return (typeof ServiceRegistry !== 'undefined' && typeof ServiceRegistry.get === 'function')
+      ? ServiceRegistry.get(name)
+      : null;
+  }
 
   function _getChest() {
+    const getData = _svc('runtime.memory.data.get');
+    const setData = _svc('runtime.memory.data.set');
+    if(typeof getData === 'function' && typeof setData === 'function') {
+      const data = getData() || {};
+      if(!Array.isArray(data.refugio_cofre)) data.refugio_cofre = [];
+      setData(data);
+      return data.refugio_cofre;
+    }
     if(typeof RunMem === 'undefined') return [];
     RunMem.data = RunMem.data || {};
     if(!Array.isArray(RunMem.data.refugio_cofre)) RunMem.data.refugio_cofre = [];
@@ -17,6 +30,8 @@ const pluginGuarida = (() => {
   }
 
   function _saveChest() {
+    const saveMem = _svc('runtime.memory.save');
+    if(typeof saveMem === 'function') { saveMem(); return; }
     if(typeof RunMem !== 'undefined' && typeof RunMem.save === 'function') RunMem.save();
   }
 

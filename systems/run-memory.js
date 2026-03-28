@@ -67,3 +67,15 @@ const RunMem = {
   runs()  { return this.data.runs  || []; },
   count() { return this.data.runs.length; },
 };
+
+if(typeof ServiceRegistry !== 'undefined') {
+  ServiceRegistry.register('runtime.memory.runs', () => RunMem.runs(), { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.memory.ecos', () => RunMem.ecos(), { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.memory.count', () => RunMem.count(), { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.memory.data.get', () => RunMem.data, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.memory.data.set', (next) => {
+    if(next && typeof next === 'object') RunMem.data = next;
+    return RunMem.data;
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.memory.save', () => { RunMem.save(); return true; }, { pluginId:'core', version:'0.1.0' });
+}

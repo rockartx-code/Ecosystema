@@ -30,6 +30,35 @@ function _habBase(pool_id) {
   return elite.find(h=>h.id===pool_id) || null;
 }
 
+
+function _svc(name) {
+  return (typeof ServiceRegistry !== 'undefined' && typeof ServiceRegistry.get === 'function')
+    ? ServiceRegistry.get(name)
+    : null;
+}
+function _xpGanar(attr, amount, reason) {
+  const gain = _svc('runtime.xp.gain');
+  if(typeof gain === 'function') return !!gain(attr, amount, reason);
+  if(typeof XP !== 'undefined' && typeof XP.ganar === 'function') { XP.ganar(attr, amount, reason); return true; }
+  return false;
+}
+function _tactCalcWound(dmg, maxHp) {
+  const calc = _svc('runtime.tactics.calc_wound');
+  if(typeof calc === 'function') return calc(dmg, maxHp);
+  return (typeof Tactics !== 'undefined' && typeof Tactics.calcularHerida === 'function') ? Tactics.calcularHerida(dmg, maxHp) : null;
+}
+function _tactWoundMeta(key) {
+  const meta = _svc('runtime.tactics.wound_meta');
+  if(typeof meta === 'function') return meta(key);
+  return typeof Tactics !== 'undefined' ? Tactics.HERIDAS?.[key] : null;
+}
+function _tactConsumeStamina(delta=0) {
+  const fn = _svc('runtime.tactics.consume_stamina');
+  if(typeof fn === 'function') return !!fn(delta);
+  if(typeof Tactics !== 'undefined' && typeof Tactics.consumirStamina === 'function') { Tactics.consumirStamina(delta); return true; }
+  return false;
+}
+
 // ── Asignar habilidades a un enemigo al generarlo ─────────────────
 // Nivel 1: atk <  8 → ninguna
 // Nivel 2: atk  8-14→ 1 del pool básico
@@ -211,12 +240,13 @@ function _aplicarDanoJugador(target, dmg, battle) {
   if(target.playerId !== p.id) return;
   p.hp = target.hp;
   if(typeof Tactics !== 'undefined') {
-    const herida = Tactics.calcularHerida(dmg, target.maxHp);
+    const herida = _tactCalcWound(dmg, target.maxHp);
     if(herida) {
       p.heridas = p.heridas||[];
       if(!p.heridas.includes(herida)) {
         p.heridas.push(herida);
-        battleLog(battle, `  ${Tactics.HERIDAS[herida]?.icon} ¡${herida}! ${Tactics.HERIDAS[herida]?.desc}`, Tactics.HERIDAS[herida]?.color||'t-pel');
+        const hm = _tactWoundMeta(herida);
+        battleLog(battle, `  ${hm?.icon} ¡${herida}! ${hm?.desc}`, hm?.color||'t-pel');
       }
     }
   }
@@ -238,7 +268,7 @@ function _progresarHabJugador(hab, actor, battle) {
     hab.evolucion.umbral   = Math.floor((hab.evolucion.umbral||10) * 1.35);
     hab.valor              = +((hab.valor||1) * 1.18).toFixed(2);
     battleLog(battle, `✦ ⟨${hab.nombre}⟩ evoluciona a nivel ${hab.evolucion.nivel}. Valor → ${hab.valor}`,'t-cor');
-    if(typeof XP!=='undefined') XP.ganar('cuerpo', 25 + hab.evolucion.nivel*5, 'habilidad evolucionada');
+    _xpGanar('cuerpo', 25 + hab.evolucion.nivel*5, 'habilidad evolucionada');
   }
 
   if(hab.maestria.xp >= hab.maestria.umbral && (hab.maestria.nivel||0) < (hab.maestria.max_nivel||10)) {
@@ -248,7 +278,7 @@ function _progresarHabJugador(hab, actor, battle) {
     actor.atk            = (actor.atk||0) + 1;
     if(actor.playerId===Player.get().id) Player.get().atk = actor.atk;
     battleLog(battle, `◎ Maestría de ⟨${hab.nombre}⟩ sube a ${hab.maestria.nivel}. ATK +1 este combate.`,'t-acc');
-    if(typeof XP!=='undefined') XP.ganar('cuerpo', 10 + hab.maestria.nivel*2, 'maestría de habilidad');
+    _xpGanar('cuerpo', 10 + hab.maestria.nivel*2, 'maestría de habilidad');
   }
 }
 
@@ -283,7 +313,7 @@ function _ejecutarHabilidadJugador(payload) {
   const p      = Player.get();
   const target = payload.target || battle?.cola?.find(c=>c.vivo&&(c.tipo==='enemy'||c.tipo==='npc'));
 
-  if(isMyTurn && typeof Tactics!=='undefined') Tactics.consumirStamina?.(10);
+  if(isMyTurn) _tactConsumeStamina(10);
 
   let log = '';
 
@@ -328,7 +358,7 @@ function _ejecutarHabilidadJugador(payload) {
         battleLog(battle,`  📊 ${e.name}: HP ${e.hp}/${e.maxHp}  ATK:${e.atk}  DEF:${e.def||0}${el}${habs?' | '+habs:''}`,'t-dim');
       });
       log=`⟨${hab.nombre}⟩ — escaneado`;
-      if(typeof Tactics!=='undefined') Tactics.consumirStamina?.(-6);
+      _tactConsumeStamina(-6);
       break;
     }
     case 'poise_break': {
@@ -366,7 +396,7 @@ function _ejecutarHabilidadJugador(payload) {
         hab.evolucion.contador=0;
         hab.evolucion.umbral=Math.floor(hab.evolucion.umbral*1.5);
         battleLog(battle,`✦ ⟨${hab.nombre}⟩ evoluciona. ATK base +1.`,'t-cor');
-        if(typeof XP!=='undefined') XP.ganar('cuerpo',30,'evolución');
+        _xpGanar('cuerpo',30,'evolución');
       }
       if(target){const d=Math.max(1,actor.atk-(target.def||0));target.hp=Math.max(0,target.hp-d);if(target.hp<=0)target.vivo=false;}
       log=`⟨${hab.nombre}⟩ — evol.${hab.evolucion.contador}/${hab.evolucion.umbral}`;
@@ -385,7 +415,7 @@ function _ejecutarHabilidadJugador(payload) {
 
   _progresarHabJugador(hab, actor, battle);
 
-  if(isMyTurn && typeof XP!=='undefined') XP.ganar('cuerpo',8,'habilidad en batalla');
+  if(isMyTurn) _xpGanar('cuerpo',8,'habilidad en batalla');
 
   payload.handled=true;
   payload.logEntry=log;
@@ -454,7 +484,7 @@ function cmdCopiar(args) {
   };
 
   Player.addToSlot('habilidades', habAprendida);
-  if(typeof XP!=='undefined') XP.ganar('cuerpo', 30, `habilidad copiada: ${habAprendida.nombre}`);
+  _xpGanar('cuerpo', 30, `habilidad copiada: ${habAprendida.nombre}`);
 
   Out.sp();
   Out.line(`⟨${habAprendida.nombre}⟩ aprendida.`,'t-hab',true);
