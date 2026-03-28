@@ -17,6 +17,12 @@ const SFXEngine = (() => {
     'attack','damage','hurt','poison','burn','flee',
     'cast','skill','upgrade','levelup','forge','enchant','train','catch','execute'
   ];
+  const _sfxList = () => {
+    try {
+      const ext = ModuleLoader?.get?.('audio.sfx.list');
+      return Array.isArray(ext) && ext.length ? ext : SFX_LIST;
+    } catch { return SFX_LIST; }
+  };
 
   function log(text, color = 't-dim', bold = false) {
     if(typeof Out !== 'undefined' && Out.line) Out.line(text, color, bold);
@@ -254,7 +260,7 @@ const SFXEngine = (() => {
 
     if(sub === 'estado' || sub === 'status') {
       log(`SFX: ${state.enabled ? 'ON' : 'OFF'} · Volumen ${state.volume.toFixed(2)}`, 't-mag', true);
-      log(`Disponibles: ${SFX_LIST.join(', ')}`, 't-dim');
+      log(`Disponibles: ${_sfxList().join(', ')}`, 't-dim');
       return;
     }
     if(sub === 'on') { state.enabled = true; log('SFX ON', 't-mag'); return; }
@@ -277,7 +283,7 @@ const SFXEngine = (() => {
     }
 
     const requested = sub;
-    if(SFX_LIST.includes(requested)) {
+    if(_sfxList().includes(requested)) {
       play(requested);
       return;
     }
@@ -330,9 +336,24 @@ const SFXEngine = (() => {
     play,
     sfx: play,
     bindEventHooks,
-    list: () => [...SFX_LIST],
+    list: () => [..._sfxList()],
     state: () => ({ ...state }),
   };
 })();
 
 SFXEngine.bindEventHooks?.();
+
+if(typeof EventBus !== 'undefined' && EventBus?.on) {
+  EventBus.on('audio:sfx.play', (p={}) => {
+    const cue = String(p.cue || p.type || '').toLowerCase();
+    if(cue) SFXEngine.play(cue);
+    EventBus.emit('audio:sfx.played', { cue });
+    return p;
+  }, 'sfx-engine', { phase:'observe', priority:60 });
+}
+
+if(typeof ServiceRegistry !== 'undefined') {
+  ServiceRegistry.register('audio.sfx.play', (cue)=>{ SFXEngine.play(String(cue || '').toLowerCase()); return true; }, { pluginId:'sfx-engine', version:'2.2.0' });
+  ServiceRegistry.register('audio.sfx.list', ()=>SFXEngine.list(), { pluginId:'sfx-engine', version:'2.2.0' });
+  ServiceRegistry.register('audio.sfx.state', ()=>SFXEngine.state(), { pluginId:'sfx-engine', version:'2.2.0' });
+}

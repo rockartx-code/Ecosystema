@@ -869,4 +869,39 @@ if(typeof ServiceRegistry !== 'undefined') {
   ServiceRegistry.register('gameplay.look', () => cmdMirar(), { pluginId:'core', version:'2.1.0' });
   ServiceRegistry.register('gameplay.enter_node', (dest, opts={}) => _enterNode(dest, opts), { pluginId:'core', version:'2.1.0' });
   ServiceRegistry.register('gameplay.move_and_tick', (dir) => cmdIr(dir), { pluginId:'core', version:'2.1.0' });
+  ServiceRegistry.register('gameplay.combat.attack', (target='') => cmdAtacar(target), { pluginId:'core', version:'2.2.0' });
+  ServiceRegistry.register('gameplay.battle.start', (nodeId, actors=[]) => {
+    if(typeof Net==='undefined' || !nodeId || !Array.isArray(actors) || !actors.length) return false;
+    Net.startBattle(nodeId, actors);
+    return true;
+  }, { pluginId:'core', version:'2.2.0' });
+  ServiceRegistry.register('gameplay.battle.current', () => {
+    if(typeof Net==='undefined') return null;
+    return Net.getMyBattle?.() || null;
+  }, { pluginId:'core', version:'2.2.0' });
+  ServiceRegistry.register('gameplay.battle.actor', (battle) => {
+    if(typeof Net==='undefined') return null;
+    return Net.getBattleActor?.(battle) || null;
+  }, { pluginId:'core', version:'2.2.0' });
+  ServiceRegistry.register('gameplay.combat.action', (battleId, playerId, action, payload=null) => {
+    if(!battleId || !playerId || !action || typeof Net==='undefined') return false;
+    Net.sendBattleAction(battleId, playerId, action, payload);
+    return true;
+  }, { pluginId:'core', version:'2.2.0' });
+  ServiceRegistry.register('gameplay.combat.escape', (battle, playerId) => {
+    if(!battle?.id || !playerId || typeof Net==='undefined') return false;
+    Net.sendBattleAction(battle.id, playerId, 'huir', null);
+    return true;
+  }, { pluginId:'core', version:'2.2.0' });
+  ServiceRegistry.register('gameplay.capture.start', (target='') => cmdCapturar(target), { pluginId:'core', version:'2.2.0' });
+  ServiceRegistry.register('gameplay.craft.forge', (args=[]) => cmdForjar(args, null), { pluginId:'core', version:'2.2.0' });
+  ServiceRegistry.register('gameplay.craft.embody', (args=[]) => cmdForjar(args, 'corporal'), { pluginId:'core', version:'2.2.0' });
+  ServiceRegistry.register('gameplay.craft.conjure', (args=[]) => cmdForjar(args, 'mágico'), { pluginId:'core', version:'2.2.0' });
+  ServiceRegistry.register('gameplay.trade.start', (args=[]) => _cmdComerciar(args), { pluginId:'core', version:'2.2.0' });
+  ServiceRegistry.register('gameplay.trade.accept', () => _cmdAceptarTrade(), { pluginId:'core', version:'2.2.0' });
+  ServiceRegistry.register('gameplay.trade.reject', () => _cmdRechazarTrade(), { pluginId:'core', version:'2.2.0' });
+  ServiceRegistry.register('gameplay.trade.offer', (args=[]) => _cmdOfrecer(args), { pluginId:'core', version:'2.2.0' });
+  ServiceRegistry.register('gameplay.trade.withdraw', (args=[]) => _cmdRetirar(args), { pluginId:'core', version:'2.2.0' });
+  ServiceRegistry.register('gameplay.trade.confirm', () => _cmdConfirmarTrade(), { pluginId:'core', version:'2.2.0' });
+  ServiceRegistry.register('gameplay.trade.cancel', () => _cmdCancelarTrade(), { pluginId:'core', version:'2.2.0' });
 }

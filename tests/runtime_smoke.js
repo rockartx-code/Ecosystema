@@ -116,4 +116,101 @@ function loadCore() {
   assert.strictEqual(PluginLoader.registerFromJSON(jsonBefore), false);
 })();
 
+(function testPluginLoaderSemverAdvancedRanges() {
+  const { PluginLoader } = loadCore();
+  const base = { id:'plugin:semver_base', version:'1.4.2' };
+  assert.strictEqual(PluginLoader.register(base), true);
+
+  const okCaret = { id:'plugin:semver_caret', version:'1.0.0', requires:{ plugins:['plugin:semver_base ^1.4.0'] } };
+  const okTilde = { id:'plugin:semver_tilde', version:'1.0.0', requires:{ plugins:['plugin:semver_base ~1.4.0'] } };
+  const okOr = { id:'plugin:semver_or', version:'1.0.0', requires:{ plugins:['plugin:semver_base ^2.0.0 || ^1.4.0'] } };
+  const badOr = { id:'plugin:semver_or_bad', version:'1.0.0', requires:{ plugins:['plugin:semver_base ^2.0.0 || ~1.5.0'] } };
+
+  assert.strictEqual(PluginLoader.register(okCaret), true);
+  assert.strictEqual(PluginLoader.register(okTilde), true);
+  assert.strictEqual(PluginLoader.register(okOr), true);
+  assert.strictEqual(PluginLoader.register(badOr), false);
+})();
+
+(function testPluginLoaderServiceDependencyOrderAndCycleDiagnostics() {
+  const { PluginLoader } = loadCore();
+  const defs = [
+    { id:'plugin:consumer', version:'1.0.0', requires:{ services:['svc.dynamic'] } },
+    { id:'plugin:provider', version:'1.0.0', services:{ 'svc.dynamic': ()=>true } },
+  ];
+  const loaded = PluginLoader.registerMany(defs);
+  assert.strictEqual(loaded, 2);
+  assert.deepStrictEqual(Array.from(PluginLoader.lastBatchOrder()), ['plugin:provider', 'plugin:consumer']);
+
+  const cycDefs = [
+    { id:'plugin:cyc_a', version:'1.0.0', requires:{ services:['svc.cyc_b'] }, services:{ 'svc.cyc_a': ()=>true } },
+    { id:'plugin:cyc_b', version:'1.0.0', requires:{ services:['svc.cyc_a'] }, services:{ 'svc.cyc_b': ()=>true } },
+  ];
+  const loadedCyc = PluginLoader.registerMany(cycDefs);
+  assert.strictEqual(loadedCyc, 0);
+  const pending = PluginLoader.pending();
+  assert.strictEqual(pending.length, 2);
+  assert.ok(pending.every(p => (p.errors || []).some(e => String(e).includes('Posible ciclo de dependencias'))));
+})();
+
+(function testEventBusValidationPolicyAndRealEventChecks() {
+  const { EventBus } = loadCore();
+  const warnings = [];
+  const prevWarn = console.warn;
+  console.warn = (...args) => warnings.push(args.map(String).join(' '));
+
+  try {
+    EventBus.defineEvent('output:line', {
+      validateIn: (p)=> !!p && typeof p.text === 'string',
+      validateOut: (p)=> !!p && typeof p.text === 'string',
+    });
+    EventBus.on('output:line', (p)=>p, 'p:test');
+
+    EventBus.setValidationPolicy('dev');
+    EventBus.emit('output:line', { text: 123 });
+    assert.ok(warnings.some(w => w.includes('validateIn(output:line)')), 'dev policy debe advertir validación');
+
+    EventBus.setValidationPolicy('strict');
+    assert.throws(() => EventBus.emit('output:line', { text: 123 }), /validateIn\(output:line\)/);
+
+    EventBus.defineEvent('world:tick', {
+      validateIn: (p)=> !!p && typeof p.cycle === 'number',
+      validateOut: (p)=> !!p && typeof p.cycle === 'number',
+    });
+    EventBus.on('world:tick', (p)=>({ ...p, cycle: 'invalid' }), 'p:bad_out');
+    assert.throws(() => EventBus.emit('world:tick', { cycle: 1 }), /validateOut\(world:tick\)/);
+
+    EventBus.setValidationPolicy('prod');
+    const out = EventBus.emit('world:tick', { cycle: 2 });
+    assert.strictEqual(out.cycle, 'invalid');
+  } finally {
+    EventBus.setValidationPolicy('dev');
+    console.warn = prevWarn;
+  }
+})();
+
+(function testEventBusListenerTimeoutAndHealth() {
+  const { EventBus } = loadCore();
+  const busyWait = (ms) => { const t = Date.now(); while(Date.now() - t < ms){} };
+
+  EventBus.on('t:slow_warn', (p)=>{ busyWait(3); return p; }, 'p:slow_warn', { timeoutMs:1, onTimeout:'warn' });
+  const outWarn = EventBus.emit('t:slow_warn', { ok:true });
+  assert.strictEqual(outWarn.ok, true);
+
+  EventBus.on('t:slow_cancel', (p)=>{ busyWait(3); return p; }, 'p:slow_cancel', { timeoutMs:1, onTimeout:'cancel' });
+  const outCancel = EventBus.emit('t:slow_cancel', { ok:true });
+  assert.strictEqual(outCancel.cancelled, true);
+
+  EventBus.on('t:slow_error', (p)=>{ busyWait(3); return p; }, 'p:slow_error', { timeoutMs:1, onTimeout:'error' });
+  const outError = EventBus.emit('t:slow_error', { ok:true });
+  assert.strictEqual(outError.ok, true);
+
+  const hWarn = EventBus.health('p:slow_warn');
+  const hCancel = EventBus.health('p:slow_cancel');
+  const hError = EventBus.health('p:slow_error');
+  assert.ok(hWarn && hWarn.timeouts >= 1);
+  assert.ok(hCancel && hCancel.timeouts >= 1);
+  assert.ok(hError && hError.errors >= 1);
+})();
+
 console.log('OK runtime_smoke');

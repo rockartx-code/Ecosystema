@@ -100,6 +100,12 @@ const MusicEngine = (() => {
       bass: "C2,0.5|Db2,0.5|D2,0.5|Eb2,0.5|R,8", drums: "H,0.25|H,0.25|H,0.25|H,0.25|R,8"
     }
   };
+  const _themes = () => {
+    try {
+      const ext = ModuleLoader?.get?.('audio.music.themes');
+      return (ext && typeof ext === 'object' && !Array.isArray(ext)) ? ext : THEMES;
+    } catch { return THEMES; }
+  };
 
   const FREQS = { "C": 261.63, "C#": 277.18, "D": 293.66, "Eb": 311.13, "E": 329.63, "F": 349.23, "F#": 369.99, "G": 392.00, "Ab": 415.30, "A": 440.00, "Bb": 466.16, "B": 493.88 };
 
@@ -211,7 +217,8 @@ const MusicEngine = (() => {
   function scheduler() {
     if(!state.enabled || !state.isPlaying || !audioCtx) return;
 
-    const theme = THEMES[state.theme] || THEMES.MAIN_THEME;
+    const themes = _themes();
+    const theme = themes[state.theme] || themes.MAIN_THEME;
     const stepDur = 60 / state.tempo / 2;
     echoNode.delayTime.setTargetAtTime(state.echo, audioCtx.currentTime, 0.1);
 
@@ -262,9 +269,10 @@ const MusicEngine = (() => {
   }
 
   function setTheme(themeKey) {
-    if(!THEMES[themeKey]) return false;
+    const themes = _themes();
+    if(!themes[themeKey]) return false;
     state.theme = themeKey;
-    state.tempo = THEMES[themeKey].bpm;
+    state.tempo = themes[themeKey].bpm;
     return true;
   }
 
@@ -369,7 +377,7 @@ const MusicEngine = (() => {
     const sub = (args[0] || 'estado').toLowerCase();
 
     if(sub === 'estado' || sub === 'status') {
-      const t = THEMES[state.theme];
+      const t = _themes()[state.theme];
       log(`Música: ${state.enabled ? 'ON' : 'OFF'} · ${state.isPlaying ? 'REPRODUCIENDO' : 'DETENIDA'}`, 't-mag', true);
       log(`Track: ${state.theme} · Tempo: ${state.tempo} · Echo: ${state.echo.toFixed(2)} · MIDI: ${state.midiMode ? 'ON' : 'OFF'}`, 't-dim');
       if(t?.desc) log(t.desc, 't-dim');
@@ -383,7 +391,7 @@ const MusicEngine = (() => {
 
     if(sub === 'midi') {
       state.midiMode = !state.midiMode;
-      const t = THEMES[state.theme];
+      const t = _themes()[state.theme];
       log(`MIDI monitor: ${state.midiMode ? 'ON' : 'OFF'}`, 't-mag');
       if(state.midiMode && t) {
         log(`Lead: ${t.lead}`, 't-dim');
@@ -395,7 +403,8 @@ const MusicEngine = (() => {
 
     if(sub === 'lista' || sub === 'list' || sub === 'tracks') {
       log('Tracks disponibles:', 't-mag', true);
-      Object.keys(THEMES).forEach(k => log(`  - ${k} (${THEMES[k].bpm} bpm)`, 't-dim'));
+      const themes = _themes();
+      Object.keys(themes).forEach(k => log(`  - ${k} (${themes[k].bpm} bpm)`, 't-dim'));
       return;
     }
 
@@ -405,7 +414,7 @@ const MusicEngine = (() => {
         log('Uso: musica track <NOMBRE_TRACK>  |  musica list', 't-dim');
         return;
       }
-      const t = THEMES[state.theme];
+      const t = _themes()[state.theme];
       log(`Track cargado: ${state.theme} (${t.bpm} bpm)`, 't-mag');
       log(t.desc, 't-dim');
       return;
@@ -444,3 +453,19 @@ const MusicEngine = (() => {
 })();
 
 MusicEngine.bindEventHooks?.();
+
+if(typeof EventBus !== 'undefined' && EventBus?.on) {
+  EventBus.on('audio:music.play', (p={}) => {
+    const track = String(p.track || p.theme || '').toUpperCase();
+    if(track) MusicEngine.setTheme(track);
+    MusicEngine.play();
+    EventBus.emit('audio:music.changed', { track: MusicEngine.state().theme });
+    return p;
+  }, 'music-engine', { phase:'observe', priority:60 });
+}
+
+if(typeof ServiceRegistry !== 'undefined') {
+  ServiceRegistry.register('audio.music.play', (track)=>{ if(track) MusicEngine.setTheme(String(track).toUpperCase()); MusicEngine.play(); return true; }, { pluginId:'music-engine', version:'2.2.0' });
+  ServiceRegistry.register('audio.music.stop', ()=>{ MusicEngine.stop(); return true; }, { pluginId:'music-engine', version:'2.2.0' });
+  ServiceRegistry.register('audio.music.state', ()=>MusicEngine.state(), { pluginId:'music-engine', version:'2.2.0' });
+}
