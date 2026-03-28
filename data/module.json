@@ -1125,7 +1125,7 @@
           "id": "golpe_cargado",
           "nombre": "Golpe Cargado",
           "efecto": "atk_mult",
-          "valor": 2.0,
+          "valor": 2,
           "desc": "Multiplicador de ATK.",
           "evolucion_umbral": 10
         },
@@ -1301,8 +1301,8 @@
         "desc": "Máximo daño, ignora consecuencias.",
         "usa_habs": 0.9,
         "usa_mags": 0.2,
-        "defiende": 0.0,
-        "huye": 0.0,
+        "defiende": 0,
+        "huye": 0,
         "prio_habs": [
           "atk_mult",
           "atk_drain",
@@ -1428,7 +1428,7 @@
         "desc": "Instintivo, sin estrategia, puro daño físico.",
         "usa_habs": 0.5,
         "usa_mags": 0.1,
-        "defiende": 0.0,
+        "defiende": 0,
         "huye": 0.1,
         "prio_habs": [
           "atk_drain",
@@ -1439,6 +1439,582 @@
           "dmg_dist"
         ],
         "prio_target": "debil"
+      }
+    },
+    "npcs": {
+      "arquetipos_visibles": [
+        "comerciante",
+        "guardián",
+        "sabio",
+        "errante",
+        "heraldo",
+        "custodio",
+        "médico",
+        "oráculo"
+      ],
+      "arquetipos_ocultos": [
+        "traidor",
+        "mártir",
+        "devorado",
+        "corrupto",
+        "vengativo",
+        "amante",
+        "vacío",
+        "fanático",
+        "sacrificio"
+      ],
+      "arquetipos_hostiles": [
+        "traidor",
+        "fanático",
+        "corrupto",
+        "vengativo"
+      ],
+      "arquetipos_rendicion_facil": [
+        "mártir",
+        "amante",
+        "vacío"
+      ],
+      "nombres_prefijos": [
+        "Ael",
+        "Vor",
+        "Sal",
+        "Mir",
+        "Keth",
+        "Dun",
+        "Ora",
+        "Ves",
+        "Thal",
+        "Rin",
+        "Sov",
+        "Crel",
+        "Ghar",
+        "Uth",
+        "Yen",
+        "Phor",
+        "Ix",
+        "Mol",
+        "Nar",
+        "Zael"
+      ],
+      "nombres_sufijos": [
+        "an",
+        "is",
+        "eth",
+        "ora",
+        "ax",
+        "un",
+        "el",
+        "as",
+        "ir",
+        "on",
+        "ath",
+        "en",
+        "yr",
+        "ul",
+        "em"
+      ],
+      "nombres_titulos": [
+        "el Olvidado",
+        "la Sin Nombre",
+        "el Último",
+        "la Primera",
+        "el Roto",
+        "la Sellada",
+        "el Errante"
+      ],
+      "titulo_chance": 0.3,
+      "deseos": [
+        "recuperar algo perdido",
+        "proteger a alguien que no lo sabe",
+        "encontrar respuestas que destruyen",
+        "llegar a un lugar que no existe",
+        "ser recordado",
+        "olvidar lo que hizo",
+        "ver el colapso completo",
+        "trascender lo que es"
+      ],
+      "necesidades": [
+        "ser perdonado",
+        "dejar de huir",
+        "encontrar su origen",
+        "destruir lo que ama",
+        "ser visto realmente",
+        "terminar con todo"
+      ],
+      "miedos": [
+        "ser olvidado",
+        "perder el control",
+        "que descubran la verdad",
+        "morir sin resolver",
+        "que quien ama lo abandone",
+        "el silencio absoluto",
+        "convertirse en lo que destruyó"
+      ],
+      "secretos": [
+        "causó la corrupción del nodo donde vive",
+        "sabe quién eres realmente",
+        "porta un objeto de una run anterior",
+        "es el eco de alguien que conociste",
+        "ha matado a alguien que te importaría",
+        "está muriendo y no lo dirá"
+      ],
+      "traumas": [
+        "perdió a alguien en la grieta",
+        "fue traicionado por su único aliado",
+        "presenció el colapso de su mundo",
+        "sobrevivió cuando no debía",
+        "tomó una decisión que no puede deshacer",
+        "amó algo que se convirtió en su enemigo"
+      ],
+      "tipos_vinculo": [
+        "amor",
+        "odio",
+        "deuda",
+        "miedo",
+        "traición",
+        "lealtad",
+        "secreto_compartido",
+        "culpa",
+        "obsesión",
+        "pérdida",
+        "rivalidad",
+        "gratitud"
+      ],
+      "vinculo_chance": 0.6,
+      "vinculos_historia": {
+        "amor": [
+          "{na} nunca lo dijo directamente. Pero {nb} lo supo siempre."
+        ],
+        "odio": [
+          "{na} no habla de {nb}. Eso dice más que cualquier explicación."
+        ],
+        "deuda": [
+          "{na} sobrevivió algo que no debería. {nb} fue la razón."
+        ],
+        "traición": [
+          "{na} hizo algo. {nb} lo descubrió. El daño está hecho."
+        ],
+        "culpa": [
+          "{na} estuvo presente cuando algo le ocurrió a {nb}."
+        ],
+        "obsesión": [
+          "{na} no puede dejar de pensar en {nb}."
+        ],
+        "pérdida": [
+          "{nb} se fue de una manera que {na} no esperaba."
+        ],
+        "secreto_compartido": [
+          "Saben algo juntos que nadie más sabe."
+        ],
+        "lealtad": [
+          "{na} seguiría a {nb} a través de cosas que no tiene nombre."
+        ],
+        "miedo": [
+          "{na} tiene miedo de {nb}. No del tipo simple."
+        ],
+        "rivalidad": [
+          "{na} y {nb} quieren lo mismo de maneras incompatibles."
+        ],
+        "gratitud": [
+          "{na} debe su existencia actual a {nb}."
+        ]
+      },
+      "combat_stats": {
+        "comerciante": {
+          "hp": 18,
+          "atk": 4,
+          "def": 1
+        },
+        "guardián": {
+          "hp": 35,
+          "atk": 9,
+          "def": 4
+        },
+        "sabio": {
+          "hp": 20,
+          "atk": 5,
+          "def": 2
+        },
+        "errante": {
+          "hp": 25,
+          "atk": 7,
+          "def": 2
+        },
+        "heraldo": {
+          "hp": 15,
+          "atk": 6,
+          "def": 1
+        },
+        "custodio": {
+          "hp": 28,
+          "atk": 8,
+          "def": 3
+        },
+        "médico": {
+          "hp": 22,
+          "atk": 4,
+          "def": 2
+        },
+        "oráculo": {
+          "hp": 18,
+          "atk": 7,
+          "def": 1
+        }
+      },
+      "dialogos": {
+        "saludo": {
+          "comerciante": [
+            "{n} te observa con ojos que calculan más de lo que revelan. \"Lo que necesitas, lo tengo.\"",
+            "{n}: \"Raro que alguien llegue hasta aquí.\""
+          ],
+          "guardián": [
+            "{n} bloquea el paso. \"¿Qué traes contigo?\"",
+            "{n}: \"Este lugar tiene memoria. Y tú pareces nuevo en ella.\""
+          ],
+          "sabio": [
+            "{n} cierra algo que parece un libro. \"Tu presencia cambia el patrón.\"",
+            "{n}: \"Llegas en el momento equivocado. O en el único posible.\""
+          ],
+          "errante": [
+            "{n} te mira como si reconociera algo. \"No esperaba compañía.\"",
+            "\"Estoy de paso\", dice {n}. Lo lleva demasiado tiempo diciéndolo."
+          ],
+          "heraldo": [
+            "{n} llega antes de que lo veas. \"Noticias. No todas buenas.\"",
+            "\"Vine a buscarte\", dice {n}. Eso debería preocuparte."
+          ],
+          "custodio": [
+            "{n} guarda algo entre sus manos. \"Esto lleva aquí más tiempo del que nadie recuerda.\"",
+            "\"No deberías estar aquí\", dice {n} sin hostilidad."
+          ],
+          "médico": [
+            "{n} examina tus heridas sin preguntar. \"Podrías estar peor.\"",
+            "\"El daño físico es lo fácil\", dice {n}."
+          ],
+          "oráculo": [
+            "{n} habla antes de que llegues. \"Tardaste más de lo que debías.\"",
+            "\"Sé lo que vas a preguntar. La pregunta correcta es otra.\""
+          ]
+        },
+        "estados": {
+          "desesperado": [
+            "\"Ya no importa\", dice {n}. Sus manos tiemblan.",
+            "{n}: \"¿Sabes cuántas veces pensé que lo había resuelto?\""
+          ],
+          "traicionando": [
+            "{n} habla sin mirarte. \"Tenía que ser así.\"",
+            "\"No lo tomes como algo personal\", dice {n}."
+          ],
+          "corrupto": [
+            "Hay algo diferente en {n}. Sus palabras son correctas. Sus ojos no.",
+            "{n} sonríe demasiado."
+          ],
+          "secreto_parcial": [
+            "{n} empieza a decir algo y se detiene.",
+            "{n}: \"Si supieras lo que sé...\""
+          ],
+          "vinculo_alto": [
+            "{n} habla diferente contigo.",
+            "\"Hay pocas personas con las que hablaría de esto.\""
+          ],
+          "eco_anterior": [
+            "\"Hubo alguien como tú antes\", dice {n}.",
+            "{n} te llama por un nombre que no es el tuyo."
+          ]
+        },
+        "combat_inicio": {
+          "normal": [
+            "{n} no esperaba que llegara a esto.",
+            "{n} saca algo oculto. Su mirada cambió.",
+            "\"Si insistes\", dice {n}."
+          ],
+          "desesperado": [
+            "{n} ya no tiene nada que perder.",
+            "\"Ya da igual\", dice {n}. Ataca."
+          ],
+          "traidor": [
+            "{n} deja caer la máscara. \"Duró más de lo esperado.\""
+          ],
+          "corrupto": [
+            "Lo que queda de {n} te mira."
+          ]
+        },
+        "combat_contraataque": [
+          "{n} responde con más precisión de la esperada.",
+          "{n} absorbe el golpe y devuelve algo peor.",
+          "{n} se mueve como quien ha hecho esto antes."
+        ],
+        "combat_hp_bajo": [
+          "{n} está cediendo.",
+          "{n} respira diferente. Le cuesta mantener el ritmo."
+        ],
+        "combat_rendicion": [
+          "{n} baja lo que usaba. \"Suficiente.\"",
+          "\"Ganas\", dice {n}. Solo reconocimiento."
+        ],
+        "ultimas_palabras": [
+          "{n} cae mirando algo que no está ahí.",
+          "{n} no dice nada al final. Eso es más elocuente.",
+          "\"{deseo}\", dice {n}. O quizás solo lo piensas tú."
+        ]
+      }
+    },
+    "misiones": {
+      "tipos": [
+        "deuda",
+        "búsqueda",
+        "protección",
+        "revelación",
+        "traición",
+        "sacrificio",
+        "ambigua",
+        "imposible",
+        "legado",
+        "venganza"
+      ],
+      "tipo_por_arq_oculto": {
+        "traidor": [
+          "traición",
+          "ambigua"
+        ],
+        "mártir": [
+          "sacrificio",
+          "legado"
+        ],
+        "corrupto": [
+          "traición",
+          "traición"
+        ],
+        "vengativo": [
+          "venganza"
+        ],
+        "fanático": [
+          "imposible"
+        ]
+      },
+      "tipo_por_desesperacion_alta": [
+        "sacrificio",
+        "imposible",
+        "búsqueda"
+      ],
+      "legado_boost": 2,
+      "plantillas": {
+        "deuda": {
+          "titulo": "Lo que le debo a {npc}",
+          "desc": "{npc} necesita recuperar {objetivo}.",
+          "objetivos": [
+            "un objeto que perdí",
+            "algo que me fue robado",
+            "una persona que desapareció"
+          ],
+          "recompensas": [
+            "información",
+            "un objeto con historia",
+            "un secreto"
+          ],
+          "consecuencia": "{npc} perderá algo que no puede recuperar."
+        },
+        "búsqueda": {
+          "titulo": "Lo que {npc} no puede dejar de buscar",
+          "desc": "{npc} lleva {ciclos} ciclos buscando {objetivo}.",
+          "ciclos_rng": [
+            2,
+            15
+          ],
+          "objetivos": [
+            "alguien que amaba",
+            "un fragmento de su memoria",
+            "la razón por la que sigue aquí"
+          ],
+          "recompensas": [
+            "lealtad absoluta",
+            "conocimiento peligroso"
+          ],
+          "consecuencia": "Si {objetivo} no aparece, {npc} tomará una decisión sin retorno."
+        },
+        "protección": {
+          "titulo": "Lo que persigue a {npc}",
+          "desc": "{npc} no lo dice directamente. Pero {amenaza}.",
+          "amenazas": [
+            "algo se acerca",
+            "una deuda que vence",
+            "alguien que juró encontrarle"
+          ],
+          "recompensas": [
+            "información que cambia el mapa"
+          ],
+          "consecuencia": "{npc} desaparecerá. O aparecerá cambiado."
+        },
+        "revelación": {
+          "titulo": "Lo que {npc} sabe",
+          "desc": "{npc} tiene fragmentos de {verdad}.",
+          "verdades": [
+            "el origen de la corrupción",
+            "quién eres realmente",
+            "lo que ocurrió antes"
+          ],
+          "recompensas": [
+            "una verdad que cambia cómo ves el mundo"
+          ],
+          "consecuencia": "El conocimiento se pierde."
+        },
+        "traición": {
+          "titulo": "Lo que {npc} necesita que hagas",
+          "desc": "{npc} te pide algo sobre {victima}.",
+          "recompensas": [
+            "algo que lleva cargando demasiado tiempo"
+          ],
+          "consecuencia": "{npc} lo hará de todas formas.",
+          "trampa_chance": 0.4
+        },
+        "sacrificio": {
+          "titulo": "El precio que {npc} no puede pagar",
+          "desc": "Para que {npc} resuelva lo que carga, alguien tiene que perder {costo}.",
+          "costos": [
+            "un objeto que ya no puedes recuperar",
+            "parte de tu historia",
+            "tu nombre en este ciclo"
+          ],
+          "recompensas": [
+            "lo que prometió guardar"
+          ],
+          "consecuencia": "{npc} lo intentará él mismo. No sobrevivirá."
+        },
+        "ambigua": {
+          "titulo": "Lo que {npc} llama un favor",
+          "desc": "{npc} te pide algo que parece simple.",
+          "recompensas": [
+            "depende de lo que hayas decidido"
+          ],
+          "consecuencia": "La ambigüedad se resuelve de la peor manera."
+        },
+        "imposible": {
+          "titulo": "Lo que {npc} pide de todas formas",
+          "desc": "{npc} lo sabe. Es imposible. Lo pide igual. \"{objetivo}\"",
+          "objetivos": [
+            "deshacer lo que ya ocurrió",
+            "traer de vuelta a alguien",
+            "salvar algo que eligió no ser salvado"
+          ],
+          "recompensas": [
+            "la comprensión de por qué lo pidió"
+          ],
+          "consecuencia": "Era imposible. Eso es suficiente."
+        },
+        "legado": {
+          "titulo": "Lo que dejó {eco}",
+          "desc": "{npc} menciona a {eco}. Hay algo sin resolver.",
+          "recompensas": [
+            "memoria de lo que fue"
+          ],
+          "consecuencia": "El legado se pierde definitivamente."
+        },
+        "venganza": {
+          "titulo": "Lo que {npc} no puede dejar ir",
+          "desc": "Hay algo en los ojos de {npc} que no es rabia exactamente.",
+          "objetivos": [
+            "una entidad que destruyó algo",
+            "alguien que tomó una decisión que no le correspondía"
+          ],
+          "recompensas": [
+            "un secreto arrancado"
+          ],
+          "consecuencia": "{npc} irá solo. No volverá siendo el mismo."
+        }
+      }
+    },
+    "plot_twists": [
+      {
+        "id": "guardian_origen",
+        "check": {
+          "arq_vis": "guardián",
+          "corrupcion_min": 55,
+          "lealtad_jugador_min": 40
+        },
+        "titulo": "El guardián es el origen",
+        "texto": "{npc} no protege este lugar de la amenaza. Protege la amenaza de ti."
+      },
+      {
+        "id": "sabio_usa",
+        "check": {
+          "arq_vis": "sabio",
+          "misiones_completadas_min": 2
+        },
+        "titulo": "El conocimiento tenía un precio",
+        "texto": "Cada misión que completaste para {npc} fue una pieza. Ahora la ve completa y tú no."
+      },
+      {
+        "id": "mision_trampa",
+        "check": {
+          "mision_completada_trampa": true
+        },
+        "titulo": "Trabajaste para el enemigo",
+        "texto": "La misión que completaste para {npc} no era lo que parecía."
+      },
+      {
+        "id": "npc_eco",
+        "check": {
+          "tiene_eco_run": true,
+          "ecos_disponibles": true
+        },
+        "titulo": "Ya estuviste aquí antes",
+        "texto": "{npc} es el eco de {eco_nombre}. Lo que fue dejó una forma que este mundo llenó."
+      },
+      {
+        "id": "moribundo",
+        "check": {
+          "secreto_idx": 5,
+          "desesperacion_min": 70
+        },
+        "titulo": "Estaba muriendo desde el principio",
+        "texto": "{npc} lo sabía cuando te conoció. La calma que tiene no es fortaleza."
+      }
+    ],
+    "narrativa": {
+      "mutaciones": [
+        "templado",
+        "fragmentado",
+        "resonante",
+        "vívido",
+        "latente",
+        "vibrante",
+        "hueco",
+        "cargado",
+        "sombrío",
+        "brillante",
+        "bifurcado",
+        "sellado",
+        "pulsante",
+        "ardiente",
+        "antiguo",
+        "convergente"
+      ],
+      "loot_narrativo": {
+        "nota_personal": {
+          "nombre": "Nota de {npc}",
+          "desc": "\"...{deseo}...\" — escrito con urgencia.",
+          "chance": 1
+        },
+        "fragmento_memoria": {
+          "nombre": "Memoria de {npc}",
+          "desc": "Trauma: \"{trauma}\".",
+          "chance": 0.6
+        }
+      },
+      "loot_rendicion": {
+        "info_rendicion": {
+          "nombre": "Información de {npc}",
+          "desc": "\"...{secreto}...\"",
+          "chance": 1
+        }
+      },
+      "consecuencia_desesperacion": {
+        "muerte_chance": 0.3,
+        "desaparicion_chance": 0.3,
+        "quiebre_chance": 0.4,
+        "texto_muerte": "{npc} toma una decisión final. Hay algo que dejó — {deseo} — sin resolverse.",
+        "texto_desaparicion": "{npc} desaparece. Solo el rastro de algo sin resolver.",
+        "texto_quiebre": "{npc} llega al quiebre. Su naturaleza real: {arq_ocu}."
       }
     }
   },
@@ -2064,139 +2640,139 @@
     {
       "name": "music",
       "data": {
-          "MAIN_THEME": {
-            "bpm": 135,
-            "desc": "Leitmotiv Heroico: La esencia de la aventura. Marcha triunfal en Do Menor.",
-            "lead": "C4,1|Eb4,1|G4,1|C5,1|Bb4,1|G4,1|F4,1|Eb4,1|C4,1|R,1|G4,1|R,1|C5,2",
-            "bass": "C2,2|G1,2|Ab1,2|F1,2|C2,2|G1,2|Ab1,2|Bb1,2",
-            "drums": "K,1|H,1|S,1|H,1|K,1|K,1|S,1|H,1"
-          },
-          "BATTLE_NORMAL": {
-            "bpm": 155,
-            "desc": "Combate Normal: Versión rítmica y agresiva del Leitmotiv para encuentros aleatorios.",
-            "lead": "C4,1|Eb4,1|G4,1|C5,1|Bb4,1|G4,1|F4,1|Eb4,1|D4,1|C4,1|G3,1|C4,1|Eb4,1|F4,1|G4,1|R,1",
-            "bass": "C2,1|C2,1|G1,1|G1,1|Ab1,1|Ab1,1|F1,1|F1,1",
-            "drums": "K,1|H,1|S,1|H,1|K,1|H,1|S,1|H,1"
-          },
-          "BOSS_WINNING": {
-            "bpm": 165,
-            "desc": "Ventaja de Jefe: El Leitmotiv transmuta a Do Mayor. Sensación de triunfo inminente.",
-            "lead": "C4,1|E4,1|G4,1|C5,1|B4,1|G4,1|A4,1|G4,1|C5,1|D5,1|E5,1|G5,1|C6,4",
-            "bass": "C2,1|G2,1|C2,1|G2,1|F2,1|A2,1|G2,1|B2,1",
-            "drums": "K,0.5|K,0.5|S,1|K,1|S,1"
-          },
-          "BOSS_LOSING": {
-            "bpm": 140,
-            "desc": "Peligro de Jefe: El Leitmotiv se rompe con tritonos y escalas disminuidas.",
-            "lead": "C4,1|Eb4,1|Gb4,1|C5,1|Bb4,1|Gb4,1|F4,1|Eb4,1|Gb3,4|F3,4|C3,4|R,4",
-            "bass": "C1,4|Gb0,4|F1,4|Db1,4",
-            "drums": "K,2|S,2|K,2|S,2"
-          },
-          "CRITICAL_HP": {
-            "bpm": 210,
-            "desc": "Estado Crítico: Alarma rítmica síncrona con el Leitmotiv acelerado. <10% HP.",
-            "lead": "C6,0.5|R,0.5|C6,0.5|R,0.5|C4,0.5|Eb4,0.5|G4,0.5|C5,0.5|C6,0.5|R,0.5|C6,0.5|R,0.5|G4,0.5|F4,0.5|Eb4,0.5|D4,0.5",
-            "bass": "C2,0.5|C2,0.5|Gb1,0.5|Gb1,0.5",
-            "drums": "K,0.5|S,0.5|H,0.5|H,0.5"
-          },
-          "HUB_SAFE_HAVEN": {
-            "bpm": 110,
-            "desc": "Pueblo / Hub: Tranquilidad y seguridad. Melodía armónica en Do Mayor.",
-            "lead": "C4,1|E4,1|G4,1|C5,1|B4,1|G4,1|A4,1|G4,1|F4,1|E4,1|D4,1|C4,1|G3,1|A3,1|B3,1|C4,1",
-            "bass": "C2,4|G1,4|A1,4|F1,4",
-            "drums": "K,1|H,1|S,1|H,1"
-          },
-          "TEMPLO_ANTIGUO": {
-            "bpm": 90,
-            "desc": "Templo: Escala frigia/menor armónica. Atmósfera de antigüedad mística.",
-            "lead": "A3,2|C4,2|E4,2|G#4,2|A4,4|E4,4|F4,4|D4,4",
-            "bass": "A1,8|E1,8|F1,8|D1,8",
-            "drums": "H,2|H,2|S,2|H,2"
-          },
-          "UMBRAL_MISTERIO": {
-            "bpm": 100,
-            "desc": "Umbral: Zona de misterio. Melodía suspendida que no resuelve.",
-            "lead": "E4,3|G4,1|A4,3|B4,1|C5,2|B4,2|G4,4",
-            "bass": "E1,4|A1,4|C2,4|G1,4",
-            "drums": "K,2|R,2|S,2|R,2"
-          },
-          "CAVERNA_ECOS": {
-            "bpm": 80,
-            "desc": "Caverna: Minimalismo y goteo rítmico. Aprovecha el delay del motor.",
-            "lead": "C5,0.5|R,1.5|Eb5,0.5|R,1.5|G5,0.5|R,1.5|C6,0.5|R,1.5",
-            "bass": "C2,1|R,3|Eb1,1|R,3",
-            "drums": "H,0.5|R,3.5"
-          },
-          "VACIO_ETÉREO": {
-            "bpm": 60,
-            "desc": "El Vacío: Disonancia larga y etérea. Sin percusión definida.",
-            "lead": "C4,4|Gb3,4|F3,4|Db3,4",
-            "bass": "C1,8|Gb0,8",
-            "drums": "R,1"
-          },
-          "ABISMO_OSCURO": {
-            "bpm": 75,
-            "desc": "Abismo: Bajos pesados y opresión. Escala cromática descendente.",
-            "lead": "C3,1|B2,1|Bb2,1|A2,1|Ab2,1|G2,1|Gb2,1|F2,1",
-            "bass": "C1,2|C1,2|Db1,2|Db1,2",
-            "drums": "K,1|R,1"
-          },
-          "PANTANO_TÓXICO": {
-            "bpm": 105,
-            "desc": "Pantano: Sonidos 'fangosos' usando intervalos de segunda menor.",
-            "lead": "F#3,1|G3,1|F#3,1|D3,1|F#3,1|G3,1|Bb3,1|A3,1",
-            "bass": "F#1,2|G1,2|Bb1,2|A1,2",
-            "drums": "K,1|S,1|R,1|S,1"
-          },
-          "GRIETA_TEMPORAL": {
-            "bpm": 160,
-            "desc": "Grieta: Inestabilidad temporal. Arpegios de gran velocidad.",
-            "lead": "C4,0.5|E4,0.5|G4,0.5|C5,0.5|Eb4,0.5|G4,0.5|Bb4,0.5|Eb5,0.5",
-            "bass": "C2,1|Eb2,1|G2,1|Bb2,1",
-            "drums": "H,0.5|H,0.5|S,0.5|H,0.5"
-          },
-          "YERMO_DESOLADO": {
-            "bpm": 95,
-            "desc": "Yermo: Melodía solitaria que evoca el viento y el vacío.",
-            "lead": "G3,4|R,2|D4,2|C4,6|R,2",
-            "bass": "G1,8|C1,8",
-            "drums": "H,4|R,4"
-          },
-          "BOSQUE_VITAL": {
-            "bpm": 135,
-            "desc": "Bosque: Naturaleza vibrante. Ritmo sincopado y bajo saltarín.",
-            "lead": "F4,1|A4,1|C5,1|A4,1|G4,1|Bb4,1|D5,1|Bb4,1",
-            "bass": "F2,2|G2,2|A2,2|Bb2,2",
-            "drums": "K,1|H,1|S,1|H,1"
-          },
-          "FANFARE_VICTORY": {
-            "bpm": 150,
-            "desc": "Victoria: Fanfarria clásica de triunfo. Brillo en metales (Square wave).",
-            "lead": "C4,0.5|E4,0.5|G4,0.5|C5,1.5|F4,0.5|A4,0.5|C5,0.5|F5,1.5|C6,4|R,8",
-            "bass": "C2,3|F2,3|G2,3|C3,4|R,8",
-            "drums": "K,1|S,1|K,0.5|K,0.5|S,1|R,8"
-          },
-          "FANFARE_DEFEAT": {
-            "bpm": 90,
-            "desc": "Derrota: Cierre lúgubre. Armonía descendente.",
-            "lead": "C4,1|Eb4,1|Gb4,1|F4,2|Eb4,1|Db4,1|C4,4|R,8",
-            "bass": "C2,4|Ab1,4|Gb1,4|F1,4|C1,4|R,8",
-            "drums": "K,4|R,12"
-          },
-          "ITEM_LEGENDARY": {
-            "bpm": 160,
-            "desc": "Ítem Legendario: Arpegio ascendente cristalino (0.25 ticks).",
-            "lead": "C5,0.25|E5,0.25|G5,0.25|B5,0.25|C6,0.25|E6,0.25|G6,0.25|B6,0.25|C7,4|R,8",
-            "bass": "C3,4|G3,4|C4,4|R,8",
-            "drums": "H,0.5|H,0.5|H,0.5|H,0.5|R,8"
-          },
-          "ESCAPE_FRANTIC": {
-            "bpm": 195,
-            "desc": "Escapada: Huida rápida del combate. Escala cromática ascendente.",
-            "lead": "C4,0.5|Db4,0.5|D4,0.5|Eb4,0.5|E4,0.5|F4,0.5|Gb4,0.5|G4,0.5|R,8",
-            "bass": "C2,0.5|Db2,0.5|D2,0.5|Eb2,0.5|R,8",
-            "drums": "H,0.25|H,0.25|H,0.25|H,0.25|R,8"
-          }        
+        "MAIN_THEME": {
+          "bpm": 135,
+          "desc": "Leitmotiv Heroico: La esencia de la aventura. Marcha triunfal en Do Menor.",
+          "lead": "C4,1|Eb4,1|G4,1|C5,1|Bb4,1|G4,1|F4,1|Eb4,1|C4,1|R,1|G4,1|R,1|C5,2",
+          "bass": "C2,2|G1,2|Ab1,2|F1,2|C2,2|G1,2|Ab1,2|Bb1,2",
+          "drums": "K,1|H,1|S,1|H,1|K,1|K,1|S,1|H,1"
+        },
+        "BATTLE_NORMAL": {
+          "bpm": 155,
+          "desc": "Combate Normal: Versión rítmica y agresiva del Leitmotiv para encuentros aleatorios.",
+          "lead": "C4,1|Eb4,1|G4,1|C5,1|Bb4,1|G4,1|F4,1|Eb4,1|D4,1|C4,1|G3,1|C4,1|Eb4,1|F4,1|G4,1|R,1",
+          "bass": "C2,1|C2,1|G1,1|G1,1|Ab1,1|Ab1,1|F1,1|F1,1",
+          "drums": "K,1|H,1|S,1|H,1|K,1|H,1|S,1|H,1"
+        },
+        "BOSS_WINNING": {
+          "bpm": 165,
+          "desc": "Ventaja de Jefe: El Leitmotiv transmuta a Do Mayor. Sensación de triunfo inminente.",
+          "lead": "C4,1|E4,1|G4,1|C5,1|B4,1|G4,1|A4,1|G4,1|C5,1|D5,1|E5,1|G5,1|C6,4",
+          "bass": "C2,1|G2,1|C2,1|G2,1|F2,1|A2,1|G2,1|B2,1",
+          "drums": "K,0.5|K,0.5|S,1|K,1|S,1"
+        },
+        "BOSS_LOSING": {
+          "bpm": 140,
+          "desc": "Peligro de Jefe: El Leitmotiv se rompe con tritonos y escalas disminuidas.",
+          "lead": "C4,1|Eb4,1|Gb4,1|C5,1|Bb4,1|Gb4,1|F4,1|Eb4,1|Gb3,4|F3,4|C3,4|R,4",
+          "bass": "C1,4|Gb0,4|F1,4|Db1,4",
+          "drums": "K,2|S,2|K,2|S,2"
+        },
+        "CRITICAL_HP": {
+          "bpm": 210,
+          "desc": "Estado Crítico: Alarma rítmica síncrona con el Leitmotiv acelerado. <10% HP.",
+          "lead": "C6,0.5|R,0.5|C6,0.5|R,0.5|C4,0.5|Eb4,0.5|G4,0.5|C5,0.5|C6,0.5|R,0.5|C6,0.5|R,0.5|G4,0.5|F4,0.5|Eb4,0.5|D4,0.5",
+          "bass": "C2,0.5|C2,0.5|Gb1,0.5|Gb1,0.5",
+          "drums": "K,0.5|S,0.5|H,0.5|H,0.5"
+        },
+        "HUB_SAFE_HAVEN": {
+          "bpm": 110,
+          "desc": "Pueblo / Hub: Tranquilidad y seguridad. Melodía armónica en Do Mayor.",
+          "lead": "C4,1|E4,1|G4,1|C5,1|B4,1|G4,1|A4,1|G4,1|F4,1|E4,1|D4,1|C4,1|G3,1|A3,1|B3,1|C4,1",
+          "bass": "C2,4|G1,4|A1,4|F1,4",
+          "drums": "K,1|H,1|S,1|H,1"
+        },
+        "TEMPLO_ANTIGUO": {
+          "bpm": 90,
+          "desc": "Templo: Escala frigia/menor armónica. Atmósfera de antigüedad mística.",
+          "lead": "A3,2|C4,2|E4,2|G#4,2|A4,4|E4,4|F4,4|D4,4",
+          "bass": "A1,8|E1,8|F1,8|D1,8",
+          "drums": "H,2|H,2|S,2|H,2"
+        },
+        "UMBRAL_MISTERIO": {
+          "bpm": 100,
+          "desc": "Umbral: Zona de misterio. Melodía suspendida que no resuelve.",
+          "lead": "E4,3|G4,1|A4,3|B4,1|C5,2|B4,2|G4,4",
+          "bass": "E1,4|A1,4|C2,4|G1,4",
+          "drums": "K,2|R,2|S,2|R,2"
+        },
+        "CAVERNA_ECOS": {
+          "bpm": 80,
+          "desc": "Caverna: Minimalismo y goteo rítmico. Aprovecha el delay del motor.",
+          "lead": "C5,0.5|R,1.5|Eb5,0.5|R,1.5|G5,0.5|R,1.5|C6,0.5|R,1.5",
+          "bass": "C2,1|R,3|Eb1,1|R,3",
+          "drums": "H,0.5|R,3.5"
+        },
+        "VACIO_ETÉREO": {
+          "bpm": 60,
+          "desc": "El Vacío: Disonancia larga y etérea. Sin percusión definida.",
+          "lead": "C4,4|Gb3,4|F3,4|Db3,4",
+          "bass": "C1,8|Gb0,8",
+          "drums": "R,1"
+        },
+        "ABISMO_OSCURO": {
+          "bpm": 75,
+          "desc": "Abismo: Bajos pesados y opresión. Escala cromática descendente.",
+          "lead": "C3,1|B2,1|Bb2,1|A2,1|Ab2,1|G2,1|Gb2,1|F2,1",
+          "bass": "C1,2|C1,2|Db1,2|Db1,2",
+          "drums": "K,1|R,1"
+        },
+        "PANTANO_TÓXICO": {
+          "bpm": 105,
+          "desc": "Pantano: Sonidos 'fangosos' usando intervalos de segunda menor.",
+          "lead": "F#3,1|G3,1|F#3,1|D3,1|F#3,1|G3,1|Bb3,1|A3,1",
+          "bass": "F#1,2|G1,2|Bb1,2|A1,2",
+          "drums": "K,1|S,1|R,1|S,1"
+        },
+        "GRIETA_TEMPORAL": {
+          "bpm": 160,
+          "desc": "Grieta: Inestabilidad temporal. Arpegios de gran velocidad.",
+          "lead": "C4,0.5|E4,0.5|G4,0.5|C5,0.5|Eb4,0.5|G4,0.5|Bb4,0.5|Eb5,0.5",
+          "bass": "C2,1|Eb2,1|G2,1|Bb2,1",
+          "drums": "H,0.5|H,0.5|S,0.5|H,0.5"
+        },
+        "YERMO_DESOLADO": {
+          "bpm": 95,
+          "desc": "Yermo: Melodía solitaria que evoca el viento y el vacío.",
+          "lead": "G3,4|R,2|D4,2|C4,6|R,2",
+          "bass": "G1,8|C1,8",
+          "drums": "H,4|R,4"
+        },
+        "BOSQUE_VITAL": {
+          "bpm": 135,
+          "desc": "Bosque: Naturaleza vibrante. Ritmo sincopado y bajo saltarín.",
+          "lead": "F4,1|A4,1|C5,1|A4,1|G4,1|Bb4,1|D5,1|Bb4,1",
+          "bass": "F2,2|G2,2|A2,2|Bb2,2",
+          "drums": "K,1|H,1|S,1|H,1"
+        },
+        "FANFARE_VICTORY": {
+          "bpm": 150,
+          "desc": "Victoria: Fanfarria clásica de triunfo. Brillo en metales (Square wave).",
+          "lead": "C4,0.5|E4,0.5|G4,0.5|C5,1.5|F4,0.5|A4,0.5|C5,0.5|F5,1.5|C6,4|R,8",
+          "bass": "C2,3|F2,3|G2,3|C3,4|R,8",
+          "drums": "K,1|S,1|K,0.5|K,0.5|S,1|R,8"
+        },
+        "FANFARE_DEFEAT": {
+          "bpm": 90,
+          "desc": "Derrota: Cierre lúgubre. Armonía descendente.",
+          "lead": "C4,1|Eb4,1|Gb4,1|F4,2|Eb4,1|Db4,1|C4,4|R,8",
+          "bass": "C2,4|Ab1,4|Gb1,4|F1,4|C1,4|R,8",
+          "drums": "K,4|R,12"
+        },
+        "ITEM_LEGENDARY": {
+          "bpm": 160,
+          "desc": "Ítem Legendario: Arpegio ascendente cristalino (0.25 ticks).",
+          "lead": "C5,0.25|E5,0.25|G5,0.25|B5,0.25|C6,0.25|E6,0.25|G6,0.25|B6,0.25|C7,4|R,8",
+          "bass": "C3,4|G3,4|C4,4|R,8",
+          "drums": "H,0.5|H,0.5|H,0.5|H,0.5|R,8"
+        },
+        "ESCAPE_FRANTIC": {
+          "bpm": 195,
+          "desc": "Escapada: Huida rápida del combate. Escala cromática ascendente.",
+          "lead": "C4,0.5|Db4,0.5|D4,0.5|Eb4,0.5|E4,0.5|F4,0.5|Gb4,0.5|G4,0.5|R,8",
+          "bass": "C2,0.5|Db2,0.5|D2,0.5|Eb2,0.5|R,8",
+          "drums": "H,0.25|H,0.25|H,0.25|H,0.25|R,8"
+        }
       }
     },
     {
