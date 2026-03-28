@@ -8,17 +8,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
-
-
-<!-- Datos del juego ahora viven en data/module.json -->
-
-
-<!-- Plugins/systems declarativos ahora viven en data/module.json -->
-
 </head>
 <body>
 
-<!-- ── Boot screen ─────────────────────────────────────────────── -->
 <div id="boot">
   <div class="logo">ECOSISTEMA</div>
   <div class="sub">v2.0 — motor con plugins</div>
@@ -29,99 +21,23 @@
   <div class="bl" id="b5"></div>
 </div>
 
-<!-- ── Shell ───────────────────────────────────────────────────── -->
 <div id="shell">
-
-  <!-- Cabecera: título + versión del módulo activo -->
   <div id="hdr">
     <div class="htit">ECOSISTEMA</div>
     <div class="hver" id="hmod">v2.0</div>
   </div>
 
-  <!-- Status bar: stats del jugador + stats de plugins -->
-  <div id="sbar">
-    <div class="st hp">HP   <span id="s-hp">—</span></div>
-    <div class="st">HAM  <span id="s-hun">—</span></div>
-    <div class="st">STA  <span id="s-sta">—</span></div>
-    <div class="st">MAG  <span id="s-mna">—</span></div>
-    <div class="st loc">NODO <span id="s-loc">—</span></div>
-    <div class="st cyc">CICLO<span id="s-cyc">—</span></div>
-    <div class="st">INV  <span id="s-inv">0</span></div>
-    <div class="st">HAB  <span id="s-hab">0/0</span></div>
-    <div class="st">MAG  <span id="s-mag">0/0</span></div>
-    <div class="st">COMP <span id="s-comp">0/0</span></div>
-    <div class="st npc">NPCs <span id="s-npc">0</span></div>
-    <div class="st mis">MIS  <span id="s-mis">0</span></div>
-    <div class="st run">RUN  <span id="s-run">1</span></div>
-    <!-- Los plugins de status bar montan sus elementos aquí -->
-    <div id="plugin-stats"></div>
-    <div class="st">MOD  <span id="s-mod">—</span></div>
-    <div class="st" id="s-p2p-wrap" style="display:none">NET <span id="s-p2p" class="t-cra">—</span></div>
-  </div>
+  <div id="sbar"></div>
 
-  <!-- Área de output -->
   <div id="out"></div>
 
-  <!-- Input con autocomplete -->
   <div id="iln">
     <div id="ac"></div>
     <div id="ps">›</div>
     <input id="inp" type="text" autocomplete="off" spellcheck="false" placeholder="comando...">
   </div>
+</div>
 
-</div><!-- #shell -->
-
-
-<!-- ═══════════════════════════════════════════════════════════════
-     SCRIPTS — orden de carga estricto
-     Cada archivo depende de los anteriores. No reordenar.
-
-     CORE (sin dependencias de dominio)
-       core.js      → U, EventBus, ModuleLoader, PluginLoader,
-                       CommandRegistry, D
-       entity.js    → Entity, EntityRegistry
-       player.js    → Player
-       world.js     → Clock, World, GS
-       combat-resolution.js → CombatResolution, battleLog
-
-     SISTEMAS INTERNOS (dependen del core, no van en PluginLoader)
-       — estos archivos se añaden aquí cuando se extraigan —
-       systems/world-ai.js
-       systems/forge.js
-       systems/npc-engine.js
-       systems/arc-engine.js
-       systems/run-memory.js
-       systems/xp.js
-       systems/imprint.js
-       systems/tags.js
-       systems/tactics.js
-       systems/item-system.js
-       systems/faction-system.js
-       systems/boss-system.js
-       systems/net.js
-       systems/renderer.js
-       systems/save-load.js
-
-     PLUGINS DE DOMINIO (se registran en PluginLoader vía main.js)
-       plugins/plugin-criaturas.js
-       plugins/plugin-habilidades.js
-       plugins/plugin-magias.js
-
-     ENTRADA
-       core/main.js  → CTX, bootstrap, init()
-     ═══════════════════════════════════════════════════════════════ -->
-<script>
-  // Durante la migración, los sistemas internos aún viven en un
-  // único bloque inline hasta ser extraídos uno a uno.
-  // Este bloque se irá vaciando a medida que cada sistema
-  // pase a su propio archivo en systems/.
-</script>
-
-<!-- ═══════════════════════════════════════════════════════════════
-     SCRIPTS — orden de carga estricto
-     ═══════════════════════════════════════════════════════════════ -->
-
-<!-- CORE -->
 <script src="core/core.js"></script>
 <script src="core/entity.js"></script>
 <script src="core/player.js"></script>
@@ -130,7 +46,6 @@
 <script src="core/io-bus.js"></script>
 <script src="core/renderer.js"></script>
 
-<!-- SISTEMAS INTERNOS -->
 <script src="systems/run-memory.js"></script>
 <script src="systems/forge.js"></script>
 <script src="systems/npc-engine.js"></script>
@@ -146,7 +61,6 @@
 <script src="systems/commands.js"></script>
 <script src="systems/autocomplete.js"></script>
 
-<!-- PLUGINS DE DOMINIO -->
 <script src="plugins/plugin-criaturas.js"></script>
 <script src="plugins/plugin-habilidades.js"></script>
 <script src="plugins/plugin-magias.js"></script>
@@ -163,7 +77,6 @@
 <script src="plugins/plugin-cultos.js"></script>
 <script src="plugins/plugin-concentracion.js"></script>
 
-<!-- ENTRADA: CTX + bootstrap -->
 <script src="core/main.js"></script>
 
 </body>
