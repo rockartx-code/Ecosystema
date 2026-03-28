@@ -497,7 +497,7 @@ async function init() {
   const { startId } = World.gen(U.uid()+U.uid(), { ecos: CTX.RunMem?.ecos?.() || [] });
   Player.setPos(startId);
   World.visit(startId);
-  if(typeof XP !== 'undefined') XP.init?.();
+  if(typeof XP !== 'undefined') XP.init?.(true);
   Clock.tick(0);
 
   D.itemsInicio.forEach(bp => {

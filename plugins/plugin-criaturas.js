@@ -46,48 +46,7 @@ class Creature extends Entity {
 
   // Aplica el aura elemental de esta criatura a un enemigo en batalla
   apoyoEnTurno(battle) {
-    const aura = _getAura(this);
-    if(!aura || this.modo === 'latente') return;
-
-    const enemigos = battle.cola.filter(c=>c.vivo && (c.tipo==='enemy'||c.tipo==='npc'));
-    if(!enemigos.length) return;
-
-    switch(this.modo) {
-      case 'activo':
-      case 'caza': {
-        const target = enemigos.reduce((a,b)=>a.hp<=b.hp?a:b);
-        if(!target.elemento_estado) {
-          target.elemento_estado = aura;
-          battleLog(battle, `✦ ${this.nombre} aplica ${aura} a ${target.name}.`, 't-cri');
-        }
-        break;
-      }
-      case 'defensivo': {
-        // Cura al jugador levemente
-        const p = Player.get();
-        const curacion = Math.floor(this.atk * 0.3);
-        p.hp = Math.min(p.maxHp, p.hp + curacion);
-        battleLog(battle, `✦ ${this.nombre} cura ${curacion}HP al jugador.`, 't-cri');
-        break;
-      }
-      case 'autónomo': {
-        // Evalúa: si el jugador tiene < 30% HP, defiende; si no, ataca
-        const p = Player.get();
-        const pct = p.hp / p.maxHp;
-        if(pct < 0.3) {
-          const curacion = Math.floor(this.atk * 0.2);
-          p.hp = Math.min(p.maxHp, p.hp + curacion);
-          battleLog(battle, `✦ ${this.nombre} [autónomo] cura ${curacion}HP.`, 't-cri');
-        } else {
-          const target = enemigos[0];
-          if(target && !target.elemento_estado) {
-            target.elemento_estado = aura;
-            battleLog(battle, `✦ ${this.nombre} [autónomo] aplica ${aura} a ${target.name}.`, 't-cri');
-          }
-        }
-        break;
-      }
-    }
+    _apoyoCompanero(this, battle);
   }
 
   statsEnBatalla() {
@@ -137,6 +96,57 @@ function _getAura(creature) {
   if(tags.includes('eco') || tags.includes('resonante')) return 'RESONANTE';
   if(tags.includes('corrupto')|| tags.includes('vacío'))  return 'VACÍO';
   return null;
+}
+
+function _apoyoCompanero(creature, battle, opts = {}) {
+  if(!creature || !battle || creature.modo === 'latente' || creature.estado === 'latente') return;
+  const aura = _getAura(creature);
+  const enemigos = battle.cola.filter(c => c.vivo && (c.tipo === 'enemy' || c.tipo === 'npc'));
+  if(!enemigos.length) return;
+
+  const modo = creature.modo || 'activo';
+  const atk  = Math.max(1, creature.atk || 1);
+  const factorBase = opts.opening ? 0.55 : 0.35;
+
+  const atacar = (target, factor, etiqueta = '') => {
+    if(!target?.vivo) return;
+    const dmg = Math.max(1, Math.round(atk * factor) - Math.floor((target.def || 0) * 0.35));
+    target.hp = Math.max(0, target.hp - dmg);
+    battleLog(battle, `✦ ${creature.nombre}${etiqueta} → ${target.name}  −${dmg}HP  (${target.hp}/${target.maxHp})`, 't-cri');
+    if(aura && !target.elemento_estado) {
+      target.elemento_estado = aura;
+      battleLog(battle, `  ↳ ${creature.nombre} aplica ${aura}.`, 't-cri');
+    }
+    if(target.hp <= 0) { target.vivo = false; battleLog(battle, `${target.name} cae.`, 't-cor'); }
+  };
+
+  if(modo === 'defensivo') {
+    const p = Player.get();
+    const curacion = Math.floor(atk * (opts.opening ? 0.45 : 0.3));
+    p.hp = Math.min(p.maxHp, p.hp + curacion);
+    const pj = battle.cola.find(c => c.tipo === 'player' && c.playerId === p.id);
+    if(pj) pj.hp = p.hp;
+    battleLog(battle, `✦ ${creature.nombre} cura ${curacion}HP al jugador.`, 't-cri');
+    return;
+  }
+
+  if(modo === 'autónomo') {
+    const p = Player.get();
+    if((p.hp / Math.max(1, p.maxHp)) < 0.3) {
+      const curacion = Math.floor(atk * 0.25);
+      p.hp = Math.min(p.maxHp, p.hp + curacion);
+      const pj = battle.cola.find(c => c.tipo === 'player' && c.playerId === p.id);
+      if(pj) pj.hp = p.hp;
+      battleLog(battle, `✦ ${creature.nombre} [autónomo] cura ${curacion}HP.`, 't-cri');
+      return;
+    }
+  }
+
+  const target = (modo === 'caza')
+    ? enemigos.reduce((a,b)=>a.hp<=b.hp?a:b)
+    : enemigos[0];
+  const factor = modo === 'caza' ? factorBase * 1.3 : factorBase;
+  atacar(target, factor, opts.opening ? ' [embiste]' : '');
 }
 
 function _mkCreature(arcId, nodeId, nodeEstado = 'virgen', opts = {}) {
@@ -515,13 +525,20 @@ const pluginCreaturas = {
     },
 
     // Apoyo de compañeros al inicio del turno del jugador en batalla
+    'combat:start': {
+      fn(payload) {
+        const battle = payload?.battle;
+        if(!battle?.cola?.length) return payload;
+        const comps = Player.get().ext?.compañeros || [];
+        comps.forEach(c => _apoyoCompanero(c, battle, { opening:true }));
+        return payload;
+      }
+    },
+
     'combat:post_resolve': {
       fn(payload) {
         const comps = Player.get().ext?.compañeros || [];
-        comps.forEach(c => {
-          if(c.modo !== 'latente' && c.estado !== 'latente' && typeof c.apoyoEnTurno === 'function')
-            c.apoyoEnTurno(payload.battle);
-        });
+        comps.forEach(c => _apoyoCompanero(c, payload?.battle));
         return payload;
       }
     },

@@ -45,7 +45,8 @@
 
     let state = { ramas: {}, puntos: 0, atributos: {}, historial: [] };
 
-    function init() {
+    function init(reset = false) {
+      if (reset) state = { ramas: {}, puntos: 0, atributos: {}, historial: [] };
       Object.keys(RAMAS).forEach(r => { if (!state.ramas[r]) state.ramas[r] = { xp: 0, nivel: 1 }; });
       Object.keys(ATRIBUTOS).forEach(a => { if (!state.atributos[a]) state.atributos[a] = 0; });
     }
