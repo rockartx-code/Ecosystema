@@ -26,6 +26,7 @@
 ## 🟡 Tareas pendientes por etapa
 
 ### Pendientes de E3
+
 - [x] **[E3]** Endurecer resolución topológica para dependencias por servicio dinámico y ciclos complejos multi-batch.
 - [x] **[E3]** Añadir soporte semver más completo (`^`, `~`, rangos OR).
 

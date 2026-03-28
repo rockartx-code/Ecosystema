@@ -377,4 +377,56 @@ function withCapturedConsole(fn) {
   });
 })();
 
+(function testPluginLoaderSemverAdvancedRanges() {
+  const { PluginLoader } = loadCore();
+  const base = { id:'plugin:semver_base', version:'1.4.2' };
+  assert.strictEqual(PluginLoader.register(base), true);
+
+  const okCaret = { id:'plugin:semver_caret', version:'1.0.0', requires:{ plugins:['plugin:semver_base ^1.4.0'] } };
+  const okTilde = { id:'plugin:semver_tilde', version:'1.0.0', requires:{ plugins:['plugin:semver_base ~1.4.0'] } };
+  const okOr = { id:'plugin:semver_or', version:'1.0.0', requires:{ plugins:['plugin:semver_base ^2.0.0 || ^1.4.0'] } };
+  const badOr = { id:'plugin:semver_or_bad', version:'1.0.0', requires:{ plugins:['plugin:semver_base ^2.0.0 || ~1.5.0'] } };
+
+  assert.strictEqual(PluginLoader.register(okCaret), true);
+  assert.strictEqual(PluginLoader.register(okTilde), true);
+  assert.strictEqual(PluginLoader.register(okOr), true);
+  assert.strictEqual(PluginLoader.register(badOr), false);
+})();
+
+(function testEventBusValidationPolicyAndRealEventChecks() {
+  const { EventBus } = loadCore();
+  const warnings = [];
+  const prevWarn = console.warn;
+  console.warn = (...args) => warnings.push(args.map(String).join(' '));
+
+  try {
+    EventBus.defineEvent('output:line', {
+      validateIn: (p)=> !!p && typeof p.text === 'string',
+      validateOut: (p)=> !!p && typeof p.text === 'string',
+    });
+    EventBus.on('output:line', (p)=>p, 'p:test');
+
+    EventBus.setValidationPolicy('dev');
+    EventBus.emit('output:line', { text: 123 });
+    assert.ok(warnings.some(w => w.includes('validateIn(output:line)')), 'dev policy debe advertir validación');
+
+    EventBus.setValidationPolicy('strict');
+    assert.throws(() => EventBus.emit('output:line', { text: 123 }), /validateIn\(output:line\)/);
+
+    EventBus.defineEvent('world:tick', {
+      validateIn: (p)=> !!p && typeof p.cycle === 'number',
+      validateOut: (p)=> !!p && typeof p.cycle === 'number',
+    });
+    EventBus.on('world:tick', (p)=>({ ...p, cycle: 'invalid' }), 'p:bad_out');
+    assert.throws(() => EventBus.emit('world:tick', { cycle: 1 }), /validateOut\(world:tick\)/);
+
+    EventBus.setValidationPolicy('prod');
+    const out = EventBus.emit('world:tick', { cycle: 2 });
+    assert.strictEqual(out.cycle, 'invalid');
+  } finally {
+    EventBus.setValidationPolicy('dev');
+    console.warn = prevWarn;
+  }
+})();
+
 console.log('OK runtime_smoke');
