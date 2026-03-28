@@ -277,9 +277,10 @@ const ArcEngine = (() => {
       EventBus,
       NPCEngine,
       RunMem,
-      save,
-      XP: typeof XP !== 'undefined' ? XP : undefined,
+      save: typeof globalThis.save === 'function' ? globalThis.save : () => {},
+      XP: typeof globalThis.XP !== 'undefined' ? globalThis.XP : undefined,
     },
   });
 })();
 
+globalThis.ArcEngine = ArcEngine;
