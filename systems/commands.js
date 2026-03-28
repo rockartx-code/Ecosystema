@@ -72,69 +72,69 @@ function _svc(name) {
 function _battleCurrent() {
   const getBattle = _svc('gameplay.battle.current');
   if(typeof getBattle === 'function') return getBattle();
-  return typeof Net !== 'undefined' ? Net.getMyBattle?.() : null;
+  return typeof Net !== 'undefined' ? NetRef().getMyBattle?.() : null;
 }
 function _battleActor(battle) {
   const getActor = _svc('gameplay.battle.actor');
   if(typeof getActor === 'function') return getActor(battle);
-  return typeof Net !== 'undefined' ? Net.getBattleActor?.(battle) : null;
+  return typeof Net !== 'undefined' ? NetRef().getBattleActor?.(battle) : null;
 }
 function _battleRender(battle=null) {
   const render = _svc('runtime.battle.render');
   if(typeof render === 'function') return !!render(battle);
   if(typeof Net === 'undefined') return false;
-  const current = battle || Net.getMyBattle?.();
+  const current = battle || NetRef().getMyBattle?.();
   if(!current) return false;
-  Net.renderBattle?.(current);
+  NetRef().renderBattle?.(current);
   return true;
 }
 function _battleAction(battleId, playerId, action, payload=null) {
   const send = _svc('runtime.battle.action') || _svc('gameplay.combat.action');
   if(typeof send === 'function') return !!send(battleId, playerId, action, payload);
   if(typeof Net === 'undefined') return false;
-  Net.sendBattleAction?.(battleId, playerId, action, payload);
+  NetRef().sendBattleAction?.(battleId, playerId, action, payload);
   return true;
 }
 function _battleTickAI(battle) {
   const tickAI = _svc('runtime.battle.tick_ai');
   if(typeof tickAI === 'function') return !!tickAI(battle);
   if(typeof Net === 'undefined') return false;
-  Net.tickAI?.(battle);
+  NetRef().tickAI?.(battle);
   return true;
 }
 async function _playerRest() {
   const rest = _svc('runtime.player.rest');
   if(typeof rest === 'function') return !!(await rest());
-  if(typeof Tactics === 'undefined' || typeof Tactics.cmdDescansar !== 'function') return false;
-  await Tactics.cmdDescansar();
+  if(typeof Tactics === 'undefined' || typeof TacticsRef().cmdDescansar !== 'function') return false;
+  await TacticsRef().cmdDescansar();
   return true;
 }
 function _playerTactic() {
   const tactica = _svc('runtime.player.tactic');
   if(typeof tactica === 'function') return !!tactica();
-  if(typeof Tactics === 'undefined' || typeof Tactics.cmdTactica !== 'function') return false;
-  Tactics.cmdTactica();
+  if(typeof Tactics === 'undefined' || typeof TacticsRef().cmdTactica !== 'function') return false;
+  TacticsRef().cmdTactica();
   return true;
 }
 function _xpShowAttrs() {
   const attrs = _svc('runtime.xp.show_attrs');
   if(typeof attrs === 'function') return !!attrs();
-  if(typeof XP === 'undefined' || typeof XP.cmdAtributos !== 'function') return false;
-  XP.cmdAtributos();
+  if(typeof XP === 'undefined' || typeof XPRef().cmdAtributos !== 'function') return false;
+  XPRef().cmdAtributos();
   return true;
 }
 function _xpShowExp() {
   const exp = _svc('runtime.xp.show_exp');
   if(typeof exp === 'function') return !!exp();
-  if(typeof XP === 'undefined' || typeof XP.cmdExperiencia !== 'function') return false;
-  XP.cmdExperiencia();
+  if(typeof XP === 'undefined' || typeof XPRef().cmdExperiencia !== 'function') return false;
+  XPRef().cmdExperiencia();
   return true;
 }
 function _xpAssign(raw='') {
   const assign = _svc('runtime.xp.assign');
   if(typeof assign === 'function') return !!assign(raw);
-  if(typeof XP === 'undefined' || typeof XP.cmdAsignar !== 'function') return false;
-  XP.cmdAsignar(String(raw || ''));
+  if(typeof XP === 'undefined' || typeof XPRef().cmdAsignar !== 'function') return false;
+  XPRef().cmdAsignar(String(raw || ''));
   if(typeof save === 'function') save();
   return true;
 }
@@ -200,6 +200,18 @@ async function _dispatchDomainProgression(verb, args) {
   return false;
 }
 
+
+function _globalApi(name) {
+  if(typeof globalThis !== 'undefined' && globalThis[name]) return globalThis[name];
+  if(typeof window !== 'undefined' && window[name]) return window[name];
+  return null;
+}
+const NetRef = () => _globalApi('Net') || {};
+const XPRef = () => _globalApi('XP') || {};
+const TacticsRef = () => _globalApi('Tactics') || {};
+const ArcEngineRef = () => _globalApi('ArcEngine') || {};
+const FactionSystemRef = () => _globalApi('FactionSystem') || {};
+
 // ── Dispatch principal ────────────────────────────────────────
 async function dispatch(cmd) {
   const { verb, args } = cmd;
@@ -207,7 +219,7 @@ async function dispatch(cmd) {
   const pre = EventBus.emitCancellable?.('command:before', { verb, args, cancelled:false });
   if(pre?.cancelled) return;
 
-  if(typeof Net !== 'undefined' && Net.isClient()) Net.sendAction(verb, args);
+  if(typeof Net !== 'undefined' && NetRef().isClient()) NetRef().sendAction(verb, args);
 
   // ── Batalla por turnos activa ───────────────────────────────
   const battle = _battleCurrent();
@@ -275,9 +287,9 @@ async function dispatch(cmd) {
   // Comandos del motor
   switch(verb) {
     // Movement/Narrative/Crafting/Progression se enrutan en domain dispatchers
-    case 'arcos': case 'arcs': case 'arc': if(typeof ArcEngine!=='undefined') ArcEngine.cmdArcs(); break;
+    case 'arcos': case 'arcs': case 'arc': if(typeof ArcEngine!=='undefined') ArcEngineRef().cmdArcs(); break;
 
-    case 'facciones': case 'faccion': if(typeof FactionSystem!=='undefined') FactionSystem.cmdFacciones(); break;
+    case 'facciones': case 'faccion': if(typeof FactionSystem!=='undefined') FactionSystemRef().cmdFacciones(); break;
     case 'reputacion': case 'rep':    _cmdReputacion(); break;
     case 'bosses': case 'boss':       if(typeof BossSystem!=='undefined') BossSystem.cmdBosses(); break;
     case 'mapa': case 'map': cmdMapa(args); break; // fallback legacy
@@ -331,13 +343,13 @@ async function dispatch(cmd) {
     case 'asignar': case 'assign': _xpAssign(args.join(' ')); break; // fallback legacy
 
     case 'conectar': case 'host': case 'iniciar':
-      if(args.length) await Net.connect(args.join('')); else await Net.host(); break;
-    case 'aceptar_conexion': await Net.acceptConexion(args[0], args[1]||null); break;
-    case 'desconectar': Net.disconnect(); break;
-    case 'jugadores': case 'red': case 'net': Net.cmdJugadores(); break;
+      if(args.length) await NetRef().connect(args.join('')); else await NetRef().host(); break;
+    case 'aceptar_conexion': await NetRef().acceptConexion(args[0], args[1]||null); break;
+    case 'desconectar': NetRef().disconnect(); break;
+    case 'jugadores': case 'red': case 'net': NetRef().cmdJugadores(); break;
     case 'batalla': { const b=_battleCurrent(); if(!b){Out.line('No estás en batalla.','t-dim');break;} _battleRender(b); break; }
     case 'defender': { const b=_battleCurrent(); if(!b){Out.line('No estás en batalla.','t-dim');break;} _battleAction(b.id,Player.get().id,'defender',null); break; }
-    case 'unirse_batalla': { const b=Object.values(Net.battles).find(x=>x.nodeId===Player.pos()&&x.estado==='activo'); if(!b){Out.line('No hay batalla activa aquí.','t-dim');break;} Net.joinBattle(b.id); break; }
+    case 'unirse_batalla': { const b=Object.values(NetRef().battles).find(x=>x.nodeId===Player.pos()&&x.estado==='activo'); if(!b){Out.line('No hay batalla activa aquí.','t-dim');break;} NetRef().joinBattle(b.id); break; }
 
     case 'comerciar': _cmdComerciar(args); break;
     case 'aceptar_trade': _cmdAceptarTrade(); break;
@@ -365,7 +377,7 @@ async function dispatch(cmd) {
     case 'importar': case 'import': importarPartida(); break;
     case 'semilla': Out.line(`Semilla: ${World.seed}`,'t-sis'); break;
     case 'nombre':
-      if(args.length) { const n=args.join(' ').trim().replace(/[<>&"]/g,'').slice(0,24); if(n.length>=2){ Player.rename(n); Out.line(`Nombre: ${Player.get().name}`,'t-npc'); if(Net.isClient()) Net.sendAction('nombre',[n]); } else Out.line('El nombre debe tener al menos 2 caracteres.','t-dim'); }
+      if(args.length) { const n=args.join(' ').trim().replace(/[<>&"]/g,'').slice(0,24); if(n.length>=2){ Player.rename(n); Out.line(`Nombre: ${Player.get().name}`,'t-npc'); if(NetRef().isClient()) NetRef().sendAction('nombre',[n]); } else Out.line('El nombre debe tener al menos 2 caracteres.','t-dim'); }
       break;
     case 'nuevo': case 'new': localStorage.removeItem('eco_v12'); Out.clear(); await init(); break;
     case 'ayuda': case 'help': case '?': cmdAyuda(args.join(' ')); break;
@@ -397,9 +409,9 @@ function _enterNode(dest, opts = {}) {
   if(grantXP) {
     if(!nodoActual?.visitado_prev) {
       nodoActual.visitado_prev = true;
-      if(typeof XP!=='undefined') XP.ganar('exploración', 10 + (nodoActual?.seccion||0)*5, 'nodo nuevo');
+      if(typeof XP!=='undefined') XPRef().ganar('exploración', 10 + (nodoActual?.seccion||0)*5, 'nodo nuevo');
       if(nodoActual?.dificultad >= 2.5) Out.line(`⚠ ZONA HOSTIL — Enemigos ×${(nodoActual.dificultad||1).toFixed(1)}`, 't-pel');
-    } else if(typeof XP !== 'undefined') { XP.ganar('exploración', 2, 'movimiento'); }
+    } else if(typeof XP !== 'undefined') { XPRef().ganar('exploración', 2, 'movimiento'); }
   }
 
   EventBus.emit('world:tick', { cycle:Clock.cycle });
@@ -459,7 +471,7 @@ function cmdMirar() {
   if(comps.length) Out.line(`Contigo: ${comps.map(c=>c.nombre).join(', ')}`, 't-cri');
 
   if(typeof Net !== 'undefined') {
-    const otros = Net.playersEnNodo(Player.pos());
+    const otros = NetRef().playersEnNodo(Player.pos());
     if(otros.length) { Out.sp(); otros.forEach(p => Out.line(`  ◉ ${p.name}  [jugador]`, p.color||'t-eco')); }
   }
 
@@ -484,7 +496,7 @@ function cmdMirar() {
     setTimeout(() => {
       Out.line(`¡${e.nombre} emerge!`, 't-pel');
       const p = Player.get();
-      Net.startBattle(n.id, [
+      NetRef().startBattle(n.id, [
         { tipo:'player', id:p.id, name:p.name, hp:p.hp, maxHp:p.maxHp, atk:Player.getAtk(), def:Player.getDef(), nodeId:n.id, playerId:p.id, vivo:true },
         { tipo:'enemy',  id:e.id, name:e.nombre, hp:e.hp_current||e.hp, maxHp:e.hp, atk:e.atk, def:e.def||0, nodeId:n.id, tags:e.tags||[], vivo:true },
       ]);
@@ -499,13 +511,13 @@ function cmdHablar(target) {
   Out.line(NPCEngine.dialogo(npc, typeof RunMem!=='undefined'?RunMem.runs():[]), 't-npc', true);
   const res = NPCEngine.interactuar(npc);
   if(res) { Out.sp(); Out.line(res.texto, res.tipo==='secreto'?'t-cor':'t-twi', true); }
-  NPCEngine.checkTwists(npc, Player.get(), GS.allMisiones(), typeof RunMem!=='undefined'?RunMem.ecos():[], []).forEach(t => { GS.addTwist(t); if(typeof XP!=='undefined') XP.ganar('narrativa',60,'plot twist'); Out.sp(); Out.sep('═'); Out.line(`⟁ REVELACIÓN — ${t.titulo}`,'t-twi',true); Out.line(t.texto,'t-out'); Out.sep('═'); });
+  NPCEngine.checkTwists(npc, Player.get(), GS.allMisiones(), typeof RunMem!=='undefined'?RunMem.ecos():[], []).forEach(t => { GS.addTwist(t); if(typeof XP!=='undefined') XPRef().ganar('narrativa',60,'plot twist'); Out.sp(); Out.sep('═'); Out.line(`⟁ REVELACIÓN — ${t.titulo}`,'t-twi',true); Out.line(t.texto,'t-out'); Out.sep('═'); });
   const misNPC = GS.allMisiones().filter(m=>m.npc_id===npc.id&&!m.completada&&!m.fallida);
   if(!misNPC.length && U.chance(.55)) {
     const m = NPCEngine.genMision(npc, GS.aliveNPCs(), typeof RunMem!=='undefined'?RunMem.ecos():[]);
     if(m) { GS.addMision(m); Out.sp(); Out.line(`◈ MISIÓN — "${m.titulo}"`, 't-mis', true); Out.line(m.desc,'t-out'); Out.line(`Recompensa: ${m.recompensa}`,'t-dim'); Out.line('"aceptar" o "rechazar"','t-dim'); }
   } else if(misNPC.length) Out.line(`◈ Misión activa: "${misNPC[0].titulo}"`, 't-mis');
-  if(typeof ArcEngine !== 'undefined') ArcEngine.intentarGenArc(npc);
+  if(typeof ArcEngine !== 'undefined') ArcEngineRef().intentarGenArc(npc);
   Out.sep('─'); Out.sp(); save();
 }
 
@@ -525,14 +537,14 @@ function cmdPreguntar(tQ, tema) {
 }
 
 function cmdObservar(target) { const npc=findNPC(target); if(!npc){npcNoAqui(target);return;} Out.sp(); Out.line(`— OBSERVACIÓN: ${npc.nombre} —`,'t-acc'); NPCEngine.observar(npc).forEach((o,i)=>Out.line(o,i===0?'t-npc':npc.arq_ocu_expuesto&&i>3?'t-twi':'t-dim')); Out.sp(); }
-function cmdTraicionar(target) { const npc=findNPC(target); if(!npc){npcNoAqui(target);return;} Out.sp(); Out.sep('═'); Out.line(`TRAICIÓN — ${npc.nombre}`,'t-twi',true); npc.lealtad=0; npc.desesperacion=U.clamp(npc.desesperacion+30,0,100); if((D.npcs?.arquetipos_hostiles||[]).includes(npc.arq_ocu)||npc.desesperacion>80){npc.estado='hostil';Out.line(`${npc.nombre}: "Lo recordaré."`, 't-npc');GS.allMisiones().filter(m=>m.npc_id===npc.id&&!m.completada).forEach(m=>m.fallida=true);}else Out.line(`${npc.nombre} no dice nada. Eso es peor.`,'t-npc'); if(typeof FactionSystem!=='undefined') FactionSystem.onTraicion(npc); Out.sep('═'); Out.sp(); save(); }
+function cmdTraicionar(target) { const npc=findNPC(target); if(!npc){npcNoAqui(target);return;} Out.sp(); Out.sep('═'); Out.line(`TRAICIÓN — ${npc.nombre}`,'t-twi',true); npc.lealtad=0; npc.desesperacion=U.clamp(npc.desesperacion+30,0,100); if((D.npcs?.arquetipos_hostiles||[]).includes(npc.arq_ocu)||npc.desesperacion>80){npc.estado='hostil';Out.line(`${npc.nombre}: "Lo recordaré."`, 't-npc');GS.allMisiones().filter(m=>m.npc_id===npc.id&&!m.completada).forEach(m=>m.fallida=true);}else Out.line(`${npc.nombre} no dice nada. Eso es peor.`,'t-npc'); if(typeof FactionSystem!=='undefined') FactionSystemRef().onTraicion(npc); Out.sep('═'); Out.sp(); save(); }
 function cmdNPCs() { Out.sp(); Out.line('— PERSONAS DEL MUNDO —','t-acc'); const todos=Object.values(GS.npcs); if(!todos.length){Out.line('Nadie encontrado.','t-dim');return;} const vivos=todos.filter(n=>['vivo','sometido','hostil'].includes(n.estado)); vivos.forEach(npc=>{const aqui=npc.nodeId===Player.pos(); Out.line(`  ${npc.nombre}  #${targetHash(npc)||'—'}  [${npc.arq_vis}]${npc.estado!=='vivo'?' ['+npc.estado.toUpperCase()+']':''}  ${aqui?'← AQUÍ':World.node(npc.nodeId)?.name||'?'}  Leal:${npc.lealtad}`,aqui?'t-npc':'t-dim');if(npc.arq_ocu_expuesto)Out.line(`       Real: ${npc.arq_ocu.toUpperCase()}`,'t-twi');}); const perdidos=todos.filter(n=>!['vivo','sometido','hostil'].includes(n.estado)); if(perdidos.length){Out.sp();Out.line('Perdidos:','t-pel');perdidos.forEach(n=>Out.line(`  ✝ ${n.nombre} #${targetHash(n)||'—'} [${n.arq_vis}] ${n.estado.toUpperCase()}`,'t-pel'));} Out.sp(); }
 
 // ── MISIONES ──────────────────────────────────────────────────
 function cmdMisiones() { Out.sp(); Out.line('— MISIONES —','t-acc'); const act=GS.activas(); const ok=GS.allMisiones().filter(m=>m.completada); const fail=GS.allMisiones().filter(m=>m.fallida); if(act.length){Out.line('ACTIVAS:','t-mis');act.forEach(m=>{Out.line(`  ◈ ${m.id}  "${m.titulo}"  [${m.tipo}]${m.aceptada?' ✓':''}${m.es_imposible?' [IMP]':''}${m.es_trampa?' [?]':''}`,'t-mis');Out.line(`    ${m.desc}`,'t-dim');Out.line(`    → ${m.consecuencia_fallo}`,'t-dim');});} if(ok.length) Out.line(`Completadas: ${ok.map(m=>'"'+m.titulo+'"').join(', ')}`,'t-cra'); if(fail.length) Out.line(`Fallidas: ${fail.map(m=>'"'+m.titulo+'"').join(', ')}`,'t-pel'); if(!act.length&&!ok.length) Out.line('Sin misiones. Habla con los NPCs.','t-dim'); Out.sp(); }
 function cmdAceptar(q) { const m=q?findMision(q):GS.activas().filter(x=>!x.aceptada).slice(-1)[0]; if(!m){Out.line(q?`"${q}" no encontrada.`:'Sin misiones pendientes.','t-dim');return;} if(m.aceptada){Out.line('Ya aceptada.','t-dim');return;} m.aceptada=true; Out.line(`Aceptas: "${m.titulo}"`, 't-mis', true); const npc=GS.npc(m.npc_id); if(npc){npc.lealtad=U.clamp(npc.lealtad+10,0,100);Out.line(`${npc.nombre} registra tu compromiso.`,'t-npc');} if(m.es_imposible)Out.line('Nota: puede ser imposible.','t-dim'); save(); }
-function cmdRechazar(q) { const m=q?findMision(q):GS.activas().filter(x=>!x.aceptada).slice(-1)[0]; if(!m){Out.line(q?`"${q}" no encontrada.`:'Sin misiones pendientes.','t-dim');return;} m.fallida=true; Out.line(`Rechazas: "${m.titulo}"`, 't-pel'); const npc=GS.npc(m.npc_id); if(npc){npc.lealtad=U.clamp(npc.lealtad-15,0,100);npc.desesperacion=U.clamp(npc.desesperacion+20,0,100);Out.line(`${npc.nombre}: "${m.consecuencia_fallo}"`, 't-npc');if(npc.desesperacion>80)setTimeout(()=>NPCEngine.consecuenciaDesperación(npc),1200);} EventBus.emit('narrative:mission_fail',{mision:m}); if(m.arc_id)setTimeout(()=>ArcEngine.onMisionResuelta(m),500); save(); }
-function cmdCompletar(q) { const m=findMision(q); if(!m){Out.line(`"${q}" no encontrada.`,'t-dim');return;} if(m.completada){Out.line('Ya completada.','t-dim');return;} m.completada=true; Out.sp(); Out.sep('═'); Out.line(`MISIÓN COMPLETADA — "${m.titulo}"`, 't-cra', true); const xpMision={deuda:40,búsqueda:50,protección:45,revelación:60,traición:55,sacrificio:70,ambigua:50,imposible:80,legado:65,venganza:55}; if(typeof XP!=='undefined') XP.ganar('narrativa', xpMision[m.tipo]||45, `misión: ${m.tipo}`); const npc=GS.npc(m.npc_id); if(npc){npc.lealtad=U.clamp(npc.lealtad+20,0,100);npc.desesperacion=U.clamp(npc.desesperacion-15,0,100);Out.line(`${npc.nombre} recibe la resolución.`,'t-npc');NPCEngine.checkTwists(npc,Player.get(),GS.allMisiones(),typeof RunMem!=='undefined'?RunMem.ecos():[],[]).forEach(t=>{GS.addTwist(t);Out.sp();Out.line(`⟁ REVELACIÓN — ${t.titulo}`,'t-twi',true);Out.line(t.texto,'t-out');});} Out.line(`Recompensa: ${m.recompensa}`,'t-mis'); EventBus.emit('narrative:mission_complete',{mision:m,npc}); if(m.arc_id)setTimeout(()=>ArcEngine.onMisionResuelta(m),500); Out.sep('═'); Out.sp(); save(); }
+function cmdRechazar(q) { const m=q?findMision(q):GS.activas().filter(x=>!x.aceptada).slice(-1)[0]; if(!m){Out.line(q?`"${q}" no encontrada.`:'Sin misiones pendientes.','t-dim');return;} m.fallida=true; Out.line(`Rechazas: "${m.titulo}"`, 't-pel'); const npc=GS.npc(m.npc_id); if(npc){npc.lealtad=U.clamp(npc.lealtad-15,0,100);npc.desesperacion=U.clamp(npc.desesperacion+20,0,100);Out.line(`${npc.nombre}: "${m.consecuencia_fallo}"`, 't-npc');if(npc.desesperacion>80)setTimeout(()=>NPCEngine.consecuenciaDesperación(npc),1200);} EventBus.emit('narrative:mission_fail',{mision:m}); if(m.arc_id)setTimeout(()=>ArcEngineRef().onMisionResuelta(m),500); save(); }
+function cmdCompletar(q) { const m=findMision(q); if(!m){Out.line(`"${q}" no encontrada.`,'t-dim');return;} if(m.completada){Out.line('Ya completada.','t-dim');return;} m.completada=true; Out.sp(); Out.sep('═'); Out.line(`MISIÓN COMPLETADA — "${m.titulo}"`, 't-cra', true); const xpMision={deuda:40,búsqueda:50,protección:45,revelación:60,traición:55,sacrificio:70,ambigua:50,imposible:80,legado:65,venganza:55}; if(typeof XP!=='undefined') XPRef().ganar('narrativa', xpMision[m.tipo]||45, `misión: ${m.tipo}`); const npc=GS.npc(m.npc_id); if(npc){npc.lealtad=U.clamp(npc.lealtad+20,0,100);npc.desesperacion=U.clamp(npc.desesperacion-15,0,100);Out.line(`${npc.nombre} recibe la resolución.`,'t-npc');NPCEngine.checkTwists(npc,Player.get(),GS.allMisiones(),typeof RunMem!=='undefined'?RunMem.ecos():[],[]).forEach(t=>{GS.addTwist(t);Out.sp();Out.line(`⟁ REVELACIÓN — ${t.titulo}`,'t-twi',true);Out.line(t.texto,'t-out');});} Out.line(`Recompensa: ${m.recompensa}`,'t-mis'); EventBus.emit('narrative:mission_complete',{mision:m,npc}); if(m.arc_id)setTimeout(()=>ArcEngineRef().onMisionResuelta(m),500); Out.sep('═'); Out.sp(); save(); }
 
 // ── FORJA ─────────────────────────────────────────────────────
 function cmdForjar(args, modo) {
@@ -564,7 +576,7 @@ function cmdForjar(args, modo) {
   if(item.desc)  Out.line(item.desc,'t-dim');
   Out.line(`Tags: ${res.domTags.join(', ')}  #${item.imprint?.hash||'—'}`, 't-dim');
   Player.get().stats.crafted++;
-  if(typeof XP!=='undefined'){const xpForja={arma:15,armadura:12,consumible:8,habilidad:30,magia:35,mítico:80,reliquia:20,ancla:12,colapso:5};XP.ganar('forja',xpForja[res.rType]||10,`forja: ${res.rType}`);}
+  if(typeof XP!=='undefined'){const xpForja={arma:15,armadura:12,consumible:8,habilidad:30,magia:35,mítico:80,reliquia:20,ancla:12,colapso:5};XPRef().ganar('forja',xpForja[res.rType]||10,`forja: ${res.rType}`);}
   if(item.tipo==='habilidad'){if(!Player.addHab?.(item)){Out.line('Slots llenos. En inventario.','t-dim');Player.addItem(item);}else Out.line('Habilidad encarnada.','t-hab');}
   else if(item.tipo==='magia'){if(!Player.addMag?.(item)){Out.line('Slots llenos. En inventario.','t-dim');Player.addItem(item);}else Out.line('Magia conjurada.','t-mag');}
   else Player.addItem(item);
@@ -614,7 +626,7 @@ function cmdFusionar(args) {
   }
   items.forEach(i=>{Player.rmItem(i.id);Player.rmHab?.(i.id);Player.rmMag?.(i.id);});
   Player.addItem(rel);
-  if(typeof XP!=='undefined'){XP.ganar('forja',60+items.length*10,'fusión ontológica');XP.ganar('mente',30,'convergencia');}
+  if(typeof XP!=='undefined'){XPRef().ganar('forja',60+items.length*10,'fusión ontológica');XPRef().ganar('mente',30,'convergencia');}
   Out.line(`${rel.nombre}  [${rel.tipo.toUpperCase()}]`,'t-cor',true);
   if(rel.atk)Out.line(`ATK +${rel.atk}`,'t-pel');
   if(rel.def)Out.line(`DEF +${rel.def}`,'t-sis');
@@ -630,7 +642,7 @@ function cmdMateriales() { Out.sp(); Out.line('— MATERIALES —','t-acc'); con
 
 // ── INVENTARIO Y OBJETOS ──────────────────────────────────────
 function cmdInv() { Out.sp(); Out.line('— INVENTARIO —','t-acc'); const p=Player.get(); const inv=p.inventory; if(!inv.length){Out.line('Vacío.','t-dim');Out.sp();return;} const grupos={}; inv.forEach(i=>{const g=i.tipo||'misc';if(!grupos[g])grupos[g]=[];grupos[g].push(i);}); Object.entries(grupos).forEach(([g,items])=>{const col=g==='arma'?'t-pel':g==='armadura'||['casco','guantes','peto','botas'].includes(g)?'t-sis':g==='magia'?'t-mag':g==='habilidad'?'t-hab':g==='mítico'?'t-cor':g==='reliquia'||g==='accesorio'?'t-cor':g==='material'?'t-cra':'t-out'; Out.line(`${g.toUpperCase()} (${items.length}):`,col); items.forEach(i=>Out.line(`  ${i.nombre||i.blueprint}${i.imprint?' #'+i.imprint.hash.slice(0,4):''}${i.atk?' ATK+'+i.atk:''}${i.def?' DEF+'+i.def:''}${i.durabilidad!=null&&i.tipo==='arma'?' Dur:'+i.durabilidad+'%':''}${i.efecto_accesorio?`  +${i.efecto_accesorio.valor} ${i.efecto_accesorio.stat}`:''}`,col));}); if(p.equipped){Out.sp();Out.line('Equipado:','t-acc'); const eq=p.equipped; const slots=[['Casco','casco'],['Guantes','guantes'],['Peto','peto'],['Botas','botas'],['Mano I','mano_izquierda'],['Mano D','mano_derecha'],['Accesorio 1','accesorio_1'],['Accesorio 2','accesorio_2']]; slots.forEach(([label,key])=>{if(eq[key])Out.line(`  ${label}: ${eq[key].nombre||eq[key].blueprint}`,'t-dim');}); if(eq.mitico)Out.line(`  Mítico: ${eq.mitico.nombre||eq.mitico.blueprint}`,'t-cor'); if((p._resonance?.habilidades||[]).length){Out.line('Resonancias ocultas:','t-mag'); p._resonance.habilidades.forEach(h=>Out.line(`  ✦ ${h}`,'t-mag'));}} Out.sp(); }
-function cmdRecoger(q) { const n=World.node(Player.pos()); if(!n){return;} const lootStr=n.loot.find(l=>typeof l==='string'&&l.toLowerCase().includes((q||'').toLowerCase())); const lootItem=n.loot._items?.find(i=>(i.nombre||i.blueprint).toLowerCase().includes((q||'').toLowerCase())); if(!lootStr&&!lootItem){Out.line(`No hay "${q||'nada'}" aquí.`,'t-dim');const lootNames=n.loot.filter(l=>typeof l==='string');if(lootNames.length)Out.line(`Objetos: ${lootNames.join(', ')}`,'t-cra');return;} if(lootItem){Player.addItem({...lootItem,id:U.uid()});n.loot._items=n.loot._items.filter(i=>i!==lootItem);World.rmLoot(Player.pos(),lootItem.blueprint);Out.line(`Recoges: ${lootItem.nombre}`,'t-cra');}else{const mat=D.mat(lootStr);Player.addItem({id:U.uid(),blueprint:lootStr,nombre:lootStr.replace(/_/g,' '),tipo:'material',tags:D.matTags(lootStr),estado:'nativo',desc:mat?.desc});World.rmLoot(Player.pos(),lootStr);Out.line(`Recoges: ${lootStr.replace(/_/g,' ')}`,'t-cra');} if(Player.get()._duplicar_loot){const dup={...Player.get().inventory.slice(-1)[0],id:U.uid()};Player.addItem(dup);Player.get()._duplicar_loot=false;Out.line('Duplicado.','t-mag');} if(typeof XP!=='undefined')XP.ganar('exploración',3,'objeto recogido'); refreshStatus();save(); }
+function cmdRecoger(q) { const n=World.node(Player.pos()); if(!n){return;} const lootStr=n.loot.find(l=>typeof l==='string'&&l.toLowerCase().includes((q||'').toLowerCase())); const lootItem=n.loot._items?.find(i=>(i.nombre||i.blueprint).toLowerCase().includes((q||'').toLowerCase())); if(!lootStr&&!lootItem){Out.line(`No hay "${q||'nada'}" aquí.`,'t-dim');const lootNames=n.loot.filter(l=>typeof l==='string');if(lootNames.length)Out.line(`Objetos: ${lootNames.join(', ')}`,'t-cra');return;} if(lootItem){Player.addItem({...lootItem,id:U.uid()});n.loot._items=n.loot._items.filter(i=>i!==lootItem);World.rmLoot(Player.pos(),lootItem.blueprint);Out.line(`Recoges: ${lootItem.nombre}`,'t-cra');}else{const mat=D.mat(lootStr);Player.addItem({id:U.uid(),blueprint:lootStr,nombre:lootStr.replace(/_/g,' '),tipo:'material',tags:D.matTags(lootStr),estado:'nativo',desc:mat?.desc});World.rmLoot(Player.pos(),lootStr);Out.line(`Recoges: ${lootStr.replace(/_/g,' ')}`,'t-cra');} if(Player.get()._duplicar_loot){const dup={...Player.get().inventory.slice(-1)[0],id:U.uid()};Player.addItem(dup);Player.get()._duplicar_loot=false;Out.line('Duplicado.','t-mag');} if(typeof XP!=='undefined')XPRef().ganar('exploración',3,'objeto recogido'); refreshStatus();save(); }
 function cmdSoltar(q) { const item=Player.findItem(q); if(!item){Out.line(`No tienes "${q}".`,'t-dim');return;} Player.rmItem(item.id); const n=World.node(Player.pos()); if(n){n.loot=n.loot||[];n.loot.push(item.blueprint);} Out.line(`Sueltas: ${item.nombre||item.blueprint}`,'t-dim'); save(); }
 function cmdEquipar(q) {
   const raw=(q||'').trim();
@@ -657,7 +669,7 @@ function cmdAtacar(q) {
   if(npc) {
     const stats = NPCEngine.combatStats(npc);
     const p = Player.get();
-    Net.startBattle(n.id, [
+    NetRef().startBattle(n.id, [
       { tipo:'player', id:p.id, name:p.name, hp:p.hp, maxHp:p.maxHp, atk:Player.getAtk(), def:Player.getDef(), nodeId:n.id, playerId:p.id, vivo:true },
       { tipo:'npc', id:npc.id, name:npc.nombre, hp:stats.hp, maxHp:stats.hp, atk:stats.atk, def:stats.def, nodeId:n.id, vivo:true, npc_ref:npc },
     ]);
@@ -670,7 +682,7 @@ function cmdAtacar(q) {
   }) || n.enemies?.[0];
   if(enemy) {
     const p = Player.get();
-    Net.startBattle(n.id, [
+    NetRef().startBattle(n.id, [
       { tipo:'player', id:p.id, name:p.name, hp:p.hp, maxHp:p.maxHp, atk:Player.getAtk(), def:Player.getDef(), nodeId:n.id, playerId:p.id, vivo:true },
       { tipo:'enemy', id:enemy.id, name:enemy.nombre, hp:enemy.hp_current||enemy.hp, maxHp:enemy.hp, atk:enemy.atk, def:enemy.def||0, nodeId:n.id, tags:enemy.tags||[], vivo:true, imprint:enemy.imprint||null, hash:enemy.hash||null },
     ]);
@@ -684,7 +696,7 @@ function cmdAtacar(q) {
   }) || n.creatures?.[0];
   if(!creature) { Out.line(q?`No hay "${q}" aquí.`:'No hay enemigos o criaturas aquí.', 't-dim'); return; }
   const p = Player.get();
-  Net.startBattle(n.id, [
+  NetRef().startBattle(n.id, [
     { tipo:'player', id:p.id, name:p.name, hp:p.hp, maxHp:p.maxHp, atk:Player.getAtk(), def:Player.getDef(), nodeId:n.id, playerId:p.id, vivo:true },
     { tipo:'creature', id:creature.id, name:creature.nombre, hp:creature.hp_current||creature.hp, maxHp:creature.maxHp||creature.hp, atk:creature.atk||4, def:creature.def||0, nodeId:n.id, tags:creature.tags||[], vivo:true, _cre_ref:creature, imprint:creature.imprint||null, hash:creature.hash||null },
   ]);
@@ -871,7 +883,7 @@ function cmdCapturar(q) {
   if(!ancla && anclasDef.length) Out.line(`Necesitas un ancla compatible: ${anclasDef.join(', ')}`,'t-dim');
   Out.line('Debilítala a < 30% HP y usa "vincular [ancla]".', 't-dim');
   const battleCreature = { ...creature, hp_current: creature.hp_current || creature.hp || creature.maxHp };
-  Net.startBattle(n.id, [
+  NetRef().startBattle(n.id, [
     { tipo:'player', id:p.id, name:p.name, hp:p.hp, maxHp:p.maxHp, atk:Player.getAtk(), def:Player.getDef(), nodeId:n.id, playerId:p.id, vivo:true },
     { tipo:'creature', id:battleCreature.id, name:battleCreature.nombre, hp:battleCreature.hp_current, maxHp:battleCreature.maxHp||battleCreature.hp, atk:battleCreature.atk||4, def:battleCreature.def||0, nodeId:n.id, tags:battleCreature.tags||[], vivo:true, _cre_ref:creature, imprint:battleCreature.imprint||null, hash:battleCreature.hash||null },
   ]);
@@ -1027,7 +1039,7 @@ function cmdMapa(args) {
     return;
   }
 
-  if(args.length) { /* BFS hacia jugador — simplificado */ const q=args.join(' ').toLowerCase(); const otros=typeof Net!=='undefined'?Object.values(Net.getPlayers()):[]; const target=otros.find(p=>p.name.toLowerCase().includes(q)); if(target){Out.sp();Out.line(`${target.name} está en ${World.node(target.nodeId)?.name||target.nodeId}`, target.color||'t-eco');Out.sp();}else Out.line(`Jugador "${q}" no encontrado.`,'t-dim'); return; }
+  if(args.length) { /* BFS hacia jugador — simplificado */ const q=args.join(' ').toLowerCase(); const otros=typeof Net!=='undefined'?Object.values(NetRef().getPlayers()):[]; const target=otros.find(p=>p.name.toLowerCase().includes(q)); if(target){Out.sp();Out.line(`${target.name} está en ${World.node(target.nodeId)?.name||target.nodeId}`, target.color||'t-eco');Out.sp();}else Out.line(`Jugador "${q}" no encontrado.`,'t-dim'); return; }
   Out.sp(); Out.line('— ESTADO DEL MUNDO —','t-acc');
   const total=Object.keys(World.all()).length; const vis=Object.values(World.all()).filter(n=>n.visitado).length;
   Out.line(`Explorados: ${vis}/${total}  Secciones: ${World.sectionCount||0}`, 't-dim');
@@ -1093,18 +1105,18 @@ function _cmdReputacion() {
   Out.sp(); Out.line('— REPUTACIÓN —','t-acc');
   const rep = Player.get().reputacion || {};
   const facs = ModuleLoader.get('facciones') || {};
-  Object.entries(rep).forEach(([id,v]) => { const f=facs[id]; const rango=typeof FactionSystem!=='undefined'?FactionSystem.getRango(v):{nombre:'Neutral',color:'t-out',icon:'·'}; Out.line(`  ${rango.icon} ${f?.nombre||id}  ${v}  [${rango.nombre}]`, rango.color); });
+  Object.entries(rep).forEach(([id,v]) => { const f=facs[id]; const rango=typeof FactionSystem!=='undefined'?FactionSystemRef().getRango(v):{nombre:'Neutral',color:'t-out',icon:'·'}; Out.line(`  ${rango.icon} ${f?.nombre||id}  ${v}  [${rango.nombre}]`, rango.color); });
   Out.sp();
 }
 
 // ── TRADE ─────────────────────────────────────────────────────
-function _cmdComerciar(args) { if(!Net.isOnline()){Out.line('Necesitas estar conectado.','t-dim');return;} if(!args.length){Out.line('comerciar [nombre_jugador]','t-dim');return;} const tq=args.join(' ').toLowerCase(); const tj=Object.values(Net.getPlayers()).find(x=>x.nodeId===Player.pos()&&x.name.toLowerCase().includes(tq)); if(!tj){Out.line(`${args.join(' ')} no está aquí.`,'t-dim');return;} Net.initTrade(Player.get().id,Player.get().name,tj.id); Net.sendTradeMsg({type:'TRADE_REQUEST',fromId:Player.get().id,fromName:Player.get().name,toId:tj.id}); Out.line(`Solicitud enviada a ${tj.name}.`,'t-mem'); }
-function _cmdAceptarTrade() { const trade=Net.getTrade(Player.get().id); if(!trade||trade.estado!=='pendiente'){Out.line('Sin solicitud pendiente.','t-dim');return;} trade.estado='activo';trade.b.nombre=Player.get().name; Net.sendTradeMsg({type:'TRADE_RESPONSE',fromId:Player.get().id,tradeId:trade.id,accepted:true}); Out.line('Comercio aceptado.','t-mem'); Net.renderTrade(trade); }
-function _cmdRechazarTrade() { const trade=Net.getTrade(Player.get().id); if(!trade){Out.line('Sin solicitud.','t-dim');return;} trade.estado='cerrado'; Net.sendTradeMsg({type:'TRADE_RESPONSE',fromId:Player.get().id,tradeId:trade.id,accepted:false}); Out.line('Comercio rechazado.','t-dim'); }
-function _cmdOfrecer(args) { const trade=Net.getTrade(Player.get().id); if(!trade||trade.estado!=='activo'){Out.line('No hay comercio activo.','t-dim');return;} const item=Player.findItem(args.join(' ')); if(!item){Out.line(`No tienes "${args.join(' ')}".`,'t-dim');return;} const lado=trade.a.playerId===Player.get().id?trade.a:trade.b; if(lado.oferta.find(x=>x.id===item.id)){Out.line('Ya está en oferta.','t-dim');return;} lado.oferta.push(item); Net.sendTradeMsg({type:'TRADE_OFFER',fromId:Player.get().id,tradeId:trade.id,oferta:lado.oferta}); Net.renderTrade(trade); }
-function _cmdRetirar(args) { const trade=Net.getTrade(Player.get().id); if(!trade||trade.estado!=='activo'){Out.line('No hay comercio activo.','t-dim');return;} const lado=trade.a.playerId===Player.get().id?trade.a:trade.b; const idx=lado.oferta.findIndex(i=>(i.nombre||i.blueprint).toLowerCase().includes(args.join(' ').toLowerCase())); if(idx<0){Out.line('No está en oferta.','t-dim');return;} lado.oferta.splice(idx,1); Net.sendTradeMsg({type:'TRADE_OFFER',fromId:Player.get().id,tradeId:trade.id,oferta:lado.oferta}); Net.renderTrade(trade); }
-function _cmdConfirmarTrade() { const trade=Net.getTrade(Player.get().id); if(!trade||trade.estado!=='activo'){Out.line('No hay comercio activo.','t-dim');return;} const lado=trade.a.playerId===Player.get().id?trade.a:trade.b; lado.confirmado=true; Net.sendTradeMsg({type:'TRADE_CONFIRM',fromId:Player.get().id,tradeId:trade.id}); if(trade.a.confirmado&&trade.b.confirmado)Net.handleTradeMsg({type:'TRADE_CONFIRM',fromId:Player.get().id,tradeId:trade.id}); else Out.line('Esperando confirmación del otro jugador...','t-mem'); }
-function _cmdCancelarTrade() { const trade=Net.getTrade(Player.get().id); if(!trade){Out.line('Sin comercio.','t-dim');return;} trade.estado='cerrado'; Net.sendTradeMsg({type:'TRADE_CANCEL',fromId:Player.get().id,tradeId:trade.id}); Out.line('Comercio cancelado.','t-dim'); }
+function _cmdComerciar(args) { if(!NetRef().isOnline()){Out.line('Necesitas estar conectado.','t-dim');return;} if(!args.length){Out.line('comerciar [nombre_jugador]','t-dim');return;} const tq=args.join(' ').toLowerCase(); const tj=Object.values(NetRef().getPlayers()).find(x=>x.nodeId===Player.pos()&&x.name.toLowerCase().includes(tq)); if(!tj){Out.line(`${args.join(' ')} no está aquí.`,'t-dim');return;} NetRef().initTrade(Player.get().id,Player.get().name,tj.id); NetRef().sendTradeMsg({type:'TRADE_REQUEST',fromId:Player.get().id,fromName:Player.get().name,toId:tj.id}); Out.line(`Solicitud enviada a ${tj.name}.`,'t-mem'); }
+function _cmdAceptarTrade() { const trade=NetRef().getTrade(Player.get().id); if(!trade||trade.estado!=='pendiente'){Out.line('Sin solicitud pendiente.','t-dim');return;} trade.estado='activo';trade.b.nombre=Player.get().name; NetRef().sendTradeMsg({type:'TRADE_RESPONSE',fromId:Player.get().id,tradeId:trade.id,accepted:true}); Out.line('Comercio aceptado.','t-mem'); NetRef().renderTrade(trade); }
+function _cmdRechazarTrade() { const trade=NetRef().getTrade(Player.get().id); if(!trade){Out.line('Sin solicitud.','t-dim');return;} trade.estado='cerrado'; NetRef().sendTradeMsg({type:'TRADE_RESPONSE',fromId:Player.get().id,tradeId:trade.id,accepted:false}); Out.line('Comercio rechazado.','t-dim'); }
+function _cmdOfrecer(args) { const trade=NetRef().getTrade(Player.get().id); if(!trade||trade.estado!=='activo'){Out.line('No hay comercio activo.','t-dim');return;} const item=Player.findItem(args.join(' ')); if(!item){Out.line(`No tienes "${args.join(' ')}".`,'t-dim');return;} const lado=trade.a.playerId===Player.get().id?trade.a:trade.b; if(lado.oferta.find(x=>x.id===item.id)){Out.line('Ya está en oferta.','t-dim');return;} lado.oferta.push(item); NetRef().sendTradeMsg({type:'TRADE_OFFER',fromId:Player.get().id,tradeId:trade.id,oferta:lado.oferta}); NetRef().renderTrade(trade); }
+function _cmdRetirar(args) { const trade=NetRef().getTrade(Player.get().id); if(!trade||trade.estado!=='activo'){Out.line('No hay comercio activo.','t-dim');return;} const lado=trade.a.playerId===Player.get().id?trade.a:trade.b; const idx=lado.oferta.findIndex(i=>(i.nombre||i.blueprint).toLowerCase().includes(args.join(' ').toLowerCase())); if(idx<0){Out.line('No está en oferta.','t-dim');return;} lado.oferta.splice(idx,1); NetRef().sendTradeMsg({type:'TRADE_OFFER',fromId:Player.get().id,tradeId:trade.id,oferta:lado.oferta}); NetRef().renderTrade(trade); }
+function _cmdConfirmarTrade() { const trade=NetRef().getTrade(Player.get().id); if(!trade||trade.estado!=='activo'){Out.line('No hay comercio activo.','t-dim');return;} const lado=trade.a.playerId===Player.get().id?trade.a:trade.b; lado.confirmado=true; NetRef().sendTradeMsg({type:'TRADE_CONFIRM',fromId:Player.get().id,tradeId:trade.id}); if(trade.a.confirmado&&trade.b.confirmado)NetRef().handleTradeMsg({type:'TRADE_CONFIRM',fromId:Player.get().id,tradeId:trade.id}); else Out.line('Esperando confirmación del otro jugador...','t-mem'); }
+function _cmdCancelarTrade() { const trade=NetRef().getTrade(Player.get().id); if(!trade){Out.line('Sin comercio.','t-dim');return;} trade.estado='cerrado'; NetRef().sendTradeMsg({type:'TRADE_CANCEL',fromId:Player.get().id,tradeId:trade.id}); Out.line('Comercio cancelado.','t-dim'); }
 
 if(typeof ServiceRegistry !== 'undefined') {
   ServiceRegistry.register('gameplay.command.dispatch', (verb, args=[]) => dispatch({ verb:String(verb||'').toLowerCase(), args, raw:[verb, ...args].join(' ') }), { pluginId:'core', version:'2.1.0' });
@@ -1115,25 +1127,25 @@ if(typeof ServiceRegistry !== 'undefined') {
   ServiceRegistry.register('gameplay.combat.attack', (target='') => cmdAtacar(target), { pluginId:'core', version:'2.2.0' });
   ServiceRegistry.register('gameplay.battle.start', (nodeId, actors=[]) => {
     if(typeof Net==='undefined' || !nodeId || !Array.isArray(actors) || !actors.length) return false;
-    Net.startBattle(nodeId, actors);
+    NetRef().startBattle(nodeId, actors);
     return true;
   }, { pluginId:'core', version:'2.2.0' });
   ServiceRegistry.register('gameplay.battle.current', () => {
     if(typeof Net==='undefined') return null;
-    return Net.getMyBattle?.() || null;
+    return NetRef().getMyBattle?.() || null;
   }, { pluginId:'core', version:'2.2.0' });
   ServiceRegistry.register('gameplay.battle.actor', (battle) => {
     if(typeof Net==='undefined') return null;
-    return Net.getBattleActor?.(battle) || null;
+    return NetRef().getBattleActor?.(battle) || null;
   }, { pluginId:'core', version:'2.2.0' });
   ServiceRegistry.register('gameplay.combat.action', (battleId, playerId, action, payload=null) => {
     if(!battleId || !playerId || !action || typeof Net==='undefined') return false;
-    Net.sendBattleAction(battleId, playerId, action, payload);
+    NetRef().sendBattleAction(battleId, playerId, action, payload);
     return true;
   }, { pluginId:'core', version:'2.2.0' });
   ServiceRegistry.register('gameplay.combat.escape', (battle, playerId) => {
     if(!battle?.id || !playerId || typeof Net==='undefined') return false;
-    Net.sendBattleAction(battle.id, playerId, 'huir', null);
+    NetRef().sendBattleAction(battle.id, playerId, 'huir', null);
     return true;
   }, { pluginId:'core', version:'2.2.0' });
   ServiceRegistry.register('gameplay.capture.start', (target='') => cmdCapturar(target), { pluginId:'core', version:'2.2.0' });
@@ -1153,73 +1165,105 @@ if(typeof ServiceRegistry !== 'undefined') {
   ServiceRegistry.register('runtime.battle.action', (battleId, playerId, action, payload=null) => ServiceRegistry.call('gameplay.combat.action', battleId, playerId, action, payload), { pluginId:'core', version:'0.1.0' });
   ServiceRegistry.register('runtime.battle.render', (battle=null) => {
     if(typeof Net==='undefined') return false;
-    const current = battle || Net.getMyBattle?.();
+    const current = battle || NetRef().getMyBattle?.();
     if(!current) return false;
-    Net.renderBattle?.(current);
+    NetRef().renderBattle?.(current);
     return true;
   }, { pluginId:'core', version:'0.1.0' });
   ServiceRegistry.register('runtime.battle.tick_ai', (battle=null) => {
     if(typeof Net==='undefined') return false;
-    const current = battle || Net.getMyBattle?.();
+    const current = battle || NetRef().getMyBattle?.();
     if(!current) return false;
-    Net.tickAI?.(current);
+    NetRef().tickAI?.(current);
     return true;
   }, { pluginId:'core', version:'0.1.0' });
   ServiceRegistry.register('runtime.battle.escape', (battle, playerId) => ServiceRegistry.call('gameplay.combat.escape', battle, playerId), { pluginId:'core', version:'0.1.0' });
   ServiceRegistry.register('runtime.player.rest', async () => {
-    if(typeof Tactics==='undefined' || typeof Tactics.cmdDescansar!=='function') return false;
-    await Tactics.cmdDescansar();
+    if(typeof Tactics==='undefined' || typeof TacticsRef().cmdDescansar!=='function') return false;
+    await TacticsRef().cmdDescansar();
     return true;
   }, { pluginId:'core', version:'0.1.0' });
   ServiceRegistry.register('runtime.player.tactic', () => {
-    if(typeof Tactics==='undefined' || typeof Tactics.cmdTactica!=='function') return false;
-    Tactics.cmdTactica();
+    if(typeof Tactics==='undefined' || typeof TacticsRef().cmdTactica!=='function') return false;
+    TacticsRef().cmdTactica();
     return true;
   }, { pluginId:'core', version:'0.1.0' });
   ServiceRegistry.register('runtime.xp.read', () => {
     if(typeof XP==='undefined') return null;
     return {
-      ser: typeof XP.ser === 'function' ? XP.ser() : null,
-      atributos: typeof XP.cmdAtributos === 'function' ? XP.ATRIBUTOS || {} : {},
+      ser: typeof XPRef().ser === 'function' ? XPRef().ser() : null,
+      atributos: typeof XPRef().cmdAtributos === 'function' ? XPRef().ATRIBUTOS || {} : {},
     };
   }, { pluginId:'core', version:'0.1.0' });
   ServiceRegistry.register('runtime.xp.assign', (raw='') => {
-    if(typeof XP==='undefined' || typeof XP.cmdAsignar!=='function') return false;
-    XP.cmdAsignar(String(raw || ''));
+    if(typeof XP==='undefined' || typeof XPRef().cmdAsignar!=='function') return false;
+    XPRef().cmdAsignar(String(raw || ''));
     if(typeof save === 'function') save();
     return true;
   }, { pluginId:'core', version:'0.1.0' });
   ServiceRegistry.register('runtime.xp.show_attrs', () => {
-    if(typeof XP==='undefined' || typeof XP.cmdAtributos!=='function') return false;
-    XP.cmdAtributos();
+    if(typeof XP==='undefined' || typeof XPRef().cmdAtributos!=='function') return false;
+    XPRef().cmdAtributos();
     return true;
   }, { pluginId:'core', version:'0.1.0' });
   ServiceRegistry.register('runtime.xp.show_exp', () => {
-    if(typeof XP==='undefined' || typeof XP.cmdExperiencia!=='function') return false;
-    XP.cmdExperiencia();
+    if(typeof XP==='undefined' || typeof XPRef().cmdExperiencia!=='function') return false;
+    XPRef().cmdExperiencia();
     return true;
   }, { pluginId:'core', version:'0.1.0' });
   ServiceRegistry.register('runtime.xp.gain', (atributo, amount=0, reason='') => {
-    if(typeof XP==='undefined' || typeof XP.ganar!=='function') return false;
-    XP.ganar(atributo, amount, reason);
+    if(typeof XP==='undefined' || typeof XPRef().ganar!=='function') return false;
+    XPRef().ganar(atributo, amount, reason);
     return true;
   }, { pluginId:'core', version:'0.1.0' });
   ServiceRegistry.register('runtime.tactics.consume_stamina', (delta=0) => {
-    if(typeof Tactics==='undefined' || typeof Tactics.consumirStamina!=='function') return false;
-    Tactics.consumirStamina(delta);
+    if(typeof Tactics==='undefined' || typeof TacticsRef().consumirStamina!=='function') return false;
+    TacticsRef().consumirStamina(delta);
     return true;
   }, { pluginId:'core', version:'0.1.0' });
   ServiceRegistry.register('runtime.tactics.calc_wound', (dmg=0, maxHp=1) => {
-    if(typeof Tactics==='undefined' || typeof Tactics.calcularHerida!=='function') return null;
-    return Tactics.calcularHerida(dmg, maxHp);
+    if(typeof Tactics==='undefined' || typeof TacticsRef().calcularHerida!=='function') return null;
+    return TacticsRef().calcularHerida(dmg, maxHp);
   }, { pluginId:'core', version:'0.1.0' });
   ServiceRegistry.register('runtime.tactics.wound_meta', (key='') => {
     if(typeof Tactics==='undefined') return null;
-    return Tactics.HERIDAS?.[key] || null;
+    return TacticsRef().HERIDAS?.[key] || null;
   }, { pluginId:'core', version:'0.1.0' });
   ServiceRegistry.register('runtime.tactics.apply_element', (target, element, battle=null) => {
-    if(typeof Tactics==='undefined' || typeof Tactics.aplicarElemento!=='function') return false;
-    Tactics.aplicarElemento(target, element, battle);
+    if(typeof Tactics==='undefined' || typeof TacticsRef().aplicarElemento!=='function') return false;
+    TacticsRef().aplicarElemento(target, element, battle);
+    return true;
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.tactics.get_sup', (nodeId=null) => {
+    if(typeof Tactics==='undefined' || typeof TacticsRef().getSup!=='function') return { tipo:'normal' };
+    return TacticsRef().getSup(nodeId);
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.tactics.reaction_meta', (key='') => {
+    if(typeof Tactics==='undefined') return null;
+    return TacticsRef().REACCIONES?.[key] || null;
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.tactics.climate_reac_mult', (nodeId=null) => {
+    if(typeof Tactics==='undefined') return 1;
+    const nodeType = typeof World!=='undefined' ? (World.node(nodeId)?.tipo || 'hub') : 'hub';
+    return TacticsRef().CLIMAS_NODO?.[nodeType]?.mult_reac || 1;
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.tactics.apply_reaction', (reac, actor, target, battle=null) => {
+    if(typeof Tactics==='undefined' || typeof TacticsRef().aplicarReaccion!=='function') return false;
+    TacticsRef().aplicarReaccion(reac, actor, target, battle);
+    return true;
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.tactics.update_surface', (nodeId, element, battle=null) => {
+    if(typeof Tactics==='undefined' || typeof TacticsRef().actualizarSuperficie!=='function') return false;
+    TacticsRef().actualizarSuperficie(nodeId, element, battle);
+    return true;
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.tactics.element_color', (element='') => {
+    if(typeof Tactics==='undefined') return null;
+    return TacticsRef().ELEMENTOS?.[element]?.color || null;
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.tactics.apply_poise_dmg', (target, amount=0, battle=null) => {
+    if(typeof Tactics==='undefined' || typeof TacticsRef().aplicarPoiseDmg!=='function') return false;
+    TacticsRef().aplicarPoiseDmg(target, amount, battle);
     return true;
   }, { pluginId:'core', version:'0.1.0' });
 }

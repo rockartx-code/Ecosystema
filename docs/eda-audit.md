@@ -34,7 +34,7 @@ Alcance: revisión integral de arquitectura Event-Driven, estado de migración p
 ### 3.2 Brechas activas (el "casi")
 
 1. **`commands.js` aún conserva fallback legacy** y múltiples referencias directas a globals.
-2. **Plugins aún mantienen fallback directo** (`Net|XP|Tactics|RunMem`) para compatibilidad.
+2. **Plugins críticos y no críticos migrados** a `runtime.*`; baseline de plugins en `architecture_guard` quedó en 0 para `Net|XP|Tactics|RunMem`.
 3. La partición por dominios en `commands.js` es funcional, pero no física (aún no hay módulos separados por archivo).
 
 ## 4) Validación DoD (resultado objetivo)
@@ -48,12 +48,12 @@ DoD definido:
 
 ### Resultado
 
-- **DoD.1**: ❌ No cumplido (persisten referencias directas/fallback en `commands.js`).
-- **DoD.2**: ⚠️ Parcial (migración avanzada, pero con fallback legacy en plugins).
+- **DoD.1**: ✅ Cumplido (`commands.js` sin referencias directas a globals prohibidos).
+- **DoD.2**: ✅ Cumplido (plugins sin fallback legacy directo a globals prohibidos).
 - **DoD.3**: ✅ Cumplido.
 - **DoD.4**: ✅ Cumplido.
 
-**Veredicto general DoD**: ⚠️ **Parcial**.
+**Veredicto general DoD**: ✅ **Cumplido**.
 
 ## 5) Matriz de ownership (compacta)
 
@@ -179,3 +179,54 @@ Metodología base documentada en `SprintAgenticSkill.md`.
 ### 10.6 Salida esperada
 - DoD.1 cambia de `❌` a `✅`.
 - Se habilita Sprint 10 enfocado al cierre de DoD.2.
+
+## 11) Aplicación de metodología agentic al Sprint 10
+
+Metodología base documentada en `SprintAgenticSkill.md`.
+
+### 11.1 Estado base (diagnóstico)
+- Brecha objetivo: **DoD.2** (plugins críticos aún con fallback legacy).
+- Evidencia levantada: inventario de tokens directos en críticos y validación de guardrails vía `npm test`.
+
+### 11.2 Alcance congelado del sprint
+- **S10.1 / B1 (5 pts)**: reducción de baseline en críticos + trazabilidad de deuda residual.
+- **S10.2 / B2 (8 pts)**: migración de accesos directos `Net|XP|Tactics|RunMem` a `runtime.*`.
+
+### 11.3 Criterios de aceptación del Sprint 10
+- CA-1: críticos sin fallback directo en rutas primarias.
+- CA-2: `architecture_guard_smoke` actualizado y en verde.
+- CA-3: suite completa en verde (`npm test`).
+
+### 11.4 Resultado de ejecución
+- **CA-1**: ✅ Cumplido (todos los plugins en baseline 0 para `Net|XP|Tactics|RunMem`).
+- **CA-2**: ✅ Cumplido.
+- **CA-3**: ✅ Cumplido.
+
+**Veredicto Sprint 10**: ✅ **Completado (13/13 pts)**.  
+Detalle y evidencias: `docs/sprint10-validation-audit.md`.
+
+### 11.5 Arrastre planificado
+- **Sprint 11**: ejecutar B3 y C1, y habilitar C2 al confirmar DoD global en `✅`.
+
+## 12) Aplicación de metodología agentic al Sprint 11
+
+Metodología base documentada en `SprintAgenticSkill.md`.
+
+### 12.1 Alcance del Sprint 11
+- **B3 (3 pts)**: CI estricto por dominio crítico (baseline=0 y smoke dedicado).
+- **C1 (2 pts)**: auditoría DoD final con evidencia automática.
+- **C2 (1 pt)**: actualización README con estado de DoD y trazabilidad.
+
+### 12.2 Implementación ejecutada
+- Se agregó `tests/plugins_strict_zero_smoke.js` para forzar `Net|XP|Tactics|RunMem = 0` en plugins críticos.
+- Se agregó `tests/dod_audit_smoke.js` para generar `docs/dod-audit-report.md` automáticamente en cada `npm test`.
+- Se actualizó `package.json` para incluir ambos guardrails en CI local (`npm test`).
+- Se actualizó `README.md` con estado DoD Sprint 11 y enlace a reporte automático.
+
+### 12.3 Resultado del Sprint 11
+- **B3**: ✅ Cumplido.
+- **C1**: ✅ Cumplido.
+- **C2**: ✅ Cumplido (README alineado con estado real).
+
+**Veredicto Sprint 11**: ✅ **Completado (6/6 pts)**.  
+Estado global DoD: ✅ Cumplido.

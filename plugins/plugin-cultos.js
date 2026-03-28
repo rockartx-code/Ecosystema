@@ -5,6 +5,12 @@
 // ════════════════════════════════════════════════════════════════
 
 const pluginCultos = (() => {
+  function _svc(name) {
+    return (typeof ServiceRegistry !== 'undefined' && typeof ServiceRegistry.get === 'function')
+      ? ServiceRegistry.get(name)
+      : null;
+  }
+
   const PLUGIN_ID = 'plugin:cultos';
 
   const CULTOS = {
@@ -317,7 +323,8 @@ const pluginCultos = (() => {
   function _emboscadaHostil(nodeId) {
     const s = _store();
     if(!s.cultoElegido) return;
-    if(Net.getMyBattle?.()) return;
+    const getBattle = _svc('gameplay.battle.current');
+    if(typeof getBattle === 'function' && getBattle()) return;
 
     const p = Player.get();
     const hostiles = GS.allNPCs().filter(npc =>
@@ -340,7 +347,9 @@ const pluginCultos = (() => {
 
     const enemies = hostiles.slice(0, 2).map(npc => _combatienteDesdeNPC(npc, p));
     Out.line('☠ Emboscada de cultistas hostiles: te atacan al verte.', 't-pel', true);
-    Net.startBattle(nodeId, [...allies, ...enemies]);
+    const startBattle = _svc('runtime.battle.start') || _svc('gameplay.battle.start');
+    if(typeof startBattle === 'function') startBattle(nodeId, [...allies, ...enemies]);
+    else Out.line('Servicio runtime.battle.start no disponible para emboscada de cultos.', 't-dim');
   }
 
   function _contarItemsCulto(cultoId) {

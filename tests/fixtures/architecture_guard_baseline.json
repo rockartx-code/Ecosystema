@@ -6,51 +6,5 @@
     "Tactics",
     "RunMem"
   ],
-  "counts": {
-    "plugins/plugin-bosses.js": {
-      "Net": 1,
-      "XP": 3
-    },
-    "plugins/plugin-magias.js": {
-      "Net": 1,
-      "XP": 4,
-      "Tactics": 4
-    },
-    "plugins/plugin-invocaciones.js": {
-      "Net": 1
-    },
-    "plugins/plugin-cultos.js": {
-      "Net": 2
-    },
-    "plugins/plugin-ia-batalla.js": {
-      "Tactics": 13
-    },
-    "plugins/plugin-concentracion.js": {
-      "Net": 2
-    },
-    "plugins/plugin-criaturas.js": {
-      "Net": 2,
-      "XP": 2
-    },
-    "plugins/plugin-transformaciones.js": {
-      "XP": 2
-    },
-    "plugins/plugin-guarida.js": {
-      "RunMem": 7
-    },
-    "plugins/plugin-facciones.js": {
-      "Net": 1
-    },
-    "plugins/plugin-reino-pesadilla.js": {
-      "Net": 5
-    },
-    "plugins/plugin-habilidades.js": {
-      "Net": 1,
-      "XP": 5,
-      "Tactics": 6
-    },
-    "plugins/plugin-sombra-herrante.js": {
-      "RunMem": 1
-    }
-  }
+  "counts": {}
 }

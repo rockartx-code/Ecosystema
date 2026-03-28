@@ -217,7 +217,7 @@ Este pipeline permite que plugins (magias/habilidades/IA/tácticas) cambien reso
 - Alta densidad de lógica en algunos archivos grandes (ej. `commands.js`, `forge.js`).
 - Existencia de archivos legacy/no usados en carga actual (`core/utils.js`).
 - Superposición potencial entre lógica en systems y plugins cuando crece el ecosistema.
-- **Rupturas puntuales del patrón EDA**: comandos y plugins críticos todavía invocan globals (`Net`, `XP`, `Tactics`, `RunMem`) de forma directa en vez de pasar siempre por `EventBus`/`ServiceRegistry`.
+- **Rupturas puntuales del patrón EDA**: deuda técnica remanente concentrada en tamaño/complejidad de `systems/commands.js`, no en acoplamiento legacy crítico.
 
 ### Recomendaciones de evolución
 1. Dividir `commands.js` por dominios (movimiento/combate/narrativa/crafting).
@@ -225,9 +225,10 @@ Este pipeline permite que plugins (magias/habilidades/IA/tácticas) cambien reso
 3. Añadir smoke tests por plugin crítico (actualmente hay smoke general).
 4. Formalizar compatibilidad de plugins por semver + contrato de evento.
 
-**Estado DoD actual (auditoría unificada):** ⚠️ Parcial (2/4 cumplidos, 1 parcial, 1 pendiente).
+**Estado DoD actual (Sprint 11):** ✅ Cumplido (4/4).
 
-> Ver resultados consolidados en `docs/eda-audit.md` (auditoría EDA completa, validación DoD, roadmap y aplicación metodológica del Sprint 9), contrato de eventos en `docs/events.md` y metodología reusable en `SprintAgenticSkill.md`.
+> Evidencia automática actualizada en `docs/dod-audit-report.md` (generada por `npm test` vía `tests/dod_audit_smoke.js`).
+> Ver resultados consolidados en `docs/eda-audit.md`, contrato de eventos en `docs/events.md` y metodología reusable en `SprintAgenticSkill.md`.
 
 ---
 
@@ -237,12 +238,14 @@ Este pipeline permite que plugins (magias/habilidades/IA/tácticas) cambien reso
   - `tests/runtime_smoke.js`
   - `tests/autocomplete_precedence_smoke.js`
   - `tests/plugins_critical_smoke.js`
+  - `tests/plugins_strict_zero_smoke.js`
   - `tests/plugins_battle_services_smoke.js`
   - `tests/plugins_memory_services_smoke.js`
   - `tests/runtime_memory_services_smoke.js`
   - `tests/architecture_guard_smoke.js`
   - `tests/events_contract_smoke.js`
   - `tests/ownership_matrix_smoke.js`
+  - `tests/dod_audit_smoke.js` (genera `docs/dod-audit-report.md`)
 - Existe adicionalmente `tests/e2e_8runs_smoke.js` para corridas prolongadas.
 
 ---

@@ -95,7 +95,7 @@ function _interiorizarEnBatalla(payload) {
 
   battle._txInteriorizados[enemy.id] = true;
   battleLog(battle, `🜂 Interiorizas a ${enemy.name}. +1 punto de transformación [${tipo.label}] (total: ${tx.puntos[tipo.key]}).`, 't-mag');
-  if(typeof XP !== 'undefined') XP.ganar('mente', 10, `interiorizar ${tipo.label}`);
+  _xpGanar('mente', 10, `interiorizar ${tipo.label}`);
   save();
 
   return { handled:true, consumeTurn:true };
@@ -155,10 +155,22 @@ function _transformarEnBatalla(payload) {
     battleLog(battle, '⚠ La transformación intenta romper equipo, pero no llevas nada equipado.', 't-dim');
   }
 
-  if(typeof XP !== 'undefined') XP.ganar('combate', Math.ceil(dmg / 2), 'transformación');
+  _xpGanar('combate', Math.ceil(dmg / 2), 'transformación');
   save();
 
   return { handled:true, consumeTurn:true };
+}
+
+function _svc(name) {
+  return (typeof ServiceRegistry !== 'undefined' && typeof ServiceRegistry.get === 'function')
+    ? ServiceRegistry.get(name)
+    : null;
+}
+
+function _xpGanar(attr, amount, reason) {
+  const gain = _svc('runtime.xp.gain');
+  if(typeof gain === 'function') return !!gain(attr, amount, reason);
+  return false;
 }
 
 const pluginTransformaciones = {

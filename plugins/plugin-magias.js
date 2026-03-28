@@ -37,19 +37,17 @@ function _svc(name) {
 function _xpGanar(attr, amount, reason) {
   const gain = _svc('runtime.xp.gain');
   if(typeof gain === 'function') return !!gain(attr, amount, reason);
-  if(typeof XP !== 'undefined' && typeof XP.ganar === 'function') { XP.ganar(attr, amount, reason); return true; }
   return false;
 }
 function _tactApplyElement(target, element, battle) {
   const fn = _svc('runtime.tactics.apply_element');
   if(typeof fn === 'function') return !!fn(target, element, battle);
-  if(typeof Tactics !== 'undefined' && typeof Tactics.aplicarElemento === 'function') { Tactics.aplicarElemento(target, element, battle); return true; }
   return false;
 }
 function _tactWoundMeta(key) {
   const meta = _svc('runtime.tactics.wound_meta');
   if(typeof meta === 'function') return meta(key);
-  return typeof Tactics !== 'undefined' ? Tactics.HERIDAS?.[key] : null;
+  return null;
 }
 
 // ── Asignar magias a un enemigo ───────────────────────────────────
@@ -324,7 +322,7 @@ function _aplicarDanoJugadorMag(target, dmg, battle) {
 function cmdCanalizar(args) {
   const q      = args.join(' ').trim().toLowerCase();
   const battleSvc = (typeof ServiceRegistry!=='undefined' && ServiceRegistry.get) ? ServiceRegistry.get('gameplay.battle.current') : null;
-  const battle = battleSvc ? battleSvc() : (typeof Net!=='undefined' ? Net.getMyBattle?.() : null);
+  const battle = battleSvc ? battleSvc() : null;
 
   if(!battle||battle.estado!=='activo') {
     Out.line('Solo puedes canalizar durante una batalla activa.','t-dim'); return;

@@ -32,6 +32,54 @@ function _defaultProfile() {
   };
 }
 
+
+function _svc(name) {
+  return (typeof ServiceRegistry !== 'undefined' && typeof ServiceRegistry.get === 'function')
+    ? ServiceRegistry.get(name)
+    : null;
+}
+
+function _tacticsGetSup(nodeId) {
+  const fn = _svc('runtime.tactics.get_sup');
+  return typeof fn === 'function' ? (fn(nodeId) || { tipo:'normal' }) : { tipo:'normal' };
+}
+function _tacticsReaction(reacKey) {
+  const fn = _svc('runtime.tactics.reaction_meta');
+  return typeof fn === 'function' ? fn(reacKey) : null;
+}
+function _tacticsReacClimateMult(nodeId) {
+  const fn = _svc('runtime.tactics.climate_reac_mult');
+  return typeof fn === 'function' ? fn(nodeId) : 1;
+}
+function _tacticsApplyReaction(reac, actor, target, battle) {
+  const fn = _svc('runtime.tactics.apply_reaction');
+  if(typeof fn === 'function') fn(reac, actor, target, battle);
+}
+function _tacticsApplyElement(target, element, battle) {
+  const fn = _svc('runtime.tactics.apply_element');
+  if(typeof fn === 'function') fn(target, element, battle);
+}
+function _tacticsUpdateSurface(nodeId, element, battle) {
+  const fn = _svc('runtime.tactics.update_surface');
+  if(typeof fn === 'function') fn(nodeId, element, battle);
+}
+function _tacticsElementColor(element) {
+  const fn = _svc('runtime.tactics.element_color');
+  return typeof fn === 'function' ? fn(element) : null;
+}
+function _tacticsApplyPoiseDmg(target, amount, battle) {
+  const fn = _svc('runtime.tactics.apply_poise_dmg');
+  if(typeof fn === 'function') fn(target, amount, battle);
+}
+function _tacticsCalcWound(dmg, maxHp) {
+  const fn = _svc('runtime.tactics.calc_wound');
+  return typeof fn === 'function' ? fn(dmg, maxHp) : null;
+}
+function _tacticsWoundMeta(key) {
+  const fn = _svc('runtime.tactics.wound_meta');
+  return typeof fn === 'function' ? fn(key) : null;
+}
+
 // ── Asignar perfil según actor ────────────────────────────────────
 function _asignarPerfil(actor) {
   const n    = (actor.name||'').toLowerCase();
@@ -228,7 +276,7 @@ function _ataqueFisico(actor, target, battle) {
   if(!target) { battleLog(battle, `${actor.name} espera.`, 't-dim'); return; }
 
   // Niebla
-  const sup = typeof Tactics!=='undefined' ? Tactics.getSup(battle.nodeId) : { tipo:'normal' };
+  const sup = _tacticsGetSup(battle.nodeId);
   if(sup.tipo==='niebla' && Math.random()<0.30) {
     battleLog(battle, `  🌫 Niebla: ataque de ${actor.name} falla!`, 't-dim');
     return;
@@ -245,11 +293,11 @@ function _ataqueFisico(actor, target, battle) {
   const elemento = _inferirElementoAI(actor);
   let dmg, reac = null;
 
-  if(elemento && typeof Tactics!=='undefined') {
+  if(elemento) {
     const reacKey = target.elemento_estado ? `${target.elemento_estado}+${elemento}` : null;
-    reac = reacKey ? Tactics.REACCIONES[reacKey] : null;
+    reac = reacKey ? _tacticsReaction(reacKey) : null;
     const base    = Math.max(1, (actor.atk||4) + U.rand(0,3) - (target.poise_roto?0:(target.defendiendo?Math.ceil((target.def||0)/2):target.def||0)));
-    const multReac= reac ? reac.mult*(Tactics.CLIMAS_NODO[typeof World!=='undefined'?World.node(battle.nodeId)?.tipo||'hub':'hub']?.mult_reac||1) : 1;
+    const multReac= reac ? reac.mult * _tacticsReacClimateMult(battle.nodeId) : 1;
     dmg = Math.max(1, Math.floor(base*multReac*(target.poise_roto?1.5:1)));
     const beforeApply = EventBus.emit('combat:before_damage_apply', {
       battle, actor, target, dmg,
@@ -263,14 +311,14 @@ function _ataqueFisico(actor, target, battle) {
     let log = `${actor.name} → ${target.name} [${elemento}] −${dmg}HP`;
     if(reac) {
       log += `  ⚗${reac.nombre}!`;
-      Tactics.aplicarReaccion(reac, actor, target, battle);
+      _tacticsApplyReaction(reac, actor, target, battle);
       battleLog(battle, log, 't-cor');
     } else {
-      Tactics.aplicarElemento(target, elemento, battle);
-      Tactics.actualizarSuperficie(battle.nodeId, elemento, battle);
-      battleLog(battle, log, Tactics.ELEMENTOS[elemento]?.color||'t-pel');
+      _tacticsApplyElement(target, elemento, battle);
+      _tacticsUpdateSurface(battle.nodeId, elemento, battle);
+      battleLog(battle, log, _tacticsElementColor(elemento)||'t-pel');
     }
-    Tactics.aplicarPoiseDmg(target, Math.floor(dmg*0.35), battle);
+    _tacticsApplyPoiseDmg(target, Math.floor(dmg*0.35), battle);
   } else {
     // Físico puro
     const critMult = target.poise_roto ? 1.5 : 1.0;
@@ -287,19 +335,20 @@ function _ataqueFisico(actor, target, battle) {
     target.hp = Math.max(0, target.hp - dmg);
     const critTag = critMult>1 ? ' ⚡CRÍTICO' : '';
     battleLog(battle, `${actor.name} → ${target.name}  −${dmg}HP${critTag}  (${target.hp}/${target.maxHp})`, 't-pel');
-    if(typeof Tactics!=='undefined') Tactics.aplicarPoiseDmg(target, Math.floor(dmg*0.4), battle);
+    _tacticsApplyPoiseDmg(target, Math.floor(dmg*0.4), battle);
   }
 
   // Herida si es el jugador local
   if(target.tipo==='player' && target.playerId===p.id) {
     p.hp = target.hp;
-    if(typeof Tactics!=='undefined') {
-      const herida = Tactics.calcularHerida(dmg, target.maxHp);
+    {
+      const herida = _tacticsCalcWound(dmg, target.maxHp);
       if(herida) {
         p.heridas = p.heridas||[];
         if(!p.heridas.includes(herida)) {
           p.heridas.push(herida);
-          battleLog(battle, `  ${Tactics.HERIDAS[herida]?.icon||'⚠'} ¡${herida}! ${Tactics.HERIDAS[herida]?.desc||''}`, Tactics.HERIDAS[herida]?.color||'t-pel');
+          const meta = _tacticsWoundMeta(herida);
+          battleLog(battle, `  ${meta?.icon||'⚠'} ¡${herida}! ${meta?.desc||''}`, meta?.color||'t-pel');
         }
       }
     }

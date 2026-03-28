@@ -32,9 +32,7 @@ const SombraHerrante = (() => {
       const runs = getRuns() || [];
       return runs.length ? runs[runs.length - 1] : null;
     }
-    if(typeof RunMem === 'undefined') return null;
-    const runs = RunMem.runs?.() || [];
-    return runs.length ? runs[runs.length - 1] : null;
+    return null;
   }
 
   function _findSombra() {

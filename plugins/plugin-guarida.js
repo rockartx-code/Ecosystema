@@ -23,16 +23,12 @@ const pluginGuarida = (() => {
       setData(data);
       return data.refugio_cofre;
     }
-    if(typeof RunMem === 'undefined') return [];
-    RunMem.data = RunMem.data || {};
-    if(!Array.isArray(RunMem.data.refugio_cofre)) RunMem.data.refugio_cofre = [];
-    return RunMem.data.refugio_cofre;
+    return [];
   }
 
   function _saveChest() {
     const saveMem = _svc('runtime.memory.save');
     if(typeof saveMem === 'function') { saveMem(); return; }
-    if(typeof RunMem !== 'undefined' && typeof RunMem.save === 'function') RunMem.save();
   }
 
   function _inRefuge() {

@@ -131,9 +131,9 @@ const BossSystem = (() => {
       { tipo:'enemy', id:boss.id, name:def.nombre, hp:boss.hp_actual, maxHp:def.hp, atk:def.atk, def:def.def, vivo:true, nodeId:Player.pos(), tags:def.tags, poise_max:def.poise_max, poise:def.poise_max, es_boss:true, boss_ref:boss, color:def.color, ataques_especiales:[...def.ataques_especiales] },
     ];
     boss.en_combate = true;
-    const startBattleSvc = (typeof ServiceRegistry!=='undefined' && ServiceRegistry.get) ? ServiceRegistry.get('gameplay.battle.start') : null;
+    const startBattleSvc = _svc('runtime.battle.start') || _svc('gameplay.battle.start');
     if(startBattleSvc) startBattleSvc(Player.pos(), combatants);
-    else if(typeof Net !== 'undefined') Net.startBattle(Player.pos(), combatants);
+    else Out.line('Servicio runtime.battle.start no disponible para boss.', def.color);
     EventBus.once('combat:enemy_defeat', ({ enemy }) => { if(enemy.es_boss && enemy.id === boss.id) _onBossDefeated(boss); }, 'boss_defeat_'+boss.id);
   }
 
@@ -146,10 +146,11 @@ const BossSystem = (() => {
     Out.line(`"${def.titulo}" ya no acecha el mundo.`, 't-dim');
     Out.sep('─');
 
-    if(typeof XP !== 'undefined') {
-      XP.ganar('combate',    Math.floor(def.xp_base*0.5),  `boss: ${def.nombre}`);
-      XP.ganar('exploración',Math.floor(def.xp_base*0.25), `boss: ${def.nombre}`);
-      XP.ganar('narrativa',  Math.floor(def.xp_base*0.25), `boss: ${def.nombre}`);
+    const gainXp = _svc('runtime.xp.gain');
+    if(typeof gainXp === 'function') {
+      gainXp('combate',    Math.floor(def.xp_base*0.5),  `boss: ${def.nombre}`);
+      gainXp('exploración',Math.floor(def.xp_base*0.25), `boss: ${def.nombre}`);
+      gainXp('narrativa',  Math.floor(def.xp_base*0.25), `boss: ${def.nombre}`);
       Out.line(`⬆ +${def.xp_base} XP distribuida.`, 't-mem', true);
     }
 
