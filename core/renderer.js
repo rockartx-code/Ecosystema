@@ -22,6 +22,54 @@ const Renderer = (() => {
 
   // ── Referencias al DOM ────────────────────────────────────────
   const _out = () => document.getElementById('out');
+  const _sbar = () => document.getElementById('sbar');
+
+  const STATUS_SLOTS = [
+    { id:'hp',  label:'HP',   cls:'st hp' },
+    { id:'hun', label:'HAM',  cls:'st' },
+    { id:'sta', label:'STA',  cls:'st' },
+    { id:'mna', label:'MAG',  cls:'st' },
+    { id:'loc', label:'NODO', cls:'st loc' },
+    { id:'cyc', label:'CICLO',cls:'st cyc' },
+    { id:'inv', label:'INV',  cls:'st' },
+    { id:'hab', label:'HAB',  cls:'st' },
+    { id:'mag', label:'MAG',  cls:'st' },
+    { id:'comp',label:'COMP', cls:'st' },
+    { id:'npc', label:'NPCs', cls:'st npc' },
+    { id:'mis', label:'MIS',  cls:'st mis' },
+    { id:'run', label:'RUN',  cls:'st run' },
+    { id:'mod', label:'MOD',  cls:'st' },
+    { id:'p2p', label:'NET',  cls:'st', wrapId:'s-p2p-wrap', hidden:true, spanClass:'t-cra' },
+  ];
+
+  function _mountStatusBar() {
+    const sbar = _sbar();
+    if(!sbar) return;
+    sbar.innerHTML = '';
+
+    for(const slot of STATUS_SLOTS) {
+      const wrap = document.createElement('div');
+      wrap.className = slot.cls;
+      if(slot.wrapId) wrap.id = slot.wrapId;
+      if(slot.hidden) wrap.style.display = 'none';
+
+      const label = document.createTextNode(`${slot.label} `);
+      const span = document.createElement('span');
+      span.id = `s-${slot.id}`;
+      span.textContent = '—';
+      if(slot.spanClass) span.className = slot.spanClass;
+
+      wrap.appendChild(label);
+      wrap.appendChild(span);
+      sbar.appendChild(wrap);
+    }
+
+    const pluginStats = document.createElement('div');
+    pluginStats.id = 'plugin-stats';
+    const modWrap = document.getElementById('s-mod')?.closest('.st');
+    if(modWrap?.parentElement === sbar) sbar.insertBefore(pluginStats, modWrap);
+    else sbar.appendChild(pluginStats);
+  }
 
   // ── Helpers internos ──────────────────────────────────────────
   function _append(el) {
@@ -104,6 +152,13 @@ const Renderer = (() => {
   // output:status — actualizar slots de la barra de estado
   EventBus.on('output:status', ({ slots }) => {
     for(const [id, val] of Object.entries(slots)) {
+      const wrapEl = document.getElementById(`s-${id}-wrap`);
+      if(val === null) {
+        if(wrapEl) wrapEl.style.display = 'none';
+        continue;
+      }
+      if(wrapEl) wrapEl.style.display = '';
+
       const el = document.getElementById('s-' + id);
       if(!el) continue;
       if(typeof val === 'string') {
@@ -147,6 +202,8 @@ const Renderer = (() => {
     bootEl.style.opacity = '0';
     return new Promise(r => setTimeout(() => { bootEl.remove(); r(); }, 350));
   }
+
+  _mountStatusBar();
 
   return { setHeader, hideBoot };
 })();
