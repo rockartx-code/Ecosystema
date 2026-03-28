@@ -33,6 +33,7 @@ const AC = (() => {
       priority: Number(def.priority ?? 50),
       provide: def.provide,
       pluginId: def.pluginId || 'externo',
+      layer: def.layer === 'base' ? 'base' : 'provider',
     });
     providers.sort((a,b)=>a.priority-b.priority);
     return true;
@@ -45,12 +46,106 @@ const AC = (() => {
       if(!okTrigger) continue;
       try {
         const res = p.provide(ctx) || [];
-        (Array.isArray(res)?res:[res]).forEach(i => i && out.push(i));
+        (Array.isArray(res)?res:[res]).forEach(i => i && out.push({ ...i, _acLayer:p.layer }));
       } catch(e) {
         console.warn(`[AC] provider ${p.id} falló:`, e);
       }
     }
     return out;
+  }
+
+  function registerCoreProviders() {
+    const registerBase = (id, triggers, provide) => registerProvider({
+      id: `core.autocomplete.${id}`,
+      triggers,
+      priority: 20,
+      pluginId: 'core',
+      layer: 'base',
+      provide,
+    });
+
+    registerBase('movimiento', ['ir', 'go'], () => getSalidas());
+    registerBase('npcs', ['hablar', 'observar', 'traicionar'], () => getNPCsAqui());
+    registerProvider({
+      id: 'core.autocomplete.preguntar',
+      triggers: ['preguntar'],
+      priority: 20,
+      pluginId: 'core',
+      layer: 'base',
+      provide(ctx = {}) {
+        const args = Array.isArray(ctx.args) ? ctx.args : [];
+        const nargs = Number.isFinite(ctx.nargs) ? ctx.nargs : args.length;
+        const endsSpace = !!ctx.endsSpace;
+        if(nargs <= 1 || (!endsSpace && nargs === 1)) return getNPCsAqui();
+        return _cfg('cli_autocomplete.temas_preguntar', ['deseo', 'miedo', 'secreto', 'pasado', 'anterior', 'vínculo'])
+          .map(t => ({ label: t, value: t, hint: 'tema', color: 't-dim', group: 'tema' }));
+      },
+    });
+    registerProvider({
+      id: 'core.autocomplete.atacar',
+      triggers: ['atacar'],
+      priority: 20,
+      pluginId: 'core',
+      layer: 'base',
+      provide() {
+        return [...getNPCsAqui(), ...getEnemigosNodo(), ...getCriaturasNodo()];
+      },
+    });
+    registerProvider({
+      id: 'core.autocomplete.examinar',
+      triggers: ['examinar', 'ex'],
+      priority: 20,
+      pluginId: 'core',
+      layer: 'base',
+      provide() {
+        return [...getInventario(), ...getHabilidades(), ...getMagias(), ...getCompañeros(), ...getNPCsAqui()];
+      },
+    });
+    registerBase('capturar', ['capturar'], () => getCriaturasNodo());
+    registerBase('vincular', ['vincular'], () => getAnclas());
+    registerBase('suelo', ['recoger', 'tomar'], () => getSuelo());
+    registerBase('inventario', ['soltar', 'drop'], () => getInventario());
+    registerBase('equipar', ['equipar'], () => getEquipables());
+    registerBase('usar', ['usar'], () => getUsables());
+    registerBase('forjar', ['forjar'], (ctx={}) => getMaterialesInv(ctx.yaEscritos || []));
+    registerBase('encarnar', ['encarnar'], (ctx={}) => getMaterialesModo('corporal', ctx.yaEscritos || []));
+    registerBase('conjurar', ['conjurar'], (ctx={}) => getMaterialesModo('mágico', ctx.yaEscritos || []));
+    registerBase('fusionar', ['fusionar'], (ctx={}) => {
+      const usedSet = new Set(ctx.yaEscritos || []);
+      return [
+        ...getInventario(i => !usedSet.has((i.nombre || i.blueprint || '').toLowerCase().replace(/\s+/g, '_'))),
+        ...getHabilidades().filter(h => !usedSet.has(h.value)),
+        ...getMagias().filter(m => !usedSet.has(m.value)),
+      ];
+    });
+    registerBase('lanzar', ['lanzar'], () => getMagias(true));
+    registerBase('recargar', ['recargar'], (ctx={}) => {
+      const nargs = Number.isFinite(ctx.nargs) ? ctx.nargs : (ctx.args || []).length;
+      const endsSpace = !!ctx.endsSpace;
+      if(nargs <= 1 || (!endsSpace && nargs === 1)) return getMagias();
+      return getMatRecarga();
+    });
+    registerBase('companeros', ['liberar', 'nombrar'], () => getCompañeros());
+    registerBase('modo', ['modo'], (ctx={}) => {
+      const nargs = Number.isFinite(ctx.nargs) ? ctx.nargs : (ctx.args || []).length;
+      const endsSpace = !!ctx.endsSpace;
+      if(nargs <= 1 || (!endsSpace && nargs === 1)) return getCompañeros();
+      return MODOS.map(m => ({ label: m, value: m, hint: 'modo de IA', color: 't-cri', group: 'modo' }));
+    });
+    registerBase('criar', ['criar'], (ctx={}) => {
+      const ya = new Set(ctx.yaEscritos || []);
+      return getCompañeros(c => c.afinidad >= 60 && !ya.has(c.nombre.split('-')[0].toLowerCase()));
+    });
+    registerBase('misiones_aceptar', ['aceptar'], () => getMisiones(false).filter(m => !GS.mision(m.value)?.aceptada));
+    registerBase('misiones_rechazar', ['rechazar'], () => getMisiones(false));
+    registerBase('misiones_completar', ['completar'], () => getMisiones(true));
+    registerBase('ayuda', ['ayuda', 'help', '?'], () => getTemasAyuda());
+    registerBase('plugins', ['descargar_plugin'], () => getPlugins());
+    registerBase('nombre', ['nombre'], () => [{ label: Player.get().name, value: Player.get().name.replace(/\s+/g, '_'), hint: 'nombre actual', color: 't-npc', group: 'nombre' }]);
+    registerBase('asignar', ['asignar', 'assign'], () => {
+      if(typeof XP === 'undefined') return [];
+      return Object.entries(XP.ATRIBUTOS || {}).map(([k, def]) => ({ label: k, value: k, hint: def.desc, color: def.color, group: 'atributo' }));
+    });
   }
 
   function getVerbs() {
@@ -140,8 +235,46 @@ const AC = (() => {
       return Array.isArray(v) ? v : fallback;
     } catch { return fallback; }
   }
+  function _cfgScalar(path, fallback) {
+    try {
+      const v = ModuleLoader?.get?.(path);
+      return v == null ? fallback : v;
+    } catch { return fallback; }
+  }
   const TAGS_ENCARNAR = _cfg('cli_autocomplete.tags_encarnar', ['tendón', 'nervio', 'hueso', 'sangre', 'tejido', 'médula']);
   const TAGS_CONJURAR = _cfg('cli_autocomplete.tags_conjurar', ['resonante', 'corrupto', 'cristal', 'susurro', 'llama', 'vacío']);
+  const PRECEDENCE_DEFAULT = String(_cfgScalar('cli_autocomplete.precedence', 'base_first'));
+
+  function getPrecedencePolicy() {
+    const raw = String(_cfgScalar('cli_autocomplete.precedence', PRECEDENCE_DEFAULT)).trim().toLowerCase();
+    if(['providers_first', 'base_first', 'providers_only', 'base_only'].includes(raw)) return raw;
+    return 'base_first';
+  }
+
+  function mergeSuggestions(baseList, providerList, policy) {
+    if(policy === 'providers_only') return providerList;
+    if(policy === 'base_only') return baseList;
+    if(!baseList.length) return providerList;
+    if(!providerList.length) return baseList;
+
+    // Merge evitando duplicados por value/label.
+    const seen = new Set();
+    const merged = [];
+    const pushUnique = (item) => {
+      if(!item) return;
+      const k = `${_normToken(item.value || item.label)}::${item.group || ''}`;
+      if(seen.has(k)) return;
+      seen.add(k);
+      const { _acLayer, ...clean } = item;
+      merged.push(clean);
+    };
+
+    const first = policy === 'providers_first' ? providerList : baseList;
+    const second = policy === 'providers_first' ? baseList : providerList;
+    first.forEach(pushUnique);
+    second.forEach(pushUnique);
+    return merged;
+  }
 
   function getMaterialesModo(modo, yaEscritos) {
     const tagsObjetivo = modo === 'corporal' ? TAGS_ENCARNAR : TAGS_CONJURAR;
@@ -297,77 +430,24 @@ const AC = (() => {
 
     const yaEscritos = endsSpace ? args : args.slice(0, -1);
 
-    let result = null;
-    switch(verb) {
-      case 'ir': case 'go': return { list: getSalidas() };
-      case 'hablar': case 'observar': case 'traicionar': return { list: getNPCsAqui() };
-      case 'preguntar':
-        if(nargs <= 1 || (!endsSpace && nargs === 1)) return { list: getNPCsAqui() };
-        return { list: _cfg('cli_autocomplete.temas_preguntar', ['deseo', 'miedo', 'secreto', 'pasado', 'anterior', 'vínculo']).map(t => ({ label: t, value: t, hint: 'tema', color: 't-dim', group: 'tema' })) };
-      case 'atacar': return { list: [...getNPCsAqui(), ...getEnemigosNodo(), ...getCriaturasNodo()] };
-      case 'capturar': return { list: getCriaturasNodo() };
-      case 'vincular': return { list: getAnclas() };
-      case 'recoger': case 'tomar': return { list: getSuelo() };
-      case 'soltar': case 'drop': return { list: getInventario() };
-      case 'equipar': return { list: getEquipables() };
-      case 'usar': return { list: getUsables() };
-      case 'examinar': case 'ex': return { list: [...getInventario(), ...getHabilidades(), ...getMagias(), ...getCompañeros(), ...getNPCsAqui()] };
-      case 'forjar': return { list: getMaterialesInv(yaEscritos) };
-      case 'encarnar': return { list: getMaterialesModo('corporal', yaEscritos) };
-      case 'conjurar': return { list: getMaterialesModo('mágico', yaEscritos) };
-      case 'fusionar': {
-        const usedSet = new Set(yaEscritos);
-        return { list: [...getInventario(i => !usedSet.has((i.nombre || i.blueprint || '').toLowerCase().replace(/\s+/g, '_'))), ...getHabilidades().filter(h => !usedSet.has(h.value)), ...getMagias().filter(m => !usedSet.has(m.value))] };
-      }
-      case 'lanzar': return { list: getMagias(true) };
-      case 'recargar':
-        if(nargs <= 1 || (!endsSpace && nargs === 1)) return { list: getMagias() };
-        return { list: getMatRecarga() };
-      case 'liberar': case 'nombrar': return { list: getCompañeros() };
-      case 'modo':
-        if(nargs <= 1 || (!endsSpace && nargs === 1)) return { list: getCompañeros() };
-        return { list: MODOS.map(m => ({ label: m, value: m, hint: 'modo de IA', color: 't-cri', group: 'modo' })) };
-      case 'criar': {
-        const ya = new Set(yaEscritos);
-        return { list: getCompañeros(c => c.afinidad >= 60 && !ya.has(c.nombre.split('-')[0].toLowerCase())) };
-      }
-      case 'aceptar': return { list: getMisiones(false).filter(m => !GS.mision(m.value)?.aceptada) };
-      case 'rechazar': return { list: getMisiones(false) };
-      case 'completar': return { list: getMisiones(true) };
-      case 'ayuda': case 'help': case '?': return { list: getTemasAyuda() };
-      case 'descargar_plugin': return { list: getPlugins() };
-      case 'nombre':
-        return { list: [{ label: Player.get().name, value: Player.get().name.replace(/\s+/g, '_'), hint: 'nombre actual', color: 't-npc', group: 'nombre' }] };
-      case 'asignar': case 'assign':
-        if(typeof XP === 'undefined') return { list: [] };
-        return { list: Object.entries(XP.ATRIBUTOS || {}).map(([k, def]) => ({ label: k, value: k, hint: def.desc, color: def.color, group: 'atributo' })) };
-      default: result = { list: [] };
-    }
+    const result = { list: [] };
     const fromProviders = requestProviders({
       verb, args, partial,
+      nargs,
+      endsSpace,
+      yaEscritos,
+      precedence: getPrecedencePolicy(),
       mode: (typeof Net!=='undefined' && Net.getMyBattle?.()) ? 'battle' : 'world',
       player: _safe(()=>Player.get(), null),
       nodeId: _safe(()=>Player.pos(), null),
     });
 
-    const baseList = (result && Array.isArray(result.list)) ? result.list : [];
-    if(!baseList.length) return { list: fromProviders };
-    if(!fromProviders.length) return result;
-
-    // Merge base + providers evitando duplicados por value/label.
-    const seen = new Set();
-    const merged = [];
-    const pushUnique = (item) => {
-      if(!item) return;
-      const k = `${_normToken(item.value || item.label)}::${item.group || ''}`;
-      if(seen.has(k)) return;
-      seen.add(k);
-      merged.push(item);
-    };
-
-    baseList.forEach(pushUnique);
-    fromProviders.forEach(pushUnique);
-    return { list: merged };
+    const legacyBaseList = (result && Array.isArray(result.list)) ? result.list : [];
+    const baseProviderList = fromProviders.filter(i => i?._acLayer === 'base');
+    const pluginProviderList = fromProviders.filter(i => i?._acLayer !== 'base');
+    const baseList = [...legacyBaseList, ...baseProviderList];
+    const policy = getPrecedencePolicy();
+    return { list: mergeSuggestions(baseList, pluginProviderList, policy) };
   }
 
   function filter(list, partial) {
@@ -458,11 +538,13 @@ const AC = (() => {
     render(endsWithSpace ? list : filter(list, lastArg));
   }
 
+  registerCoreProviders();
+
   return {
     hide,
     update,
     registerProvider,
-    providers: () => providers.map(p=>({ id:p.id, triggers:[...p.triggers], priority:p.priority, pluginId:p.pluginId })),
+    providers: () => providers.map(p=>({ id:p.id, triggers:[...p.triggers], priority:p.priority, pluginId:p.pluginId, layer:p.layer })),
     moveDown() { if(!items.length) return false; setSel(sel < 0 ? 0 : sel + 1); return true; },
     moveUp() { if(!items.length) return false; setSel(sel <= 0 ? 0 : sel - 1); return true; },
     accept() {

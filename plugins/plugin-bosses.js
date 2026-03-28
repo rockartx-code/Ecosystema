@@ -131,7 +131,9 @@ const BossSystem = (() => {
       { tipo:'enemy', id:boss.id, name:def.nombre, hp:boss.hp_actual, maxHp:def.hp, atk:def.atk, def:def.def, vivo:true, nodeId:Player.pos(), tags:def.tags, poise_max:def.poise_max, poise:def.poise_max, es_boss:true, boss_ref:boss, color:def.color, ataques_especiales:[...def.ataques_especiales] },
     ];
     boss.en_combate = true;
-    if(typeof Net !== 'undefined') Net.startBattle(Player.pos(), combatants);
+    const startBattleSvc = (typeof ServiceRegistry!=='undefined' && ServiceRegistry.get) ? ServiceRegistry.get('gameplay.battle.start') : null;
+    if(startBattleSvc) startBattleSvc(Player.pos(), combatants);
+    else if(typeof Net !== 'undefined') Net.startBattle(Player.pos(), combatants);
     EventBus.once('combat:enemy_defeat', ({ enemy }) => { if(enemy.es_boss && enemy.id === boss.id) _onBossDefeated(boss); }, 'boss_defeat_'+boss.id);
   }
 

@@ -3,7 +3,8 @@
   "private": true,
   "version": "0.0.0",
   "scripts": {
-    "test": "node tests/runtime_smoke.js",
-    "test:runtime": "node tests/runtime_smoke.js"
+    "test": "node tests/runtime_smoke.js && node tests/autocomplete_precedence_smoke.js",
+    "test:runtime": "node tests/runtime_smoke.js",
+    "test:autocomplete": "node tests/autocomplete_precedence_smoke.js"
   }
 }
