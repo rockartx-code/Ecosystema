@@ -807,12 +807,12 @@ Este es el orden correcto en `index.html`. No reordenar.
 <script type="module" src="systems/run-memory.js"></script>
 <script type="module" src="systems/forge.js"></script>
 <script type="module" src="systems/npc-engine.js"></script>
-<script type="module" src="systems/arc-engine.js"></script>
-<script type="module" src="systems/tactics.js"></script>
+<script type="module" src="systems/arc-engine/logic.js"></script>
+<script type="module" src="systems/tactics/logic.js"></script>
 <script type="module" src="systems/item-system.js"></script>
-<script type="module" src="systems/xp.js"></script>
-<script type="module" src="systems/world-ai.js"></script>
-<script type="module" src="systems/net.js"></script>
+<script type="module" src="systems/xp/logic.js"></script>
+<script type="module" src="systems/world-ai/logic.js"></script>
+<script type="module" src="systems/net/logic.js"></script>
 <script type="module" src="systems/save-load.js"></script>
 <script type="module" src="systems/commands.js"></script>
 

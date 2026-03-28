@@ -1118,7 +1118,329 @@
     "npc_desesperacion_tick_max": 5,
     "npc_corrupcion_tick_chance": 0.07,
     "npc_corrupcion_tick_max": 3,
-    "npc_quiebre_chance": 0.15
+    "npc_quiebre_chance": 0.15,
+    "habilidades_enemigo_pool": {
+      "basico": [
+        {
+          "id": "golpe_cargado",
+          "nombre": "Golpe Cargado",
+          "efecto": "atk_mult",
+          "valor": 2.0,
+          "desc": "Multiplicador de ATK.",
+          "evolucion_umbral": 10
+        },
+        {
+          "id": "piel_dura",
+          "nombre": "Piel Dura",
+          "efecto": "def_pasiva",
+          "valor": 3,
+          "desc": "DEF +3 temporal.",
+          "evolucion_umbral": 8
+        },
+        {
+          "id": "impulso_antiguo",
+          "nombre": "Impulso Antiguo",
+          "efecto": "atk_bonus",
+          "valor": 4,
+          "desc": "ATK +4 bonus.",
+          "evolucion_umbral": 12
+        }
+      ],
+      "medio_extra": [
+        {
+          "id": "furia_corrupta",
+          "nombre": "Furia Corrupta",
+          "efecto": "atk_drain",
+          "valor": 1.8,
+          "desc": "ATK alto, drena HP propio.",
+          "evolucion_umbral": 10
+        },
+        {
+          "id": "resonancia_fisica",
+          "nombre": "Resonancia Física",
+          "efecto": "aoe",
+          "valor": 1,
+          "desc": "Daño en área.",
+          "evolucion_umbral": 10
+        },
+        {
+          "id": "instinto_furtivo",
+          "nombre": "Instinto Furtivo",
+          "efecto": "evasion",
+          "valor": 0.3,
+          "desc": "30% de evasión por 2 turnos.",
+          "evolucion_umbral": 12
+        }
+      ],
+      "elite_extra": [
+        {
+          "id": "golpe_ruptura",
+          "nombre": "Golpe de Ruptura",
+          "efecto": "poise_break",
+          "valor": 999,
+          "desc": "Rompe la postura en un golpe.",
+          "evolucion_umbral": 15
+        },
+        {
+          "id": "drenaje_vital",
+          "nombre": "Drenaje Vital",
+          "efecto": "lifesteal",
+          "valor": 0.4,
+          "desc": "Roba 40% del daño como HP.",
+          "evolucion_umbral": 12
+        },
+        {
+          "id": "contragolpe",
+          "nombre": "Contragolpe",
+          "efecto": "counter",
+          "valor": 0.6,
+          "desc": "Devuelve 60% del daño recibido.",
+          "evolucion_umbral": 10
+        },
+        {
+          "id": "rugido_terror",
+          "nombre": "Rugido de Terror",
+          "efecto": "atk_debuff_area",
+          "valor": 0.25,
+          "desc": "ATK de todos los jugadores −25% 2 turnos.",
+          "evolucion_umbral": 8
+        }
+      ]
+    },
+    "magias_enemigo_pool": {
+      "basico": [
+        {
+          "id": "proyeccion_eco",
+          "nombre": "Proyección Eco",
+          "efecto": "dmg_dist",
+          "poder": 8,
+          "cargas": 3,
+          "fragilidad_base": 0,
+          "desc": "Daño a distancia resonante."
+        },
+        {
+          "id": "corrupcion_dirigida",
+          "nombre": "Corrupción Dirigida",
+          "efecto": "debuff",
+          "poder": 6,
+          "cargas": 2,
+          "fragilidad_base": 20,
+          "desc": "Degrada ATK del objetivo."
+        }
+      ],
+      "medio_extra": [
+        {
+          "id": "velo_memoria",
+          "nombre": "Velo de Memoria",
+          "efecto": "invisibilidad",
+          "poder": 0,
+          "cargas": 2,
+          "fragilidad_base": 10,
+          "desc": "Invisible por 3 turnos."
+        },
+        {
+          "id": "bifurcacion_menor",
+          "nombre": "Bifurcación Menor",
+          "efecto": "duplicar",
+          "poder": 10,
+          "cargas": 1,
+          "fragilidad_base": 30,
+          "desc": "Duplica el próximo ataque."
+        },
+        {
+          "id": "herida_resonante",
+          "nombre": "Herida Resonante",
+          "efecto": "herida_fija",
+          "poder": 12,
+          "cargas": 2,
+          "fragilidad_base": 15,
+          "desc": "Inflige herida persistente."
+        }
+      ],
+      "elite_extra": [
+        {
+          "id": "maldicion_lenta",
+          "nombre": "Maldición Lenta",
+          "efecto": "maldicion",
+          "poder": 8,
+          "cargas": 2,
+          "fragilidad_base": 20,
+          "desc": "El objetivo pierde HP cada turno."
+        },
+        {
+          "id": "drenaje_mana",
+          "nombre": "Drenaje de Maná",
+          "efecto": "mana_drain",
+          "poder": 15,
+          "cargas": 2,
+          "fragilidad_base": 25,
+          "desc": "Roba maná y lo convierte en daño."
+        },
+        {
+          "id": "corrupcion_total",
+          "nombre": "Corrupción Total",
+          "efecto": "corrupcion_total",
+          "poder": 20,
+          "cargas": 1,
+          "fragilidad_base": 40,
+          "desc": "Daño masivo + herida + debuff en un solo golpe."
+        },
+        {
+          "id": "invocacion_grieta",
+          "nombre": "Invocación de Grieta",
+          "efecto": "invocar_eco",
+          "poder": 0,
+          "cargas": 1,
+          "fragilidad_base": 50,
+          "desc": "Invoca un Fragmento Errante como aliado."
+        }
+      ]
+    },
+    "ia_perfiles_v2": {
+      "berserker": {
+        "desc": "Máximo daño, ignora consecuencias.",
+        "usa_habs": 0.9,
+        "usa_mags": 0.2,
+        "defiende": 0.0,
+        "huye": 0.0,
+        "prio_habs": [
+          "atk_mult",
+          "atk_drain",
+          "aoe",
+          "poise_break"
+        ],
+        "prio_mags": [
+          "dmg_dist",
+          "corrupcion_total"
+        ],
+        "prio_target": "debil"
+      },
+      "guardián": {
+        "desc": "Defensivo, protege su postura.",
+        "usa_habs": 0.5,
+        "usa_mags": 0.3,
+        "defiende": 0.4,
+        "huye": 0.05,
+        "prio_habs": [
+          "def_pasiva",
+          "counter",
+          "poise_break"
+        ],
+        "prio_mags": [
+          "debuff",
+          "herida_fija"
+        ],
+        "prio_target": "fuerte"
+      },
+      "chamán": {
+        "desc": "Prioriza magia sobre ataques físicos.",
+        "usa_habs": 0.3,
+        "usa_mags": 0.85,
+        "defiende": 0.15,
+        "huye": 0.1,
+        "prio_habs": [
+          "evasion",
+          "counter"
+        ],
+        "prio_mags": [
+          "corrupcion_total",
+          "maldicion",
+          "mana_drain",
+          "herida_fija",
+          "debuff",
+          "dmg_dist"
+        ],
+        "prio_target": "debil"
+      },
+      "cazador": {
+        "desc": "Enfocado, busca al más débil y no lo suelta.",
+        "usa_habs": 0.7,
+        "usa_mags": 0.4,
+        "defiende": 0.1,
+        "huye": 0.2,
+        "prio_habs": [
+          "atk_mult",
+          "lifesteal",
+          "poise_break",
+          "atk_drain"
+        ],
+        "prio_mags": [
+          "dmg_dist",
+          "debuff"
+        ],
+        "prio_target": "debil"
+      },
+      "oportunista": {
+        "desc": "Explota vulnerabilidades: postura rota, debuffs, heridas.",
+        "usa_habs": 0.6,
+        "usa_mags": 0.6,
+        "defiende": 0.2,
+        "huye": 0.3,
+        "prio_habs": [
+          "poise_break",
+          "atk_mult",
+          "scan"
+        ],
+        "prio_mags": [
+          "maldicion",
+          "debuff",
+          "mana_drain"
+        ],
+        "prio_target": "debil"
+      },
+      "cobarde": {
+        "desc": "Huye cuando puede, usa evasión, golpea desde lejos.",
+        "usa_habs": 0.4,
+        "usa_mags": 0.5,
+        "defiende": 0.3,
+        "huye": 0.6,
+        "prio_habs": [
+          "evasion",
+          "atk_mult"
+        ],
+        "prio_mags": [
+          "dmg_dist",
+          "debuff"
+        ],
+        "prio_target": "debil"
+      },
+      "táctico": {
+        "desc": "Evalúa el estado de la batalla antes de actuar.",
+        "usa_habs": 0.6,
+        "usa_mags": 0.6,
+        "defiende": 0.35,
+        "huye": 0.05,
+        "prio_habs": [
+          "counter",
+          "scan",
+          "aoe",
+          "poise_break"
+        ],
+        "prio_mags": [
+          "corrupcion_total",
+          "maldicion",
+          "herida_fija",
+          "debuff"
+        ],
+        "prio_target": "fuerte"
+      },
+      "bestia": {
+        "desc": "Instintivo, sin estrategia, puro daño físico.",
+        "usa_habs": 0.5,
+        "usa_mags": 0.1,
+        "defiende": 0.0,
+        "huye": 0.1,
+        "prio_habs": [
+          "atk_drain",
+          "atk_mult",
+          "aoe"
+        ],
+        "prio_mags": [
+          "dmg_dist"
+        ],
+        "prio_target": "debil"
+      }
+    }
   },
   "plugins": [
     {

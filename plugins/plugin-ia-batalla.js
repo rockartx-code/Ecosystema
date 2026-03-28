@@ -20,114 +20,45 @@
 // Los valores no son probabilidades absolutas — se combinan con
 // el estado del combate para producir una puntuación por acción.
 
-const AI_PERFILES_V2 = {
-  berserker: {
-    desc:       'Máximo daño, ignora consecuencias.',
-    usa_habs:   0.9,   // probabilidad de usar habilidad si disponible
-    usa_mags:   0.2,
-    defiende:   0.0,
-    huye:       0.0,
-    prio_habs:  ['atk_mult','atk_drain','aoe','poise_break'],
-    prio_mags:  ['dmg_dist','corrupcion_total'],
-    prio_target:'debil',    // ataca al que tiene menos HP
-  },
-  guardián: {
-    desc:       'Defensivo, protege su postura.',
-    usa_habs:   0.5,
-    usa_mags:   0.3,
-    defiende:   0.4,
-    huye:       0.05,
-    prio_habs:  ['def_pasiva','counter','poise_break'],
-    prio_mags:  ['debuff','herida_fija'],
-    prio_target:'fuerte',   // ataca al jugador con más ATK
-  },
-  chamán: {
-    desc:       'Prioriza magia sobre ataques físicos.',
-    usa_habs:   0.3,
-    usa_mags:   0.85,
-    defiende:   0.15,
-    huye:       0.1,
-    prio_habs:  ['evasion','counter'],
-    prio_mags:  ['corrupcion_total','maldicion','mana_drain','herida_fija','debuff','dmg_dist'],
-    prio_target:'debil',
-  },
-  cazador: {
-    desc:       'Enfocado, busca al más débil y no lo suelta.',
-    usa_habs:   0.7,
-    usa_mags:   0.4,
-    defiende:   0.1,
-    huye:       0.2,
-    prio_habs:  ['atk_mult','lifesteal','poise_break','atk_drain'],
-    prio_mags:  ['dmg_dist','debuff'],
-    prio_target:'debil',
-  },
-  oportunista: {
-    desc:       'Explota vulnerabilidades: postura rota, debuffs, heridas.',
-    usa_habs:   0.6,
-    usa_mags:   0.6,
-    defiende:   0.2,
-    huye:       0.3,
-    prio_habs:  ['poise_break','atk_mult','scan'],
-    prio_mags:  ['maldicion','debuff','mana_drain'],
-    prio_target:'debil',
-  },
-  cobarde: {
-    desc:       'Huye cuando puede, usa evasión, golpea desde lejos.',
-    usa_habs:   0.4,
-    usa_mags:   0.5,
-    defiende:   0.3,
-    huye:       0.6,
-    prio_habs:  ['evasion','atk_mult'],
-    prio_mags:  ['dmg_dist','debuff'],
-    prio_target:'debil',
-  },
-  táctico: {
-    desc:       'Evalúa el estado de la batalla antes de actuar.',
-    usa_habs:   0.6,
-    usa_mags:   0.6,
-    defiende:   0.35,
-    huye:       0.05,
-    prio_habs:  ['counter','scan','aoe','poise_break'],
-    prio_mags:  ['corrupcion_total','maldicion','herida_fija','debuff'],
-    prio_target:'fuerte',
-  },
-  bestia: {
-    desc:       'Instintivo, sin estrategia, puro daño físico.',
-    usa_habs:   0.5,
-    usa_mags:   0.1,
-    defiende:   0.0,
-    huye:       0.1,
-    prio_habs:  ['atk_drain','atk_mult','aoe'],
-    prio_mags:  ['dmg_dist'],
-    prio_target:'debil',
-  },
-};
+function _aiProfiles() {
+  return D.aiProfiles || {};
+}
+
+function _defaultProfile() {
+  return {
+    desc:'Perfil por defecto',
+    usa_habs:0.5, usa_mags:0.3, defiende:0.1, huye:0.05,
+    prio_habs:['atk_mult'], prio_mags:['dmg_dist'], prio_target:'debil',
+  };
+}
 
 // ── Asignar perfil según actor ────────────────────────────────────
 function _asignarPerfil(actor) {
   const n    = (actor.name||'').toLowerCase();
   const tipo = actor.tipo;
 
-  if(tipo==='creature')                                   return AI_PERFILES_V2.bestia;
-  if(n.includes('guardián')||n.includes('custodio'))     return AI_PERFILES_V2.guardián;
-  if(n.includes('eco')||n.includes('resonante'))         return AI_PERFILES_V2.chamán;
-  if(n.includes('berserker')||n.includes('errante'))     return AI_PERFILES_V2.berserker;
-  if(n.includes('antiguo')||n.includes('grieta'))        return AI_PERFILES_V2.táctico;
-  if(n.includes('corrupto')||n.includes('vacío'))        return AI_PERFILES_V2.oportunista;
-  if(n.includes('fragmento')||n.includes('eco_corrupto'))return AI_PERFILES_V2.cazador;
+  const profiles = _aiProfiles();
+  if(tipo==='creature')                                   return profiles.bestia || _defaultProfile();
+  if(n.includes('guardián')||n.includes('custodio'))     return profiles.guardián || _defaultProfile();
+  if(n.includes('eco')||n.includes('resonante'))         return profiles.chamán || _defaultProfile();
+  if(n.includes('berserker')||n.includes('errante'))     return profiles.berserker || _defaultProfile();
+  if(n.includes('antiguo')||n.includes('grieta'))        return profiles.táctico || _defaultProfile();
+  if(n.includes('corrupto')||n.includes('vacío'))        return profiles.oportunista || _defaultProfile();
+  if(n.includes('fragmento')||n.includes('eco_corrupto'))return profiles.cazador || _defaultProfile();
 
   if(tipo==='npc') {
     const npcRef = typeof GS!=='undefined' ? GS.aliveNPCs().find(x=>x.id===actor.id) : null;
     const arq    = npcRef?.arq_ocu||npcRef?.arq_vis||'';
-    if(['traidor','corrupto','vengativo'].includes(arq))  return AI_PERFILES_V2.oportunista;
-    if(['mártir','sacrificio'].includes(arq))             return AI_PERFILES_V2.guardián;
-    if(['fanático'].includes(arq))                        return AI_PERFILES_V2.berserker;
+    if(['traidor','corrupto','vengativo'].includes(arq))  return profiles.oportunista || _defaultProfile();
+    if(['mártir','sacrificio'].includes(arq))             return profiles.guardián || _defaultProfile();
+    if(['fanático'].includes(arq))                        return profiles.berserker || _defaultProfile();
   }
 
   // Fallback determinista por id
-  const perfiles = Object.values(AI_PERFILES_V2);
+  const perfiles = Object.values(profiles);
+  if(!perfiles.length) return _defaultProfile();
   const idx      = Math.abs(typeof U!=='undefined' ? U.hash(actor.id||actor.name||'') : 0) % perfiles.length;
-  return perfiles[idx];
+  return perfiles[idx] || _defaultProfile();
 }
 
 // ── Elegir target según perfil ────────────────────────────────────
