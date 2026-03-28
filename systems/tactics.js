@@ -174,7 +174,7 @@
   function consumirStamina(coste) { const p=Player.get(); p.stamina=Math.max(0,(p.stamina!=null?p.stamina:p.maxStamina||100)-coste); }
   function consumirMana(coste)    { const p=Player.get(); p.mana   =Math.max(0,(p.mana   !=null?p.mana   :p.maxMana||60)-coste); return p.mana>=0; }
   function staminaPct()           { const p=Player.get(); return (p.stamina!=null?p.stamina:p.maxStamina||100)/(p.maxStamina||100); }
-  function getClimaDesc(nodeId)   { const n=World.node(nodeId); return CLIMAS_NODO[n?.tipo||'hub']||CLIMAS_NODO.hub; }
+  function getClimaDesc(nodeId)   { const n=World.node(nodeId); return CLIMAS_NODO[n?.tipo||'hub']||CLIMAS_NODO.hub||{ nombre:'Neutro', desc:'Sin efectos especiales', mult_reac:1.0, elemento_base:null, color:'t-dim' }; }
 
   function calcularDaño(actor, target, arma, elemento, battle) {
     const p       = Player.get();
@@ -214,7 +214,7 @@
 
   function initBattle(battle) {
     const n     = World.node(battle.nodeId);
-    const clima = CLIMAS_NODO[n?.tipo||'hub'] || CLIMAS_NODO.hub;
+    const clima = CLIMAS_NODO[n?.tipo||'hub'] || CLIMAS_NODO.hub || { nombre:'Neutro', mult_reac:1.0, elemento_base:null, color:'t-dim' };
     if(clima.elemento_base) {
       battle.cola.filter(c=>c.vivo).forEach(c=>{c.elemento_estado=clima.elemento_base;});
       battleLog(battle, `Clima "${clima.nombre}": todos empiezan ${clima.elemento_base}.`, clima.color||'t-dim');

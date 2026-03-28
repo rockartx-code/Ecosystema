@@ -125,6 +125,11 @@
 
     const themes = _themes();
     const theme = themes[state.theme] || themes.MAIN_THEME;
+    if(!theme || !theme.lead || !theme.bass || !theme.drums) {
+      stop();
+      log(`Tema inválido o no cargado: ${state.theme}.`, 't-pel');
+      return;
+    }
     const stepDur = 60 / state.tempo / 2;
     echoNode.delayTime.setTargetAtTime(state.echo, audioCtx.currentTime, 0.1);
 
@@ -417,4 +422,3 @@ if(typeof ServiceRegistry !== 'undefined') {
   ServiceRegistry.register('audio.music.stop', ()=>{ MusicEngine.stop(); return true; }, { pluginId:'music-engine', version:'2.2.0' });
   ServiceRegistry.register('audio.music.state', ()=>MusicEngine.state(), { pluginId:'music-engine', version:'2.2.0' });
 }
-
