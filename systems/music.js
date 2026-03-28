@@ -4,12 +4,16 @@
 (function initMusicLogic(global) {
   function create({ data, deps }) {
     const { ModuleLoader, Out, EventBus } = deps;
-  const THEMES = (data && data.themes && typeof data.themes === 'object') ? data.themes : {}
-;
+  const THEMES = (data && data.themes && typeof data.themes === 'object') ? data.themes : {};
   const _themes = () => {
     try {
       const ext = ModuleLoader?.get?.('audio.music.themes');
-      return (ext && typeof ext === 'object' && !Array.isArray(ext)) ? ext : THEMES;
+      if(ext && typeof ext === 'object' && !Array.isArray(ext)) {
+        // Las extensiones pueden aportar solo un subconjunto de pistas.
+        // Mezclamos sobre el set base para no romper temas por defecto.
+        return { ...THEMES, ...ext };
+      }
+      return THEMES;
     } catch { return THEMES; }
   };
 
