@@ -14,30 +14,20 @@
 // Estado base: los valores NO están escalados.
 // Los enemigos los escalan al recibirlas; "copiar" devuelve el base.
 
-const HAB_POOL_BASICO = [
-  { id:'golpe_cargado',   nombre:'Golpe Cargado',   efecto:'atk_mult',  valor:2.0, desc:'Multiplicador de ATK.', evolucion_umbral:10 },
-  { id:'piel_dura',       nombre:'Piel Dura',        efecto:'def_pasiva',valor:3,   desc:'DEF +3 temporal.',      evolucion_umbral:8  },
-  { id:'impulso_antiguo', nombre:'Impulso Antiguo',  efecto:'atk_bonus', valor:4,   desc:'ATK +4 bonus.',         evolucion_umbral:12 },
-];
-
-const HAB_POOL_MEDIO = [
-  ...HAB_POOL_BASICO,
-  { id:'furia_corrupta',    nombre:'Furia Corrupta',   efecto:'atk_drain',  valor:1.8, desc:'ATK alto, drena HP propio.', evolucion_umbral:10 },
-  { id:'resonancia_fisica', nombre:'Resonancia Física',efecto:'aoe',        valor:1,   desc:'Daño en área.',              evolucion_umbral:10 },
-  { id:'instinto_furtivo',  nombre:'Instinto Furtivo', efecto:'evasion',    valor:0.3, desc:'30% de evasión por 2 turnos.',evolucion_umbral:12 },
-];
-
-const HAB_POOL_ELITE = [
-  ...HAB_POOL_MEDIO,
-  { id:'golpe_ruptura',     nombre:'Golpe de Ruptura', efecto:'poise_break',     valor:999,  desc:'Rompe la postura en un golpe.', evolucion_umbral:15 },
-  { id:'drenaje_vital',     nombre:'Drenaje Vital',    efecto:'lifesteal',       valor:0.4,  desc:'Roba 40% del daño como HP.',    evolucion_umbral:12 },
-  { id:'contragolpe',       nombre:'Contragolpe',      efecto:'counter',         valor:0.6,  desc:'Devuelve 60% del daño recibido.',evolucion_umbral:10 },
-  { id:'rugido_terror',     nombre:'Rugido de Terror', efecto:'atk_debuff_area', valor:0.25, desc:'ATK de todos los jugadores −25% 2 turnos.', evolucion_umbral:8 },
-];
+function _getHabPools() {
+  const pools = D.enemyHabPools || {};
+  const basico = Array.isArray(pools.basico) ? pools.basico : [];
+  const medioExtras = Array.isArray(pools.medio_extra) ? pools.medio_extra : [];
+  const eliteExtras = Array.isArray(pools.elite_extra) ? pools.elite_extra : [];
+  const medio = [...basico, ...medioExtras];
+  const elite = [...medio, ...eliteExtras];
+  return { basico, medio, elite };
+}
 
 // Función para buscar la definición base por pool_id
 function _habBase(pool_id) {
-  return HAB_POOL_ELITE.find(h=>h.id===pool_id) || null;
+  const { elite } = _getHabPools();
+  return elite.find(h=>h.id===pool_id) || null;
 }
 
 // ── Asignar habilidades a un enemigo al generarlo ─────────────────
@@ -49,11 +39,12 @@ function _habBase(pool_id) {
 function _asignarHabilidadesEnemigo(enemy, dif) {
   const atk = enemy.atk || 0;
   let pool, cantidad;
+  const { basico, medio, elite } = _getHabPools();
 
   if(atk < 8)        { return []; }
-  else if(atk < 15)  { pool = HAB_POOL_BASICO; cantidad = 1; }
-  else if(atk < 22)  { pool = HAB_POOL_MEDIO;  cantidad = U.rand(1,2); }
-  else               { pool = HAB_POOL_ELITE;   cantidad = U.rand(2,3); }
+  else if(atk < 15)  { pool = basico; cantidad = 1; }
+  else if(atk < 22)  { pool = medio;  cantidad = U.rand(1,2); }
+  else               { pool = elite;  cantidad = U.rand(2,3); }
 
   const rng     = U.rng((enemy.id || enemy.nombre || '') + 'habs');
   const elegidas = U.pickN(pool, Math.min(cantidad, pool.length), rng);

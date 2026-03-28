@@ -2,6 +2,7 @@
 'use strict';
 
 const fs = require('fs');
+const path = require('path');
 const vm = require('vm');
 const assert = require('assert');
 
@@ -359,21 +360,24 @@ function withCapturedConsole(fn) {
 })();
 
 (function testLegacySystemsUseDataLogicStructure() {
+  const moduleJson = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/module.json'), 'utf8'));
+  const systemsFromModule = new Map((moduleJson.systems || []).map(s => [s.name, s.data]));
   const required = [
-    { bootstrap:'systems/tactics.js', data:'systems/tactics/data.json', logic:'systems/tactics/logic.js', dataRef:'systems/tactics/data.json' },
-    { bootstrap:'systems/xp.js', data:'systems/xp/data.json', logic:'systems/xp/logic.js', dataRef:'systems/xp/data.json' },
-    { bootstrap:'systems/arc-engine.js', data:'systems/arc-engine/data.json', logic:'systems/arc-engine/logic.js', dataRef:'systems/arc-engine/data.json' },
-    { bootstrap:'systems/world-ai.js', data:'systems/world-ai/data.json', logic:'systems/world-ai/logic.js', dataRef:'systems/world-ai/data.json' },
-    { bootstrap:'systems/net.js', data:'systems/net/data.json', logic:'systems/net/logic.js', dataRef:'systems/net/data.json' },
-    { bootstrap:'systems/sfx-engine.js', data:'systems/sfx/data.json', logic:'systems/sfx/logic.js', dataRef:'systems/sfx/data.json' },
-    { bootstrap:'systems/music-engine.js', data:'systems/music/data.json', logic:'systems/music/logic.js', dataRef:'systems/music/data.json' },
+    { name:'tactics', bootstrap:'systems/tactics/logic.js', logic:'systems/tactics/logic.js' },
+    { name:'xp', bootstrap:'systems/xp/logic.js', logic:'systems/xp/logic.js' },
+    { name:'arc-engine', bootstrap:'systems/arc-engine/logic.js', logic:'systems/arc-engine/logic.js' },
+    { name:'world-ai', bootstrap:'systems/world-ai/logic.js', logic:'systems/world-ai/logic.js' },
+    { name:'net', bootstrap:'systems/net/logic.js', logic:'systems/net/logic.js' },
+    { name:'sfx', bootstrap:'systems/sfx/logic.js', logic:'systems/sfx/logic.js' },
+    { name:'music', bootstrap:'systems/music/logic.js', logic:'systems/music/logic.js' },
   ];
 
   required.forEach((r) => {
-    assert.strictEqual(fs.existsSync(r.data), true, `debe existir ${r.data}`);
     assert.strictEqual(fs.existsSync(r.logic), true, `debe existir ${r.logic}`);
+    assert.ok(systemsFromModule.has(r.name), `module.json debe incluir systems[].name=${r.name}`);
+    assert.strictEqual(typeof systemsFromModule.get(r.name), 'object', `systems[].data debe existir para ${r.name}`);
     const src = fs.readFileSync(r.bootstrap, 'utf8');
-    assert.ok(src.includes(r.dataRef), `${r.bootstrap} debe referenciar ${r.dataRef}`);
+    assert.ok(src.includes(`getSystemData?.('${r.name}'`), `${r.bootstrap} debe cargar data con getSystemData('${r.name}')`);
   });
 })();
 

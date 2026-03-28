@@ -13,28 +13,19 @@
 // ── Pools de magias por nivel ─────────────────────────────────────
 // _poder_base y _cargas_base para que "canalizar" devuelva valores base.
 
-const MAG_POOL_BASICO = [
-  { id:'proyeccion_eco',    nombre:'Proyección Eco',    efecto:'dmg_dist',     poder:8,  cargas:3, fragilidad_base:0,  desc:'Daño a distancia resonante.' },
-  { id:'corrupcion_dirigida',nombre:'Corrupción Dirigida',efecto:'debuff',      poder:6,  cargas:2, fragilidad_base:20, desc:'Degrada ATK del objetivo.' },
-];
-
-const MAG_POOL_MEDIO = [
-  ...MAG_POOL_BASICO,
-  { id:'velo_memoria',      nombre:'Velo de Memoria',    efecto:'invisibilidad',poder:0,  cargas:2, fragilidad_base:10, desc:'Invisible por 3 turnos.' },
-  { id:'bifurcacion_menor', nombre:'Bifurcación Menor',  efecto:'duplicar',     poder:10, cargas:1, fragilidad_base:30, desc:'Duplica el próximo ataque.' },
-  { id:'herida_resonante',  nombre:'Herida Resonante',   efecto:'herida_fija',  poder:12, cargas:2, fragilidad_base:15, desc:'Inflige herida persistente.' },
-];
-
-const MAG_POOL_ELITE = [
-  ...MAG_POOL_MEDIO,
-  { id:'maldicion_lenta',   nombre:'Maldición Lenta',    efecto:'maldicion',    poder:8,  cargas:2, fragilidad_base:20, desc:'El objetivo pierde HP cada turno.' },
-  { id:'drenaje_mana',      nombre:'Drenaje de Maná',    efecto:'mana_drain',   poder:15, cargas:2, fragilidad_base:25, desc:'Roba maná y lo convierte en daño.' },
-  { id:'corrupcion_total',  nombre:'Corrupción Total',   efecto:'corrupcion_total',poder:20,cargas:1,fragilidad_base:40,desc:'Daño masivo + herida + debuff en un solo golpe.' },
-  { id:'invocacion_grieta', nombre:'Invocación de Grieta',efecto:'invocar_eco',  poder:0, cargas:1, fragilidad_base:50, desc:'Invoca un Fragmento Errante como aliado.' },
-];
+function _getMagPools() {
+  const pools = D.enemyMagPools || {};
+  const basico = Array.isArray(pools.basico) ? pools.basico : [];
+  const medioExtras = Array.isArray(pools.medio_extra) ? pools.medio_extra : [];
+  const eliteExtras = Array.isArray(pools.elite_extra) ? pools.elite_extra : [];
+  const medio = [...basico, ...medioExtras];
+  const elite = [...medio, ...eliteExtras];
+  return { basico, medio, elite };
+}
 
 function _magBase(pool_id) {
-  return MAG_POOL_ELITE.find(m=>m.id===pool_id)||null;
+  const { elite } = _getMagPools();
+  return elite.find(m=>m.id===pool_id)||null;
 }
 
 // ── Asignar magias a un enemigo ───────────────────────────────────
@@ -46,11 +37,12 @@ function _magBase(pool_id) {
 function _asignarMagiasEnemigo(enemy, dif) {
   const atk = enemy.atk||0;
   let pool, cantidad, chance;
+  const { basico, medio, elite } = _getMagPools();
 
   if(atk < 8)       { return []; }
-  else if(atk < 15) { pool=MAG_POOL_BASICO;  cantidad=1; chance=0.5; }
-  else if(atk < 22) { pool=MAG_POOL_MEDIO;   cantidad=1; chance=0.8; }
-  else              { pool=MAG_POOL_ELITE;    cantidad=U.rand(1,2); chance=1.0; }
+  else if(atk < 15) { pool=basico; cantidad=1; chance=0.5; }
+  else if(atk < 22) { pool=medio;  cantidad=1; chance=0.8; }
+  else              { pool=elite;  cantidad=U.rand(1,2); chance=1.0; }
 
   if(!U.chance(chance)) return [];
 
