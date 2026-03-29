@@ -158,42 +158,36 @@ const AC = (() => {
     });
   }
 
-  function getVerbs() {
-    const base = [
-      { v:'ir', h:'norte/sur/este/oeste' }, { v:'n', h:'ir norte' }, { v:'s', h:'ir sur' },
-      { v:'e', h:'ir este' }, { v:'o', h:'ir oeste' }, { v:'mirar', h:'describir nodo actual' },
-      { v:'hablar', h:'[npc] iniciar conversación' }, { v:'preguntar', h:'[npc] [tema]' },
-      { v:'observar', h:'[npc] análisis' }, { v:'traicionar', h:'[npc] romper vínculo' },
-      { v:'npcs', h:'ver personas del nodo' }, { v:'misiones', h:'ver misiones' },
-      { v:'aceptar', h:'[id] aceptar misión' }, { v:'rechazar', h:'[id] rechazar misión' },
-      { v:'completar', h:'[id] completar misión' }, { v:'forjar', h:'[mat] [mat] ...' },
-      { v:'encarnar', h:'[mat] [mat] → habilidad' }, { v:'conjurar', h:'[mat] [mat] → magia' },
-      { v:'fusionar', h:'[id] [id]' }, { v:'recetas', h:'guía de afinidades' },
-      { v:'materiales', h:'ver materiales' }, { v:'habilidades', h:'ver habilidades' },
-      { v:'magias', h:'ver magias' }, { v:'lanzar', h:'[magia]' }, { v:'recargar', h:'[magia] [mat]' },
-      { v:'criaturas', h:'ver compañeros' }, { v:'anclas', h:'ver anclas' },
-      { v:'vincular', h:'[ancla]' }, { v:'capturar', h:'[criatura]' },
-      { v:'liberar', h:'[comp]' }, { v:'modo', h:'[comp] [modo]' }, { v:'nombrar', h:'[comp] [nombre]' },
-      { v:'criar', h:'[comp] [comp]' }, { v:'inventario', h:'ver inventario' },
-      { v:'recoger', h:'[objeto]' }, { v:'soltar', h:'[objeto]' }, { v:'equipar', h:'[objeto]' },
-      { v:'usar', h:'[objeto]' }, { v:'examinar', h:'[objeto/npc]' }, { v:'atacar', h:'[objetivo]' },
-      { v:'estado', h:'ver stats' }, { v:'legados', h:'historial de runs' },
-      { v:'atributos', h:'ver atributos' }, { v:'experiencia', h:'ver XP' }, { v:'asignar', h:'[atributo]' },
-      { v:'musica', h:'estado/on/off/midi' }, { v:'plugins', h:'ver plugins' }, { v:'plugins_orden', h:'orden de resolución plugin' }, { v:'plugins_pendientes', h:'plugins pendientes por deps' }, { v:'servicios', h:'ver servicios runtime' }, { v:'modulos', h:'ver módulos' }, { v:'eventos', h:'ver eventos' }, { v:'eventos_trace', h:'[n] ver trazas del EventBus' },
-      { v:'guardar', h:'guardar partida' }, { v:'exportar', h:'exportar partida' },
-      { v:'importar', h:'importar partida' }, { v:'semilla', h:'ver semilla' },
-      { v:'nombre', h:'[nombre]' }, { v:'nuevo', h:'nueva run' },
-      { v:'ayuda', h:'[tema]' }, { v:'limpiar', h:'limpiar pantalla' },
-    ];
+  function getRegistryCommands(opts = {}) {
+    if(typeof CommandRegistry === 'undefined' || !CommandRegistry) return [];
+    if(typeof CommandRegistry.discover === 'function') return CommandRegistry.discover(opts);
 
-    if(typeof CommandRegistry !== 'undefined' && CommandRegistry?.commands) {
-      for(const [verb, cfg] of Object.entries(CommandRegistry.commands)) {
-        if(!base.find(b => b.v === verb)) {
-          base.push({ v: verb, h: `[plugin: ${cfg?.pluginId || 'externo'}]` });
-        }
-      }
-    }
-    return base;
+    const entries = Object.entries(CommandRegistry.commands || {}).map(([verb, cfg]) => ({
+      verb,
+      pluginId: cfg?.pluginId || 'externo',
+      owner: cfg?.owner || cfg?.meta?.owner || (cfg?.pluginId === 'core' ? 'core' : 'plugin'),
+      ...(cfg?.meta || {}),
+    }));
+
+    const seen = new Set();
+    return entries.filter((entry) => {
+      if(opts.onlyVisible && entry.visible === false) return false;
+      if(!opts.includeHidden && entry.hidden) return false;
+      if(opts.mode && Array.isArray(entry.modes) && entry.modes.length && !entry.modes.includes(opts.mode)) return false;
+      if(!opts.uniqueCanonical) return true;
+      const key = entry.canonical || entry.verb;
+      if(seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
+  function getVerbs() {
+    const mode = (typeof Net !== 'undefined' && Net.getMyBattle?.()) ? 'battle' : 'world';
+    return getRegistryCommands({ onlyVisible:true, uniqueCanonical:false, mode }).map(entry => ({
+      v: entry.verb,
+      h: entry.desc || entry.titulo || `[${entry.owner || entry.pluginId || 'externo'}]`,
+    }));
   }
 
   function getInventario(filtro) {
@@ -342,12 +336,17 @@ const AC = (() => {
   }
 
   function getTemasAyuda() {
-    if(typeof AYUDA_TEMAS === 'undefined') return [];
-    return Object.keys(AYUDA_TEMAS).map(k => ({
-      label: k,
-      value: k,
-      hint: AYUDA_TEMAS[k].desc?.slice(0, 40) || '',
-      color: 't-dim',
+    const groups = new Map();
+    getRegistryCommands({ onlyVisible:true, uniqueCanonical:true }).forEach((entry) => {
+      const cat = entry.cat || 'OTROS';
+      if(!groups.has(cat)) groups.set(cat, []);
+      groups.get(cat).push(entry);
+    });
+    return Array.from(groups.entries()).map(([cat, list]) => ({
+      label: cat,
+      value: cat,
+      hint: list.slice(0, 3).map(entry => entry.verb).join(', '),
+      color: list.find(entry => entry.color)?.color || 't-dim',
       group: 'tema',
     }));
   }

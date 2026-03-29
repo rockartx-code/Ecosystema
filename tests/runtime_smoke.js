@@ -371,6 +371,30 @@ function withCapturedConsole(fn) {
   assert.ok(outLines.some(l => l.includes('t:diag')));
 })();
 
+(function testCoreCommandsRegisterInRegistry() {
+  const { sandbox } = loadCommandsSandbox();
+  assert.strictEqual(sandbox.CommandRegistry.has('ir'), true);
+  assert.strictEqual(sandbox.CommandRegistry.has('ayuda'), true);
+  assert.strictEqual(sandbox.CommandRegistry.getMeta('ir').owner, 'core');
+  assert.strictEqual(sandbox.CommandRegistry.getMeta('help').canonical, 'ayuda');
+})();
+
+(function testCommandRegistryRestoresCoreAfterPluginOverride() {
+  const { sandbox } = loadCommandsSandbox();
+  sandbox.CommandRegistry.register('estado', () => true, 'plugin:test', { titulo:'estado plugin', canonical:'estado' });
+  assert.strictEqual(sandbox.CommandRegistry.resolve('estado').pluginId, 'plugin:test');
+  sandbox.CommandRegistry.unregister('plugin:test');
+  assert.strictEqual(sandbox.CommandRegistry.resolve('estado').pluginId, 'core');
+})();
+
+(async function testDispatchUsesRegistryAsPrimarySource() {
+  const { sandbox } = loadCommandsSandbox();
+  let pluginHits = 0;
+  sandbox.CommandRegistry.register('estado', () => { pluginHits += 1; return true; }, 'plugin:test', { titulo:'estado plugin', canonical:'estado' });
+  await sandbox.dispatch({ verb:'estado', args:[], raw:'estado' });
+  assert.strictEqual(pluginHits, 1);
+})();
+
 (function testGameplayServicesWithWorldStubs() {
   const { sandbox } = loadCommandsSandbox();
   const { ServiceRegistry } = sandbox;

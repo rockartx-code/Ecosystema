@@ -260,5 +260,18 @@
       'runtime.items.show': () => api().cmdItems(),
       'runtime.items.catalog': () => api().CATALOGO || {},
     },
+    comandos: {
+      'items':      { fn: ()    => api().cmdItems(),                                       meta:{ titulo:'items',         color:'t-mem', desc:'Ver ítems tácticos en inventario.' } },
+      'ítems':      { fn: ()    => api().cmdItems(),                                       meta:{ titulo:'ítems (alias)', color:'t-mem', desc:'Ver ítems tácticos.' } },
+      'reparar':    { fn: (args)=>{ if(typeof cmdReparar==='function') cmdReparar(args); }, meta:{ titulo:'reparar [kit]', color:'t-cra', desc:'Repara el arma equipada con un kit de reparación.' } },
+      'inventario': { fn: ()    =>{ if(typeof cmdInv==='function') cmdInv(); },            meta:{ titulo:'inventario',    color:'t-cra', desc:'Ver inventario completo.' } },
+      'inv':        { fn: ()    =>{ if(typeof cmdInv==='function') cmdInv(); },            meta:{ titulo:'inv (alias)',   color:'t-cra', desc:'Ver inventario.' } },
+      'recoger':    { fn: (args)=>{ if(typeof cmdRecoger==='function') cmdRecoger(args.join(' ')); }, meta:{ titulo:'recoger [nombre]', color:'t-cra', desc:'Recoger objeto del suelo.' } },
+      'tomar':      { fn: (args)=>{ if(typeof cmdRecoger==='function') cmdRecoger(args.join(' ')); }, meta:{ titulo:'tomar (alias recoger)', color:'t-cra', desc:'Recoger objeto.' } },
+      'soltar':     { fn: (args)=>{ if(typeof cmdSoltar==='function')  cmdSoltar(args.join(' ')); },  meta:{ titulo:'soltar [nombre]',  color:'t-dim', desc:'Soltar objeto en el nodo.' } },
+      'drop':       { fn: (args)=>{ if(typeof cmdSoltar==='function')  cmdSoltar(args.join(' ')); },  meta:{ titulo:'drop (alias soltar)', color:'t-dim', desc:'Soltar objeto.' } },
+      'equipar':    { fn: (args)=>{ if(typeof cmdEquipar==='function') cmdEquipar(args.join(' ')); }, meta:{ titulo:'equipar [item]',   color:'t-sis', desc:'Equipar un ítem en su slot correspondiente.' } },
+      'usar':       { fn: (args)=>{ if(typeof cmdUsar==='function')    cmdUsar(args.join(' ')); },    meta:{ titulo:'usar [item]',      color:'t-cra', desc:'Usar un ítem del inventario.' } },
+    },
   };
 })(globalThis);

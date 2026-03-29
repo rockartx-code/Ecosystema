@@ -269,5 +269,18 @@
       'runtime.npc.check_twists': (npc, player, misiones=[], ecos=[]) => api().checkTwists(npc, player, misiones, ecos),
       'runtime.npc.despair': (npc) => api().consecuenciaDesperación(npc),
     },
+    comandos: {
+      'npcs':      { fn: ()    =>{ if(typeof cmdNPCs==='function')      cmdNPCs(); },                           meta:{ titulo:'npcs',                  color:'t-npc', desc:'Ver todas las personas del mundo con estado y localización.' } },
+      'personas':  { fn: ()    =>{ if(typeof cmdNPCs==='function')      cmdNPCs(); },                           meta:{ titulo:'personas (alias npcs)', color:'t-npc', desc:'Ver personas del mundo.' } },
+      'hablar':    { fn: (args)=>{ if(typeof cmdHablar==='function')    cmdHablar(args.join(' ')); },           meta:{ titulo:'hablar [npc]',           color:'t-npc', desc:'Iniciar diálogo con un NPC del nodo.' } },
+      'preguntar': { fn: (args)=>{ if(typeof cmdPreguntar==='function') cmdPreguntar(args[0], args.slice(1).join(' ')); }, meta:{ titulo:'preguntar [npc] [tema]', color:'t-npc', desc:'Preguntar a un NPC sobre un tema (secreto, miedo, deseo...).' } },
+      'observar':  { fn: (args)=>{ if(typeof cmdObservar==='function')  cmdObservar(args.join(' ')); },         meta:{ titulo:'observar [npc]',         color:'t-npc', desc:'Observar el arquetipo y rasgos ocultos de un NPC.' } },
+      'traicionar':{ fn: (args)=>{ if(typeof cmdTraicionar==='function') cmdTraicionar(args.join(' ')); },      meta:{ titulo:'traicionar [npc]',       color:'t-twi', desc:'Traicionar a un NPC, perdiendo su lealtad.' } },
+      'misiones':  { fn: ()    =>{ if(typeof cmdMisiones==='function')  cmdMisiones(); },                       meta:{ titulo:'misiones',               color:'t-mis', desc:'Ver misiones activas, completadas y fallidas.' } },
+      'mis':       { fn: ()    =>{ if(typeof cmdMisiones==='function')  cmdMisiones(); },                       meta:{ titulo:'mis (alias misiones)',   color:'t-mis', desc:'Ver misiones.' } },
+      'aceptar':   { fn: (args)=>{ if(typeof cmdAceptar==='function')   cmdAceptar(args.join(' ')); },          meta:{ titulo:'aceptar [id]',           color:'t-mis', desc:'Aceptar una misión pendiente.' } },
+      'rechazar':  { fn: (args)=>{ if(typeof cmdRechazar==='function')  cmdRechazar(args.join(' ')); },         meta:{ titulo:'rechazar [id]',          color:'t-pel', desc:'Rechazar una misión (consecuencias narrativas).' } },
+      'completar': { fn: (args)=>{ if(typeof cmdCompletar==='function') cmdCompletar(args.join(' ')); },        meta:{ titulo:'completar [id]',         color:'t-cra', desc:'Marcar una misión como completada y recibir recompensas.' } },
+    },
   };
 })(globalThis);

@@ -162,48 +162,6 @@ function _dispatchDomainMovement(verb, args) {
   fn();
   return true;
 }
-function _dispatchDomainNarrative(verb, args) {
-  const narrative = {
-    'hablar': ()=>cmdHablar(args.join(' ')),
-    'preguntar': ()=>cmdPreguntar(args[0], args.slice(1).join(' ')),
-    'observar': ()=>cmdObservar(args.join(' ')),
-    'traicionar': ()=>cmdTraicionar(args.join(' ')),
-    'npcs': ()=>cmdNPCs(),
-    'personas': ()=>cmdNPCs(),
-    'misiones': ()=>cmdMisiones(),
-    'mis': ()=>cmdMisiones(),
-    'aceptar': ()=>cmdAceptar(args.join(' ')),
-    'rechazar': ()=>cmdRechazar(args.join(' ')),
-    'completar': ()=>cmdCompletar(args.join(' ')),
-  };
-  const fn = narrative[verb];
-  if(!fn) return false;
-  fn();
-  return true;
-}
-function _dispatchDomainCrafting(verb, args) {
-  const crafting = {
-    'forjar': ()=>cmdForjar(args),
-    'encarnar': ()=>cmdForjar(args, 'corporal'),
-    'conjurar': ()=>cmdForjar(args, 'mágico'),
-    'fusionar': ()=>cmdFusionar(args),
-    'recetas': ()=>cmdRecetas(),
-    'materiales': ()=>cmdMateriales(),
-  };
-  const fn = crafting[verb];
-  if(!fn) return false;
-  fn();
-  return true;
-}
-async function _dispatchDomainProgression(verb, args) {
-  if(['descansar','rest','dormir'].includes(verb)) { await _playerRest(); return true; }
-  if(['tactica','táctica','tac'].includes(verb)) { _playerTactic(); return true; }
-  if(['atributos','attrs'].includes(verb)) { _xpShowAttrs(); return true; }
-  if(['experiencia','xp','exp'].includes(verb)) { _xpShowExp(); return true; }
-  if(['asignar','assign'].includes(verb)) { _xpAssign(args.join(' ')); return true; }
-  return false;
-}
-
 
 function _globalApi(name) {
   if(typeof globalThis !== 'undefined' && globalThis[name]) return globalThis[name];
@@ -357,80 +315,35 @@ async function dispatch(cmd) {
     return;
   }
 
-  // Intentar comando de plugin
+  // ── Router principal — plugins y core registrados ──────────────
   if(await CommandRegistry.run(verb, args)) { EventBus.emit('command:after',{verb,args}); return; }
 
+  // ── Fallback: movimiento (antes de que los plugins registren) ──
   if(_dispatchDomainMovement(verb, args)) { EventBus.emit('command:after',{verb,args}); return; }
-  if(_dispatchDomainNarrative(verb, args)) { EventBus.emit('command:after',{verb,args}); return; }
-  if(_dispatchDomainCrafting(verb, args)) { EventBus.emit('command:after',{verb,args}); return; }
-  if(await _dispatchDomainProgression(verb, args)) { EventBus.emit('command:after',{verb,args}); return; }
 
-  // Comandos del motor
+  // ── Fallback: comandos core sin plugin activo ───────────────────
   switch(verb) {
-    // Movement/Narrative/Crafting/Progression se enrutan en domain dispatchers
-    case 'arcos': case 'arcs': case 'arc': _arcShow(); break;
+    // MAPA (fallback — también registrado como core command)
+    case 'mapa': case 'map': cmdMapa(args); break;
+    case 'secciones':        cmdMapa(['secciones']); break;
 
-    case 'facciones': case 'faccion': if(typeof FactionSystem!=='undefined') FactionSystemRef().cmdFacciones(); break;
-    case 'reputacion': case 'rep':    _cmdReputacion(); break;
-    case 'bosses': case 'boss':       if(typeof BossSystem!=='undefined') BossSystem.cmdBosses(); break;
-    case 'mapa': case 'map': cmdMapa(args); break; // fallback legacy
-    case 'secciones':         cmdMapa(['secciones']); break; // fallback legacy
-
-    case 'descansar': case 'rest': case 'dormir': await _playerRest(); break; // fallback legacy
-    case 'tactica': case 'táctica': case 'tac':   _playerTactic(); break; // fallback legacy
-    case 'items': case 'ítems':    _itemsShow(); break;
-    case 'reparar': {
-      const kit = args[0] ? Player.findItem(args[0]) : Player.get().inventory.find(i=>['kit_reparacion','kit_maestro','lima_afilado'].includes(i.blueprint));
-      if(!kit) { Out.line('No tienes kit de reparación.','t-dim'); break; }
-      if(_itemsApply(kit, null)) save();
-      break;
-    }
-
-    case 'forjar':              cmdForjar(args); break; // fallback legacy
-    case 'encarnar':            cmdForjar(args, 'corporal'); break; // fallback legacy
-    case 'conjurar':            cmdForjar(args, 'mágico'); break; // fallback legacy
-    case 'fusionar':            cmdFusionar(args); break; // fallback legacy
-    case 'recetas':             cmdRecetas(); break; // fallback legacy
-    case 'materiales':          cmdMateriales(); break; // fallback legacy
-
-    case 'habilidades': case 'hab': if(typeof cmdHabilidades!=='undefined') cmdHabilidades(); else _cmdHabilidadesBasic(); break;
-    case 'magias': case 'mag':      if(typeof cmdMagias!=='undefined') cmdMagias(); else _cmdMagiasBasic(); break;
-    case 'copiar':              if(typeof cmdCopiar!=='undefined') cmdCopiar(args); break;
-    case 'canalizar':           if(typeof cmdCanalizar!=='undefined') cmdCanalizar(args); break;
-    case 'lanzar':              cmdLanzarMagia(args.join(' ')); break;
-    case 'recargar':            cmdRecargarMagia(args); break;
-
-    case 'criaturas': case 'comp': cmdCompañeros(); break;
-    case 'capturar':            cmdCapturar(args.join(' ')); break;
-    case 'liberar':             cmdLiberar(args.join(' ')); break;
-    case 'modo':                cmdModo(args[0], args.slice(1).join(' ')); break;
-    case 'nombrar':             cmdNombrarComp(args[0], args.slice(1).join(' ')); break;
-    case 'criar':               cmdCriar(args[0], args[1]); break;
-    case 'anclas':              cmdAnclas(); break;
-    case 'vincular':            cmdVincular(args.join(' ')||null, null); break;
-
-    case 'inventario': case 'inv': cmdInv(); break;
-    case 'recoger': case 'tomar':  cmdRecoger(args.join(' ')); break;
-    case 'soltar': case 'drop':    cmdSoltar(args.join(' ')); break;
-    case 'equipar':             cmdEquipar(args.join(' ')); break;
-    case 'usar':                cmdUsar(args.join(' ')); break;
+    // COMBATE (cross-cutting — también registrado como core command)
     case 'atacar': case 'atk':  cmdAtacar(args.join(' ')); break;
     case 'examinar': case 'ex': cmdExaminar(args.join(' ')); break;
     case 'estado': case 'stats': cmdEstado(); break;
+    case 'batalla': { const b=_battleCurrent(); if(!b){Out.line('No estás en batalla.','t-dim');break;} _battleRender(b); break; }
+    case 'defender': { const b=_battleCurrent(); if(!b){Out.line('No estás en batalla.','t-dim');break;} _battleAction(b.id,Player.get().id,'defender',null); break; }
+
+    // LEGADOS / ECOS (cross-cutting)
     case 'legados': case 'ecos': cmdLegados(); break;
 
-    case 'atributos': case 'attrs': _xpShowAttrs(); break; // fallback legacy
-    case 'experiencia': case 'xp': case 'exp': _xpShowExp(); break; // fallback legacy
-    case 'asignar': case 'assign': _xpAssign(args.join(' ')); break; // fallback legacy
-
+    // RED / MULTIJUGADOR (también registrado como core command)
     case 'conectar': case 'host': case 'iniciar':
       if(args.length) await NetRef().connect(args.join('')); else await NetRef().host(); break;
     case 'aceptar_conexion': await NetRef().acceptConexion(args[0], args[1]||null); break;
     case 'desconectar': NetRef().disconnect(); break;
     case 'jugadores': case 'red': case 'net': NetRef().cmdJugadores(); break;
-    case 'batalla': { const b=_battleCurrent(); if(!b){Out.line('No estás en batalla.','t-dim');break;} _battleRender(b); break; }
-    case 'defender': { const b=_battleCurrent(); if(!b){Out.line('No estás en batalla.','t-dim');break;} _battleAction(b.id,Player.get().id,'defender',null); break; }
-    case 'unirse_batalla': { const b=Object.values(NetRef().battles).find(x=>x.nodeId===Player.pos()&&x.estado==='activo'); if(!b){Out.line('No hay batalla activa aquí.','t-dim');break;} NetRef().joinBattle(b.id); break; }
+    case 'unirse_batalla': { const b=Object.values(NetRef().battles||{}).find(x=>x.nodeId===Player.pos()&&x.estado==='activo'); if(!b){Out.line('No hay batalla activa aquí.','t-dim');break;} NetRef().joinBattle(b.id); break; }
 
     case 'comerciar': _cmdComerciar(args); break;
     case 'aceptar_trade': _cmdAceptarTrade(); break;
@@ -440,20 +353,24 @@ async function dispatch(cmd) {
     case 'confirmar_trade': _cmdConfirmarTrade(); break;
     case 'cancelar_trade': _cmdCancelarTrade(); break;
 
+    // AUDIO (también registrado como core command)
     case 'musica': case 'music': cmdMusica(args); break;
-    case 'sfx':                 cmdSfx(args); break;
-    case 'plugins':     cmdPlugins(); break;
-    case 'plugins_orden': cmdPluginsOrden(); break;
-    case 'plugins_pendientes': cmdPluginsPendientes(); break;
-    case 'servicios':   cmdServicios(); break;
-    case 'modulos':     cmdModulos(); break;
-    case 'eventos':     cmdEventos(); break;
-    case 'eventos_trace': cmdEventosTrace(args[0]); break;
-    case 'cargar_modulo':  cmdCargarModulo(args.join(' ')); break;
-    case 'cargar_plugin':  cmdCargarPlugin(args.join(' ')); break;
-    case 'descargar_plugin': PluginLoader.unregister(args[0]); Out.line(`Plugin "${args[0]}" descargado.`,'t-mem'); break;
+    case 'sfx':                  cmdSfx(args); break;
 
-    case 'guardar': case 'save': save(); Out.line('Guardado.','t-cra'); break;
+    // SISTEMA / PLUGINS (también registrado como core command)
+    case 'plugins':             cmdPlugins(); break;
+    case 'plugins_orden':       cmdPluginsOrden(); break;
+    case 'plugins_pendientes':  cmdPluginsPendientes(); break;
+    case 'servicios':           cmdServicios(); break;
+    case 'modulos':             cmdModulos(); break;
+    case 'eventos':             cmdEventos(); break;
+    case 'eventos_trace':       cmdEventosTrace(args[0]); break;
+    case 'cargar_modulo':       cmdCargarModulo(args.join(' ')); break;
+    case 'cargar_plugin':       cmdCargarPlugin(args.join(' ')); break;
+    case 'descargar_plugin':    PluginLoader.unregister(args[0]); Out.line(`Plugin "${args[0]}" descargado.`,'t-mem'); break;
+
+    // GUARDADO / SESIÓN
+    case 'guardar': case 'save':   save(); Out.line('Guardado.','t-cra'); break;
     case 'exportar': case 'export': exportarPartida(); break;
     case 'importar': case 'import': importarPartida(); break;
     case 'semilla': Out.line(`Semilla: ${World.seed}`,'t-sis'); break;
@@ -742,6 +659,7 @@ function cmdEquipar(q) {
   refreshStatus(); save();
 }
 function cmdUsar(q) { const item=Player.findItem(q); if(!item){Out.line(`No tienes "${q}".`,'t-dim');return;} if(_itemsCatalog()[item.blueprint]){_itemsApply(item,null);save();return;} if(item.tipo==='material'&&(item.hunger||item.hp)){if(item.hunger)Player.feed(item.hunger);if(item.hp)Player.heal(item.hp);Player.rmItem(item.id);Out.line(`Usas ${item.nombre||item.blueprint}.`,'t-cra');refreshStatus();save();return;} Out.line(`No puedes usar "${item.nombre||item.blueprint}" directamente.`,'t-dim'); }
+function cmdReparar(args) { const q=(args||[])[0]; const kit=q?Player.findItem(q):Player.get().inventory.find(i=>['kit_reparacion','kit_maestro','lima_afilado'].includes(i.blueprint)); if(!kit){Out.line('No tienes kit de reparación.','t-dim');return;} if(_itemsApply(kit,null))save(); }
 
 function cmdAtacar(q) {
   const n = World.node(Player.pos()); if(!n){return;}
@@ -1537,3 +1455,107 @@ if(typeof ServiceRegistry !== 'undefined') {
     return true;
   }, { pluginId:'core', version:'0.1.0' });
 }
+
+// ── Registro de comandos core (movimiento, combate, sistema, audio) ──────────
+(function _registerCoreCommands() {
+  if(typeof CommandRegistry === 'undefined') return;
+
+  // MOVIMIENTO
+  CommandRegistry.register('ir',       (args)=>cmdIr(args[0]),            'core', { titulo:'ir [direccion]',   desc:'Moverse a una salida del nodo.',      cat:'MOVIMIENTO', color:'t-sis' });
+  CommandRegistry.register('go',       (args)=>cmdIr(args[0]),            'core', { titulo:'go [direction]',   desc:'Alias: ir.',                          cat:'MOVIMIENTO', color:'t-sis' });
+  CommandRegistry.register('n',        ()=>cmdIr('norte'),                'core', { titulo:'n',                desc:'Ir al norte.',                        cat:'MOVIMIENTO', color:'t-sis' });
+  CommandRegistry.register('s',        ()=>cmdIr('sur'),                  'core', { titulo:'s',                desc:'Ir al sur.',                          cat:'MOVIMIENTO', color:'t-sis' });
+  CommandRegistry.register('e',        ()=>cmdIr('este'),                 'core', { titulo:'e',                desc:'Ir al este.',                         cat:'MOVIMIENTO', color:'t-sis' });
+  CommandRegistry.register('o',        ()=>cmdIr('oeste'),                'core', { titulo:'o',                desc:'Ir al oeste.',                        cat:'MOVIMIENTO', color:'t-sis' });
+  CommandRegistry.register('mirar',    ()=>cmdMirar(),                    'core', { titulo:'mirar',            desc:'Describir el nodo actual.',            cat:'MOVIMIENTO', color:'t-sis' });
+  CommandRegistry.register('l',        ()=>cmdMirar(),                    'core', { titulo:'l',                desc:'Alias: mirar.',                       cat:'MOVIMIENTO', color:'t-sis' });
+  CommandRegistry.register('ver',      ()=>cmdMirar(),                    'core', { titulo:'ver',              desc:'Alias: mirar.',                       cat:'MOVIMIENTO', color:'t-sis' });
+  CommandRegistry.register('mapa',     (args)=>cmdMapa(args),             'core', { titulo:'mapa [jugador]',   desc:'Ver mapa del mundo o posición de un jugador.', cat:'MOVIMIENTO', color:'t-eco' });
+  CommandRegistry.register('map',      (args)=>cmdMapa(args),             'core', { titulo:'map',              desc:'Alias: mapa.',                        cat:'MOVIMIENTO', color:'t-eco' });
+  CommandRegistry.register('secciones',(args)=>cmdMapa(['secciones']),    'core', { titulo:'secciones',        desc:'Ver mapa de secciones exploradas.',    cat:'MOVIMIENTO', color:'t-eco' });
+
+  // COMBATE (cross-cutting)
+  CommandRegistry.register('atacar',   (args)=>cmdAtacar(args.join(' ')), 'core', { titulo:'atacar [obj]',     desc:'Atacar un NPC, enemigo o criatura.',   cat:'COMBATE',    color:'t-pel' });
+  CommandRegistry.register('atk',      (args)=>cmdAtacar(args.join(' ')), 'core', { titulo:'atk (alias)',      desc:'Alias: atacar.',                      cat:'COMBATE',    color:'t-pel' });
+  CommandRegistry.register('examinar', (args)=>cmdExaminar(args.join(' ')),'core',{ titulo:'examinar [obj]',   desc:'Examinar NPC, objeto o nodo actual.',  cat:'COMBATE',    color:'t-out' });
+  CommandRegistry.register('ex',       (args)=>cmdExaminar(args.join(' ')),'core',{ titulo:'ex (alias)',       desc:'Alias: examinar.',                    cat:'COMBATE',    color:'t-out' });
+  CommandRegistry.register('estado',   ()=>cmdEstado(),                   'core', { titulo:'estado',           desc:'Ver ficha completa del jugador.',      cat:'COMBATE',    color:'t-out' });
+  CommandRegistry.register('stats',    ()=>cmdEstado(),                   'core', { titulo:'stats (alias)',    desc:'Alias: estado.',                      cat:'COMBATE',    color:'t-out' });
+  CommandRegistry.register('batalla',  ()=>{
+    const b=_battleCurrent(); if(!b){Out.line('No estás en batalla.','t-dim');return true;} _battleRender(b); return true;
+  }, 'core', { titulo:'batalla',            desc:'Ver estado de la batalla activa.',     cat:'COMBATE',    color:'t-pel' });
+  CommandRegistry.register('defender', ()=>{
+    const b=_battleCurrent(); if(!b){Out.line('No estás en batalla.','t-dim');return true;} _battleAction(b.id,Player.get().id,'defender',null); return true;
+  }, 'core', { titulo:'defender',           desc:'Adoptar postura defensiva en batalla.', cat:'COMBATE',   color:'t-sis' });
+  CommandRegistry.register('legados',  ()=>cmdLegados(),                  'core', { titulo:'legados',          desc:'Ver ecos y legados de runs anteriores.', cat:'COMBATE',  color:'t-eco' });
+  CommandRegistry.register('ecos',     ()=>cmdLegados(),                  'core', { titulo:'ecos (alias)',     desc:'Alias: legados.',                     cat:'COMBATE',    color:'t-eco' });
+
+  // MULTIJUGADOR / RED
+  CommandRegistry.register('host',     async ()=>{ await NetRef().host?.(); return true; },                                   'core', { titulo:'host',              desc:'Crear sala multijugador.',             cat:'MULTIJUGADOR', color:'t-eco' });
+  CommandRegistry.register('conectar', async (args)=>{ await NetRef().connect?.(args.join('')); return true; },              'core', { titulo:'conectar [código]', desc:'Conectarse a una sala.',               cat:'MULTIJUGADOR', color:'t-eco' });
+  CommandRegistry.register('iniciar',  async (args)=>{ if(args.length) await NetRef().connect?.(args.join('')); else await NetRef().host?.(); return true; }, 'core', { titulo:'iniciar', desc:'Alias: host o conectar.', cat:'MULTIJUGADOR', color:'t-eco' });
+  CommandRegistry.register('desconectar', ()=>{ NetRef().disconnect?.(); return true; },                                     'core', { titulo:'desconectar',       desc:'Desconectarse de la sala.',            cat:'MULTIJUGADOR', color:'t-eco' });
+  CommandRegistry.register('jugadores', ()=>{ NetRef().cmdJugadores?.(); return true; },                                     'core', { titulo:'jugadores',         desc:'Ver jugadores conectados.',            cat:'MULTIJUGADOR', color:'t-eco' });
+  CommandRegistry.register('red',       ()=>{ NetRef().cmdJugadores?.(); return true; },                                     'core', { titulo:'red (alias)',       desc:'Alias: jugadores.',                   cat:'MULTIJUGADOR', color:'t-eco' });
+  CommandRegistry.register('net',       ()=>{ NetRef().cmdJugadores?.(); return true; },                                     'core', { titulo:'net (alias)',       desc:'Alias: jugadores.',                   cat:'MULTIJUGADOR', color:'t-eco' });
+  CommandRegistry.register('aceptar_conexion', async (args)=>{ await NetRef().acceptConexion?.(args[0], args[1]||null); return true; }, 'core', { titulo:'aceptar_conexion', desc:'Aceptar solicitud de conexión.', cat:'MULTIJUGADOR', color:'t-eco' });
+  CommandRegistry.register('unirse_batalla', ()=>{ const b=Object.values(NetRef().battles||{}).find(x=>x.nodeId===Player.pos()&&x.estado==='activo'); if(!b){Out.line('No hay batalla activa aquí.','t-dim');return true;} NetRef().joinBattle?.(b.id); return true; }, 'core', { titulo:'unirse_batalla', desc:'Unirse a una batalla activa en el nodo.', cat:'MULTIJUGADOR', color:'t-eco' });
+  CommandRegistry.register('comerciar',      (args)=>{ _cmdComerciar(args);   return true; }, 'core', { titulo:'comerciar [jugador]', desc:'Iniciar comercio con otro jugador.', cat:'MULTIJUGADOR', color:'t-mem' });
+  CommandRegistry.register('aceptar_trade',  ()=>{ _cmdAceptarTrade();  return true; }, 'core', { titulo:'aceptar_trade',   desc:'Aceptar solicitud de comercio.',    cat:'MULTIJUGADOR', color:'t-mem' });
+  CommandRegistry.register('rechazar_trade', ()=>{ _cmdRechazarTrade(); return true; }, 'core', { titulo:'rechazar_trade',  desc:'Rechazar solicitud de comercio.',   cat:'MULTIJUGADOR', color:'t-mem' });
+  CommandRegistry.register('ofrecer',        (args)=>{ _cmdOfrecer(args);     return true; }, 'core', { titulo:'ofrecer [item]',     desc:'Añadir ítem a la oferta.',          cat:'MULTIJUGADOR', color:'t-mem' });
+  CommandRegistry.register('retirar',        (args)=>{ _cmdRetirar(args);     return true; }, 'core', { titulo:'retirar [item]',     desc:'Retirar ítem de la oferta.',        cat:'MULTIJUGADOR', color:'t-mem' });
+  CommandRegistry.register('confirmar_trade',()=>{ _cmdConfirmarTrade(); return true; }, 'core', { titulo:'confirmar_trade', desc:'Confirmar el intercambio.',         cat:'MULTIJUGADOR', color:'t-mem' });
+  CommandRegistry.register('cancelar_trade', ()=>{ _cmdCancelarTrade();  return true; }, 'core', { titulo:'cancelar_trade',  desc:'Cancelar el intercambio.',          cat:'MULTIJUGADOR', color:'t-mem' });
+
+  // AUDIO
+  CommandRegistry.register('musica',   (args)=>{ cmdMusica(args); return true; },  'core', { titulo:'musica [sub]',     desc:'Control de música: on · off · estado · midi.',  cat:'AUDIO', color:'t-mag' });
+  CommandRegistry.register('music',    (args)=>{ cmdMusica(args); return true; },  'core', { titulo:'music (alias)',    desc:'Alias: musica.',                               cat:'AUDIO', color:'t-mag' });
+  CommandRegistry.register('sfx',      (args)=>{ cmdSfx(args); return true; },     'core', { titulo:'sfx [sub]',       desc:'Control de efectos de sonido: on · off · test.', cat:'AUDIO', color:'t-mag' });
+
+  // SISTEMA / PLUGINS
+  CommandRegistry.register('plugins',            ()=>{ cmdPlugins(); return true; },                        'core', { titulo:'plugins',             desc:'Ver plugins activos y sus comandos.',  cat:'SISTEMA', color:'t-mag' });
+  CommandRegistry.register('plugins_orden',      ()=>{ cmdPluginsOrden(); return true; },                   'core', { titulo:'plugins_orden',        desc:'Ver orden de resolución de plugins.',  cat:'SISTEMA', color:'t-mag' });
+  CommandRegistry.register('plugins_pendientes', ()=>{ cmdPluginsPendientes(); return true; },              'core', { titulo:'plugins_pendientes',   desc:'Ver plugins pendientes por dependencias.', cat:'SISTEMA', color:'t-pel' });
+  CommandRegistry.register('servicios',          ()=>{ cmdServicios(); return true; },                      'core', { titulo:'servicios',            desc:'Ver servicios registrados en runtime.', cat:'SISTEMA', color:'t-acc' });
+  CommandRegistry.register('modulos',            ()=>{ cmdModulos(); return true; },                        'core', { titulo:'modulos',              desc:'Ver módulos cargados.',                cat:'SISTEMA', color:'t-acc' });
+  CommandRegistry.register('eventos',            ()=>{ cmdEventos(); return true; },                        'core', { titulo:'eventos',              desc:'Ver eventos del EventBus.',            cat:'SISTEMA', color:'t-acc' });
+  CommandRegistry.register('eventos_trace',      (args)=>{ cmdEventosTrace(args[0]); return true; },        'core', { titulo:'eventos_trace [n]',   desc:'Ver trazas recientes del EventBus.',   cat:'SISTEMA', color:'t-acc' });
+  CommandRegistry.register('cargar_modulo',      (args)=>{ cmdCargarModulo(args.join(' ')); return true; }, 'core', { titulo:'cargar_modulo <JSON>', desc:'Cargar módulo desde JSON.',            cat:'SISTEMA', color:'t-cra' });
+  CommandRegistry.register('cargar_plugin',      (args)=>{ cmdCargarPlugin(args.join(' ')); return true; }, 'core', { titulo:'cargar_plugin <JSON>', desc:'Cargar plugin desde JSON.',            cat:'SISTEMA', color:'t-cra' });
+  CommandRegistry.register('descargar_plugin',   (args)=>{ PluginLoader.unregister(args[0]); Out.line(`Plugin "${args[0]}" descargado.`,'t-mem'); return true; }, 'core', { titulo:'descargar_plugin [id]', desc:'Descargar y desregistrar un plugin.', cat:'SISTEMA', color:'t-pel' });
+
+  // GUARDADO / SESIÓN
+  CommandRegistry.register('guardar',  ()=>{ save(); Out.line('Guardado.','t-cra'); return true; },         'core', { titulo:'guardar',             desc:'Guardar la partida.',                  cat:'SISTEMA', color:'t-dim' });
+  CommandRegistry.register('save',     ()=>{ save(); Out.line('Guardado.','t-cra'); return true; },         'core', { titulo:'save (alias)',         desc:'Alias: guardar.',                     cat:'SISTEMA', color:'t-dim' });
+  CommandRegistry.register('exportar', ()=>{ exportarPartida(); return true; },                             'core', { titulo:'exportar',            desc:'Exportar partida a archivo.',          cat:'SISTEMA', color:'t-dim' });
+  CommandRegistry.register('export',   ()=>{ exportarPartida(); return true; },                             'core', { titulo:'export (alias)',       desc:'Alias: exportar.',                    cat:'SISTEMA', color:'t-dim' });
+  CommandRegistry.register('importar', ()=>{ importarPartida(); return true; },                             'core', { titulo:'importar',            desc:'Importar partida desde archivo.',      cat:'SISTEMA', color:'t-dim' });
+  CommandRegistry.register('import',   ()=>{ importarPartida(); return true; },                             'core', { titulo:'import (alias)',       desc:'Alias: importar.',                    cat:'SISTEMA', color:'t-dim' });
+  CommandRegistry.register('semilla',  ()=>{ Out.line(`Semilla: ${World.seed}`,'t-sis'); return true; },   'core', { titulo:'semilla',              desc:'Ver semilla del mundo actual.',        cat:'SISTEMA', color:'t-sis' });
+  CommandRegistry.register('nombre',   (args)=>{ if(args.length){const n=args.join(' ').trim().replace(/[<>&"]/g,'').slice(0,24);if(n.length>=2){Player.rename(n);Out.line(`Nombre: ${Player.get().name}`,'t-npc');if(NetRef().isClient())NetRef().sendAction('nombre',[n]);}else Out.line('El nombre debe tener al menos 2 caracteres.','t-dim');}return true; }, 'core', { titulo:'nombre [nombre]', desc:'Cambiar el nombre del jugador.', cat:'SISTEMA', color:'t-npc' });
+  CommandRegistry.register('nuevo',    async ()=>{ localStorage.removeItem('eco_v12'); Out.clear(); await init(); return true; }, 'core', { titulo:'nuevo',  desc:'Iniciar una nueva partida.',           cat:'SISTEMA', color:'t-pel' });
+  CommandRegistry.register('new',      async ()=>{ localStorage.removeItem('eco_v12'); Out.clear(); await init(); return true; }, 'core', { titulo:'new (alias)', desc:'Alias: nuevo.', cat:'SISTEMA', color:'t-pel' });
+
+  // PROGRESIÓN / XP (fallback cuando plugin-xp no está cargado)
+  CommandRegistry.register('experiencia', ()=>_xpShowExp(),              'core', { titulo:'experiencia', color:'t-mem', desc:'Ver progresión de ramas de experiencia.', cat:'PROGRESIÓN' });
+  CommandRegistry.register('xp',          ()=>_xpShowExp(),              'core', { titulo:'xp (alias)',   color:'t-mem', desc:'Alias: experiencia.',                    cat:'PROGRESIÓN' });
+  CommandRegistry.register('exp',         ()=>_xpShowExp(),              'core', { titulo:'exp (alias)',  color:'t-mem', desc:'Alias: experiencia.',                    cat:'PROGRESIÓN' });
+  CommandRegistry.register('atributos',   ()=>_xpShowAttrs(),            'core', { titulo:'atributos',    color:'t-acc', desc:'Ver atributos y puntos disponibles.',    cat:'PROGRESIÓN' });
+  CommandRegistry.register('attrs',       ()=>_xpShowAttrs(),            'core', { titulo:'attrs (alias)',color:'t-acc', desc:'Alias: atributos.',                      cat:'PROGRESIÓN' });
+  CommandRegistry.register('asignar',     (args)=>_xpAssign(args.join(' ')), 'core', { titulo:'asignar [atributo]', color:'t-acc', desc:'Invertir un punto en un atributo.', cat:'PROGRESIÓN' });
+  CommandRegistry.register('assign',      (args)=>_xpAssign(args.join(' ')), 'core', { titulo:'assign (alias)', color:'t-acc', desc:'Alias: asignar.',                  cat:'PROGRESIÓN' });
+  CommandRegistry.register('descansar',   async ()=>{ await _playerRest(); return true; }, 'core', { titulo:'descansar', color:'t-mem', desc:'Descansar para recuperar HP y stamina.', cat:'PROGRESIÓN' });
+  CommandRegistry.register('rest',        async ()=>{ await _playerRest(); return true; }, 'core', { titulo:'rest (alias)', color:'t-mem', desc:'Alias: descansar.', cat:'PROGRESIÓN' });
+  CommandRegistry.register('dormir',      async ()=>{ await _playerRest(); return true; }, 'core', { titulo:'dormir (alias)', color:'t-mem', desc:'Alias: descansar.', cat:'PROGRESIÓN' });
+  CommandRegistry.register('tactica',     ()=>{ _playerTactic(); return true; }, 'core', { titulo:'tactica', color:'t-sis', desc:'Ver tácticas y configuración de combate.', cat:'PROGRESIÓN' });
+  CommandRegistry.register('táctica',     ()=>{ _playerTactic(); return true; }, 'core', { titulo:'táctica (alias)', color:'t-sis', desc:'Alias: tactica.', cat:'PROGRESIÓN' });
+  CommandRegistry.register('tac',         ()=>{ _playerTactic(); return true; }, 'core', { titulo:'tac (alias)', color:'t-sis', desc:'Alias: tactica.', cat:'PROGRESIÓN' });
+
+  // AYUDA / UI
+  CommandRegistry.register('ayuda',    (args)=>{ cmdAyuda(args.join(' ')); return true; }, 'core', { titulo:'ayuda [tema]',       desc:'Mostrar ayuda general o de un tema.',  cat:'AYUDA', color:'t-acc' });
+  CommandRegistry.register('help',     (args)=>{ cmdAyuda(args.join(' ')); return true; }, 'core', { titulo:'help (alias)',        desc:'Alias: ayuda.',                       cat:'AYUDA', color:'t-acc', canonical:'ayuda' });
+  CommandRegistry.register('?',        (args)=>{ cmdAyuda(args.join(' ')); return true; }, 'core', { titulo:'? (alias)',           desc:'Alias: ayuda.',                       cat:'AYUDA', color:'t-acc' });
+  CommandRegistry.register('limpiar',  ()=>{ Out.clear(); return true; },                  'core', { titulo:'limpiar',            desc:'Limpiar la pantalla de salida.',       cat:'AYUDA', color:'t-dim' });
+  CommandRegistry.register('cls',      ()=>{ Out.clear(); return true; },                  'core', { titulo:'cls (alias)',         desc:'Alias: limpiar.',                     cat:'AYUDA', color:'t-dim' });
+})()

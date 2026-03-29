@@ -45,7 +45,7 @@ function createDomStub() {
   };
 }
 
-function loadAutocomplete(precedence = null) {
+function loadAutocomplete(precedence = null, commandRegistry = null) {
   const dom = createDomStub();
   let cfgPrecedence = precedence;
 
@@ -78,7 +78,7 @@ function loadAutocomplete(precedence = null) {
     D: { mat: () => ({}), matTags: () => [] },
     U: { clamp: (x, a, b) => Math.max(a, Math.min(b, x)) },
     PluginLoader: { order: [] },
-    CommandRegistry: { commands: {} },
+    CommandRegistry: commandRegistry || { commands: {} },
     Net: { getMyBattle: () => null },
     ServiceRegistry: {
       register() {},
@@ -113,7 +113,15 @@ function loadAutocomplete(precedence = null) {
     return labels();
   }
 
-  return { AC: sandbox.__AC, resolveForjar };
+  function resolveVerb(raw) {
+    dom.ac.children = [];
+    dom.ac.innerHTML = '';
+    dom.inp.value = raw;
+    sandbox.__AC.update();
+    return labels();
+  }
+
+  return { AC: sandbox.__AC, resolveForjar, resolveVerb };
 }
 
 (function testAutocompletePrecedencePolicies() {
@@ -140,6 +148,20 @@ function loadAutocomplete(precedence = null) {
 
   const baseOnly = resolveForjar('base_only');
   assert.deepStrictEqual(baseOnly, ['Mat Base']);
+})();
+
+(function testAutocompleteReadsCommandsFromRegistry() {
+  const registry = {
+    commands: {
+      ir: { pluginId:'core', meta:{ titulo:'ir [direccion]', desc:'Moverse', visible:true } },
+      help: { pluginId:'core', meta:{ titulo:'help', desc:'Alias', canonical:'ayuda', hidden:true } },
+      plugin_ping: { pluginId:'plugin:test', meta:{ titulo:'plugin_ping', desc:'Ping plugin', visible:true } },
+    },
+  };
+
+  const { resolveVerb } = loadAutocomplete(null, registry);
+  assert.deepStrictEqual(resolveVerb('p'), ['plugin_ping']);
+  assert.deepStrictEqual(resolveVerb('h'), []);
 })();
 
 console.log('OK autocomplete_precedence_smoke');

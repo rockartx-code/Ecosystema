@@ -278,5 +278,10 @@
       'runtime.arc.try_generate': (npc) => api().intentarGenArc(npc),
       'runtime.arc.on_mission_resolved': (mision) => api().onMisionResuelta(mision),
     },
+    comandos: {
+      'arcos': { fn: () => api().cmdArcs(), meta: { titulo:'arcos', color:'t-acc', desc:'Ver arcos narrativos activos y cerrados.' } },
+      'arcs':  { fn: () => api().cmdArcs(), meta: { titulo:'arcs (alias)', color:'t-acc', desc:'Ver arcos narrativos.' } },
+      'arc':   { fn: () => api().cmdArcs(), meta: { titulo:'arc (alias)',  color:'t-acc', desc:'Ver arcos narrativos.' } },
+    },
   };
 })(globalThis);
