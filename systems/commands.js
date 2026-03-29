@@ -1430,6 +1430,23 @@ if(typeof ServiceRegistry !== 'undefined') {
     if(typeof GS === 'undefined' || typeof GS.mision !== 'function') return null;
     return GS.mision(misionId);
   }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.gs.add_arc', (arc) => {
+    if(typeof GS === 'undefined' || typeof GS.addArc !== 'function' || !arc) return false;
+    GS.addArc(arc);
+    return true;
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.gs.arc', (arcId) => {
+    if(typeof GS === 'undefined' || typeof GS.arc !== 'function') return null;
+    return GS.arc(arcId);
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.gs.all_arcs', () => {
+    if(typeof GS === 'undefined' || typeof GS.allArcs !== 'function') return [];
+    return GS.allArcs();
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.gs.active_arcs', () => {
+    if(typeof GS === 'undefined' || typeof GS.arcsActivos !== 'function') return [];
+    return GS.arcsActivos();
+  }, { pluginId:'core', version:'0.1.0' });
   ServiceRegistry.register('runtime.gs.add_twist', (twist) => {
     if(typeof GS === 'undefined' || typeof GS.addTwist !== 'function' || !twist) return false;
     GS.addTwist(twist);

@@ -99,6 +99,10 @@ const assert = require('assert');
     'runtime.gs.all_misiones',
     'runtime.gs.add_mision',
     'runtime.gs.mision',
+    'runtime.gs.add_arc',
+    'runtime.gs.arc',
+    'runtime.gs.all_arcs',
+    'runtime.gs.active_arcs',
     'runtime.gs.add_twist',
   ].forEach((name) => assert.strictEqual(ServiceRegistry.has(name), true, `missing service ${name}`));
 })();

@@ -30,7 +30,7 @@ Matriz viva de ownership para el runtime orientado a plugins.
       "contracts": ["runtime.world_ai.*", "runtime.battle.*", "world:tick", "worldai:tick_creatures"]
     },
     {
-      "name": "memory-and-runtime-core",
+      "name": "memory-and-runtime-services",
       "systems": ["systems/run-memory.js", "systems/autocomplete.js", "systems/commands.js"],
       "plugins": ["plugins/plugin-sombra-herrante.js", "plugins/plugin-guarida.js"],
       "contracts": ["runtime.memory.*", "runtime.player.*", "runtime.world.*", "runtime.output.*"]

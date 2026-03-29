@@ -87,6 +87,7 @@ CTX.runtime = {
     setPosition: (nodeId)=>Player.setPos(nodeId),
     combatStats: ()=>({ atk: Player.getAtk(), def: Player.getDef() }),
     addItem: (item)=>Player.addItem(item),
+    removeItem: (itemId)=>Player.rmItem(itemId),
     recalcResonances: ()=>Player._recalcResonancias?.(),
   },
   world: {
@@ -123,6 +124,10 @@ CTX.runtime = {
     allMisiones: ()=>GS.allMisiones(),
     addMision: (mision)=>GS.addMision(mision),
     mision: (misionId)=>GS.mision(misionId),
+    addArc: (arc)=>GS.addArc(arc),
+    arc: (arcId)=>GS.arc(arcId),
+    allArcs: ()=>GS.allArcs(),
+    activeArcs: ()=>GS.arcsActivos(),
     addTwist: (twist)=>GS.addTwist(twist),
   },
   xp: {

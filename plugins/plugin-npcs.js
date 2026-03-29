@@ -17,6 +17,50 @@
     const fn = _svc('runtime.memory.ecos');
     return typeof fn === 'function' ? (fn() || []) : [];
   }
+  function _player() {
+    const fn = _svc('runtime.player.current');
+    return typeof fn === 'function' ? fn() : null;
+  }
+  function _worldRead() {
+    const fn = _svc('runtime.world.read');
+    return typeof fn === 'function' ? (fn() || {}) : {};
+  }
+  function _clockCurrent() {
+    const fn = _svc('runtime.clock.current');
+    return typeof fn === 'function' ? (fn() || {}) : {};
+  }
+  function _allNPCs() {
+    const fn = _svc('runtime.gs.all_npcs');
+    return typeof fn === 'function' ? (fn() || []) : [];
+  }
+  function _aliveNPCs() {
+    const fn = _svc('runtime.gs.alive_npcs');
+    return typeof fn === 'function' ? (fn() || []) : [];
+  }
+  function _addNPC(npc) {
+    const fn = _svc('runtime.gs.add_npc');
+    return typeof fn === 'function' ? !!fn(npc) : false;
+  }
+  function _allMisiones() {
+    const fn = _svc('runtime.gs.all_misiones');
+    return typeof fn === 'function' ? (fn() || []) : [];
+  }
+  function _addMision(mision) {
+    const fn = _svc('runtime.gs.add_mision');
+    return typeof fn === 'function' ? !!fn(mision) : false;
+  }
+  function _line(text, color='t-out', bold=false) {
+    const fn = _svc('runtime.output.line');
+    if(typeof fn === 'function') fn(text, color, bold);
+  }
+  function _refreshStatus() {
+    const fn = _svc('runtime.status.refresh');
+    if(typeof fn === 'function') fn();
+  }
+  function _saveGame() {
+    const fn = _svc('runtime.game.save');
+    if(typeof fn === 'function') fn();
+  }
 
   function createNPCApi() {
     const api = {
@@ -32,7 +76,7 @@
           id:U.uid(), nombre:api.nombre(rng), arq_vis:U.pick(nd.arquetipos_visibles || ['errante'], rng), arq_ocu:U.pick(nd.arquetipos_ocultos || ['vacío'], rng),
           deseo:U.pick(nd.deseos || ['—'], rng), necesidad:U.pick(nd.necesidades || ['—'], rng), miedo:U.pick(nd.miedos || ['—'], rng), secreto:U.pick(nd.secretos || ['—'], rng),
           secreto_idx:Math.floor(rng() * (nd.secretos || ['—']).length), trauma:U.pick(nd.traumas || ['—'], rng),
-          lealtad:U.rand(10, 40) + (Player.get().presencia || 0) * 3, corrupcion:U.rand(5, 30), desesperacion:U.rand(10, 50),
+          lealtad:U.rand(10, 40) + (_player()?.presencia || 0) * 3, corrupcion:U.rand(5, 30), desesperacion:U.rand(10, 50),
           nodeId, estado:'vivo', secreto_expuesto:false, arq_ocu_expuesto:false, fragmentos:[], vinculos:[], misiones_ofrecidas:[], interacciones:0,
           eco_run_id:ecos?.length && U.chance(0.3) ? U.pick(ecos, rng).run_id : null, twists_activados:[], hp_combat:null, faccion:null,
         };
@@ -50,7 +94,7 @@
         return npc;
       },
       dialogo(npc, runs) {
-        const rng = U.rng(npc.id + Clock.cycle + Math.random());
+        const rng = U.rng(npc.id + (Number(_clockCurrent().cycle) || 0) + Math.random());
         const dl = D.npcs.dialogos || {};
         let est = 'normal';
         if(npc.desesperacion > 75) est = 'desesperado';
@@ -122,7 +166,7 @@
         return act;
       },
       genMision(npc, npcs, ecos) {
-        const rng = U.rng(npc.id + Clock.cycle + Math.random());
+        const rng = U.rng(npc.id + (Number(_clockCurrent().cycle) || 0) + Math.random());
         const md = D.missions;
         let pool = [...(md.tipos || [])];
         if(npc.desesperacion > 70) pool = md.tipo_por_desesperacion_alta || pool;
@@ -135,7 +179,7 @@
         const vic = npcs?.find(x => x.id !== npc.id);
         const eco = ecos?.length ? U.pick(ecos, rng) : null;
         const vars = { npc:npc.nombre, victima:vic?.nombre || 'alguien', eco:eco?.nombre || 'alguien', objetivo:tpl.objetivos?.length ? U.pick(tpl.objetivos, rng) : 'algo', costo:tpl.costos?.length ? U.pick(tpl.costos, rng) : 'algo', amenaza:tpl.amenazas?.length ? U.pick(tpl.amenazas, rng) : 'algo', verdad:tpl.verdades?.length ? U.pick(tpl.verdades, rng) : 'algo', ciclos:U.rand(...(tpl.ciclos_rng || [2, 10])) };
-        let mision = { id:U.uid(), tipo, npc_id:npc.id, titulo:U.tmpl(tpl.titulo || tipo, vars), desc:U.tmpl(tpl.desc || '—', vars), objetivo:vars.objetivo, recompensa:tpl.recompensas?.length ? U.pick(tpl.recompensas, rng) : 'algo', consecuencia_fallo:U.tmpl(tpl.consecuencia || '—', vars), victima_id:vic?.id || null, eco_id:eco?.run_id || null, es_trampa:tipo === 'traición' && U.chance(tpl.trampa_chance || 0), es_imposible:tipo === 'imposible', completada:false, fallida:false, aceptada:false, ciclo:Clock.cycle };
+        let mision = { id:U.uid(), tipo, npc_id:npc.id, titulo:U.tmpl(tpl.titulo || tipo, vars), desc:U.tmpl(tpl.desc || '—', vars), objetivo:vars.objetivo, recompensa:tpl.recompensas?.length ? U.pick(tpl.recompensas, rng) : 'algo', consecuencia_fallo:U.tmpl(tpl.consecuencia || '—', vars), victima_id:vic?.id || null, eco_id:eco?.run_id || null, es_trampa:tipo === 'traición' && U.chance(tpl.trampa_chance || 0), es_imposible:tipo === 'imposible', completada:false, fallida:false, aceptada:false, ciclo:Number(_clockCurrent().cycle) || 0 };
         npc.misiones_ofrecidas.push(mision.id);
         const result = EventBus.emit('narrative:mission_gen', { mision, npc, vars });
         if(result?.mision) mision = result.mision;
@@ -148,23 +192,23 @@
         const vars = { npc:npc.nombre, deseo:npc.deseo, arq_ocu:npc.arq_ocu };
         if(r < (nd.muerte_chance || 0.3)) {
           npc.estado = 'muerto';
-          Out.line(`⟁ ${U.tmpl(nd.texto_muerte || '{npc} muere.', vars)}`, 't-twi', true);
-          GS.allMisiones().filter(m => m.npc_id === npc.id && !m.completada).forEach(m => m.fallida = true);
+          _line(`⟁ ${U.tmpl(nd.texto_muerte || '{npc} muere.', vars)}`, 't-twi', true);
+          _allMisiones().filter(m => m.npc_id === npc.id && !m.completada).forEach(m => m.fallida = true);
           EventBus.emit('narrative:npc_death', { npc, causa:'desesperación' });
         } else if(r < (nd.muerte_chance || 0.3) + (nd.desaparicion_chance || 0.3)) {
           npc.nodeId = '??'; npc.estado = 'desaparecido';
-          Out.line(`⟁ ${U.tmpl(nd.texto_desaparicion || '{npc} desaparece.', vars)}`, 't-twi', true);
+          _line(`⟁ ${U.tmpl(nd.texto_desaparicion || '{npc} desaparece.', vars)}`, 't-twi', true);
         } else {
           npc.arq_ocu_expuesto = true;
           npc.corrupcion = Math.min(100, npc.corrupcion + 25);
-          Out.line(`⟁ ${U.tmpl(nd.texto_quiebre || '{npc} quiebra.', vars)}`, 't-twi', true);
+          _line(`⟁ ${U.tmpl(nd.texto_quiebre || '{npc} quiebra.', vars)}`, 't-twi', true);
         }
-        refreshStatus(); save();
+        _refreshStatus(); _saveGame();
         return true;
       },
       tickNPCs() {
         const cfg = D;
-        GS.aliveNPCs().forEach(npc => {
+        _aliveNPCs().forEach(npc => {
           if(npc.estado !== 'vivo') return;
           if(U.chance(cfg.npc_desesperacion_tick_chance || 0.12) && npc.desesperacion < (cfg.npc_desesperacion_tick_max || 5) * 20) {
             npc.desesperacion = Math.min(100, npc.desesperacion + U.rand(3, 8));
@@ -178,7 +222,8 @@
         const nodes = payload?.nodes || {};
         const nodeIds = Object.keys(nodes);
         if(!nodeIds.length) return payload;
-        const rng = U.rng(`${payload?.seed || World.seed}:${Clock.cycle}:npc-pop`);
+        const worldState = _worldRead();
+        const rng = U.rng(`${payload?.seed || worldState.seed}:${Number(_clockCurrent().cycle) || 0}:npc-pop`);
         const npcChance = payload?.npcChance ?? D.world?.npc_chance ?? 0.55;
         const permitidos = Array.isArray(payload?.npcNodes) ? payload.npcNodes : (D.world?.npc_nodos_permitidos || []);
         const ecos = payload?.context?.ecos || _memoryEcos();
@@ -187,10 +232,10 @@
           if(!node || node.destruido) return;
           if(Array.isArray(permitidos) && permitidos.length && !permitidos.includes(node.tipo)) return;
           if(!U.chance(npcChance, rng)) return;
-          const yaEnNodo = GS.allNPCs().filter(n => n.nodeId === nodeId && n.estado !== 'muerto');
+          const yaEnNodo = _allNPCs().filter(n => n.nodeId === nodeId && n.estado !== 'muerto');
           if(yaEnNodo.length >= 3) return;
-          const npc = api.gen(nodeId, payload?.seed || World.seed, idx, ecos, yaEnNodo);
-          GS.addNPC(npc);
+          const npc = api.gen(nodeId, payload?.seed || worldState.seed, idx, ecos, yaEnNodo);
+          _addNPC(npc);
           if(Array.isArray(node.npc_ids) && !node.npc_ids.includes(npc.id)) node.npc_ids.push(npc.id);
         });
         return payload;

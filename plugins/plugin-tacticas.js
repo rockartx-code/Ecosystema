@@ -4,6 +4,52 @@
 // ════════════════════════════════════════════════════════════════
 
 (function initTacticsPlugin(global) {
+  function _svc(name) {
+    return (typeof ServiceRegistry !== 'undefined' && typeof ServiceRegistry.get === 'function')
+      ? ServiceRegistry.get(name)
+      : null;
+  }
+  function _player() {
+    const fn = _svc('runtime.player.current');
+    return typeof fn === 'function' ? fn() : null;
+  }
+  function _playerPos() {
+    const fn = _svc('runtime.player.position');
+    return typeof fn === 'function' ? fn() : null;
+  }
+  function _playerRemoveItem(itemId) {
+    const fn = _svc('runtime.player.remove_item');
+    return typeof fn === 'function' ? !!fn(itemId) : false;
+  }
+  function _worldNode(nodeId) {
+    const fn = _svc('runtime.world.node');
+    return typeof fn === 'function' ? fn(nodeId) : null;
+  }
+  function _clockTick(delta=1) {
+    const fn = _svc('runtime.clock.tick');
+    return typeof fn === 'function' ? !!fn(delta) : false;
+  }
+  function _line(text, color='t-out', bold=false) {
+    const fn = _svc('runtime.output.line');
+    if(typeof fn === 'function') fn(text, color, bold);
+  }
+  function _sp() {
+    const fn = _svc('runtime.output.sp');
+    if(typeof fn === 'function') fn();
+  }
+  function _sep(ch='─', len=46) {
+    const fn = _svc('runtime.output.sep');
+    if(typeof fn === 'function') fn(ch, len);
+  }
+  function _statusRefresh() {
+    const fn = _svc('runtime.status.refresh');
+    if(typeof fn === 'function') fn();
+  }
+  function _saveGame() {
+    const fn = _svc('runtime.game.save');
+    if(typeof fn === 'function') fn();
+  }
+
   function loadTacticsData() {
     const fallback = {
       elementos: {},
@@ -97,7 +143,7 @@
         battle.cola.filter(c => c.vivo).forEach(c => { c.hp = Math.max(0, c.hp - dmg); if(c.hp <= 0) c.vivo = false; });
         battleLog(battle, `  ↳ Superficie ${EFECTOS_SUPERFICIE[s.tipo].icon} daña a todos (${dmg}HP).`, EFECTOS_SUPERFICIE[s.tipo].color);
       }
-      if(s.tipo === 'congelada') { const p = Player.get(); p.stamina = Math.max(0, (p.stamina || 0) - 10); battleLog(battle, '  ❄ Superficie congelada — stamina −10.', 't-acc'); }
+      if(s.tipo === 'congelada') { const p = _player(); if(p) p.stamina = Math.max(0, (p.stamina || 0) - 10); battleLog(battle, '  ❄ Superficie congelada — stamina −10.', 't-acc'); }
       if(s.tipo === 'ceniza') battle.cola.filter(c => c.vivo && c.tipo !== 'player').forEach(c => { if(Math.random() < 0.3) c.skipping = true; });
     }
 
@@ -116,7 +162,7 @@
     }
 
     function getAuraComp(nodeId) {
-      const comps = Player.get().compañeros?.filter(c => !c.nodeId || c.nodeId === nodeId) || [];
+      const comps = _player()?.compañeros?.filter(c => !c.nodeId || c.nodeId === nodeId) || [];
       if(!comps.length) return null;
       const tags = comps[0].tags || comps[0].arquetipo_tags || [];
       if(tags.includes('fuego')) return 'ARDIENDO';
@@ -184,18 +230,19 @@
       }
     }
 
-    function consumirStamina(coste) { const p = Player.get(); p.stamina = Math.max(0, (p.stamina != null ? p.stamina : p.maxStamina || 100) - coste); }
-    function consumirMana(coste) { const p = Player.get(); p.mana = Math.max(0, (p.mana != null ? p.mana : p.maxMana || 60) - coste); return p.mana >= 0; }
-    function staminaPct() { const p = Player.get(); return (p.stamina != null ? p.stamina : p.maxStamina || 100) / (p.maxStamina || 100); }
-    function getClimaDesc(nodeId) { const n = World.node(nodeId); return CLIMAS_NODO[n?.tipo || 'hub'] || CLIMAS_NODO.hub || { nombre:'Neutro', desc:'Sin efectos especiales', mult_reac:1.0, elemento_base:null, color:'t-dim' }; }
+    function consumirStamina(coste) { const p = _player(); if(!p) return; p.stamina = Math.max(0, (p.stamina != null ? p.stamina : p.maxStamina || 100) - coste); }
+    function consumirMana(coste) { const p = _player(); if(!p) return false; p.mana = Math.max(0, (p.mana != null ? p.mana : p.maxMana || 60) - coste); return p.mana >= 0; }
+    function staminaPct() { const p = _player(); if(!p) return 0; return (p.stamina != null ? p.stamina : p.maxStamina || 100) / (p.maxStamina || 100); }
+    function getClimaDesc(nodeId) { const n = _worldNode(nodeId); return CLIMAS_NODO[n?.tipo || 'hub'] || CLIMAS_NODO.hub || { nombre:'Neutro', desc:'Sin efectos especiales', mult_reac:1.0, elemento_base:null, color:'t-dim' }; }
 
     function calcularDaño(actor, target, arma, elemento, battle) {
-      const p = Player.get();
+      const p = _player();
+      if(!p) return { dmg:1, reaccion:null, staMult:1, climaMult:1, supMult:1, reacMult:1, poiseMult:1 };
       const nodeId = battle.nodeId;
       let base = actor.atk + (arma?.atk || 0) + (arma?.tension_bonus || 0) + (arma?.imprint?.tension ? Math.floor(arma.imprint.tension * 5) : 0);
       const stamina = p.stamina != null ? p.stamina : (p.maxStamina || 100);
       const staMult = stamina < (p.maxStamina || 100) * 0.2 ? 0.5 : stamina < (p.maxStamina || 100) * 0.5 ? 0.75 : 1.0;
-      const climaMult = elemento ? (CLIMAS_NODO[World.node(nodeId)?.tipo || 'hub']?.mult_reac || 1.0) : 1.0;
+      const climaMult = elemento ? (CLIMAS_NODO[_worldNode(nodeId)?.tipo || 'hub']?.mult_reac || 1.0) : 1.0;
       const supMult = elemento ? (() => { const s = getSup(nodeId); const k = `${s.tipo}+${elemento}`; return REACCIONES_SUPERFICIE[k] ? 1.3 : 1.0; })() : 1.0;
       let reacMult = 1.0, reaccion = null;
       if(elemento && target.elemento_estado) {
@@ -230,7 +277,7 @@
     }
 
     function initBattle(battle) {
-      const n = World.node(battle.nodeId);
+      const n = _worldNode(battle.nodeId);
       const clima = CLIMAS_NODO[n?.tipo || 'hub'] || CLIMAS_NODO.hub || { nombre:'Neutro', mult_reac:1.0, elemento_base:null, color:'t-dim' };
       if(clima.elemento_base) {
         battle.cola.filter(c => c.vivo).forEach(c => { c.elemento_estado = clima.elemento_base; });
@@ -240,60 +287,62 @@
     }
 
     async function cmdDescansar() {
-      const p = Player.get();
-      const n = World.node(Player.pos());
+      const p = _player();
+      const n = _worldNode(_playerPos());
+      if(!p) return false;
       const ok = n?.tipo === 'hub' || n?.estado === 'pacificado';
-      Out.sp(); Out.sep('─'); Out.line('DESCANSO', 't-acc', true);
+      _sp(); _sep('─'); _line('DESCANSO', 't-acc', true);
       const hambreCosto = ok ? 15 : 25;
       p.hunger = Math.max(0, p.hunger - hambreCosto);
-      Clock.tick(3);
-      Out.line(`Hambre −${hambreCosto}  ·  Ciclo avanza.`, 't-dim');
-      if(p.hunger <= 0) { Out.line('Demasiada hambre para descansar bien.', 't-pel'); p.stamina = Math.min(p.maxStamina || 100, (p.stamina || 0) + 30); Out.sep('─'); Out.sp(); refreshStatus(); save(); return true; }
+      _clockTick(3);
+      _line(`Hambre −${hambreCosto}  ·  Ciclo avanza.`, 't-dim');
+      if(p.hunger <= 0) { _line('Demasiada hambre para descansar bien.', 't-pel'); p.stamina = Math.min(p.maxStamina || 100, (p.stamina || 0) + 30); _sep('─'); _sp(); _statusRefresh(); _saveGame(); return true; }
       p.stamina = p.maxStamina || 100;
       p.mana = p.maxMana || 60;
       const heridas = [...(p.heridas || [])];
       const medicina = p.inventory.find(i => i.blueprint?.includes('medicina') || i.tags?.includes('medicina'));
       if(ok || medicina) {
-        if(medicina) { Player.rmItem(medicina.id); Out.line(`Usas ${medicina.nombre} para curar heridas.`, 't-cra'); }
+        if(medicina) { _playerRemoveItem(medicina.id); _line(`Usas ${medicina.nombre} para curar heridas.`, 't-cra'); }
         p.heridas = heridas.filter(h => HERIDAS[h]?.turnosDuracion > 0);
-        if(heridas.length > p.heridas.length) Out.line(`Heridas curadas: ${heridas.filter(h => !p.heridas.includes(h)).join(', ')}`, 't-mem');
+        if(heridas.length > p.heridas.length) _line(`Heridas curadas: ${heridas.filter(h => !p.heridas.includes(h)).join(', ')}`, 't-mem');
       } else if(heridas.length) {
-        Out.line(`Heridas persisten: ${heridas.map(h => HERIDAS[h]?.icon + h).join(', ')}`, 't-pel');
-        Out.line('Necesitas nodo HUB o medicina para curar heridas graves.', 't-dim');
+        _line(`Heridas persisten: ${heridas.map(h => HERIDAS[h]?.icon + h).join(', ')}`, 't-pel');
+        _line('Necesitas nodo HUB o medicina para curar heridas graves.', 't-dim');
       }
       const hpRec = ok ? Math.floor(p.maxHp * 0.4) : Math.floor(p.maxHp * 0.2);
       p.hp = Math.min(p.maxHp, p.hp + hpRec);
-      Out.line(`+${hpRec}HP  Stamina restaurada  Maná restaurado`, 't-cra');
+      _line(`+${hpRec}HP  Stamina restaurada  Maná restaurado`, 't-cra');
       if(!ok) {
         const riesgo = ['abismo', 'yermo', 'umbral', 'ruina'].includes(n?.tipo) ? 0.4 : 0.25;
-        if(U.chance(riesgo)) { Out.line('¡EMBOSCADA! Enemies atacan mientras descansabas.', 't-pel', true); Out.sep('─'); Out.sp(); refreshStatus(); save(); return true; }
+        if(U.chance(riesgo)) { _line('¡EMBOSCADA! Enemies atacan mientras descansabas.', 't-pel', true); _sep('─'); _sp(); _statusRefresh(); _saveGame(); return true; }
       }
-      Out.line(ok ? 'Descansas en un lugar seguro.' : 'Descansas en terreno peligroso. Con un ojo abierto.', 't-dim');
-      Out.sep('─'); Out.sp(); refreshStatus(); save();
+      _line(ok ? 'Descansas en un lugar seguro.' : 'Descansas en terreno peligroso. Con un ojo abierto.', 't-dim');
+      _sep('─'); _sp(); _statusRefresh(); _saveGame();
       return true;
     }
 
     function cmdTactica() {
-      const nodeId = Player.pos();
-      const n = World.node(nodeId);
+      const nodeId = _playerPos();
+      const n = _worldNode(nodeId);
       const clima = getClimaDesc(nodeId);
       const sup = getSup(nodeId);
       const aura = getAuraComp(nodeId);
-      Out.sp(); Out.line('— SITUACIÓN TÁCTICA —', 't-acc');
-      Out.line(`Nodo: ${n?.name || '—'}  [${n?.tipo || '—'}]`, 't-dim');
-      Out.line(`Clima: ${clima.nombre}  — ${clima.desc}`, 't-sis');
-      Out.line(`Reacciones: ×${clima.mult_reac}${clima.elemento_base ? '  | Elem. base: ' + clima.elemento_base : ''}`, 't-dim');
-      if(sup.tipo !== 'normal') Out.line(`Superficie: ${EFECTOS_SUPERFICIE[sup.tipo]?.icon} ${sup.tipo.toUpperCase()}  (${sup.turnosRestantes}t)  — ${EFECTOS_SUPERFICIE[sup.tipo]?.desc}`, EFECTOS_SUPERFICIE[sup.tipo]?.color || 't-dim');
-      else Out.line('Superficie: normal', 't-dim');
-      if(aura) Out.line(`Aura compañero: ${aura}  ${ELEMENTOS[aura]?.desc || ''}`, ELEMENTOS[aura]?.color || 't-eco');
-      const p = Player.get();
+      _sp(); _line('— SITUACIÓN TÁCTICA —', 't-acc');
+      _line(`Nodo: ${n?.name || '—'}  [${n?.tipo || '—'}]`, 't-dim');
+      _line(`Clima: ${clima.nombre}  — ${clima.desc}`, 't-sis');
+      _line(`Reacciones: ×${clima.mult_reac}${clima.elemento_base ? '  | Elem. base: ' + clima.elemento_base : ''}`, 't-dim');
+      if(sup.tipo !== 'normal') _line(`Superficie: ${EFECTOS_SUPERFICIE[sup.tipo]?.icon} ${sup.tipo.toUpperCase()}  (${sup.turnosRestantes}t)  — ${EFECTOS_SUPERFICIE[sup.tipo]?.desc}`, EFECTOS_SUPERFICIE[sup.tipo]?.color || 't-dim');
+      else _line('Superficie: normal', 't-dim');
+      if(aura) _line(`Aura compañero: ${aura}  ${ELEMENTOS[aura]?.desc || ''}`, ELEMENTOS[aura]?.color || 't-eco');
+      const p = _player();
+      if(!p) return false;
       const st = Math.round(staminaPct() * 100);
       const mn = Math.round(((p.mana != null ? p.mana : 60) / (p.maxMana || 60)) * 100);
-      Out.line(`Stamina: ${st}%  Maná: ${mn}%`, 't-dim');
-      if((p.heridas || []).length) { Out.line('Heridas activas:', 't-pel'); p.heridas.forEach(h => Out.line(`  ${HERIDAS[h]?.icon} ${h}: ${HERIDAS[h]?.desc}`, 't-pel')); }
+      _line(`Stamina: ${st}%  Maná: ${mn}%`, 't-dim');
+      if((p.heridas || []).length) { _line('Heridas activas:', 't-pel'); p.heridas.forEach(h => _line(`  ${HERIDAS[h]?.icon} ${h}: ${HERIDAS[h]?.desc}`, 't-pel')); }
       const arma = p.equipped?.arma;
-      if(arma) { const el = getElementoArma(arma); const dur = arma.durabilidad != null ? arma.durabilidad : 100; Out.line(`Arma: ${arma.nombre || arma.blueprint}  Dur:${dur}%${arma.mellada ? ' [MELLADA]' : ''}${el ? '  [' + el + ']' : ''}`, dur < 30 ? 't-pel' : 't-cra'); }
-      Out.sp();
+      if(arma) { const el = getElementoArma(arma); const dur = arma.durabilidad != null ? arma.durabilidad : 100; _line(`Arma: ${arma.nombre || arma.blueprint}  Dur:${dur}%${arma.mellada ? ' [MELLADA]' : ''}${el ? '  [' + el + ']' : ''}`, dur < 30 ? 't-pel' : 't-cra'); }
+      _sp();
       return true;
     }
 
@@ -301,23 +350,24 @@
       const nodeId = battle.nodeId;
       const clima = getClimaDesc(nodeId);
       const sup = getSup(nodeId);
-      Out.sp();
-      Out.line(`  CLIMA: ${clima.nombre} ${sup.tipo !== 'normal' ? '| SUP: ' + sup.tipo.toUpperCase() + '(' + sup.turnosRestantes + 't)' : ''}  — ${clima.desc}`, 't-dim');
+      _sp();
+      _line(`  CLIMA: ${clima.nombre} ${sup.tipo !== 'normal' ? '| SUP: ' + sup.tipo.toUpperCase() + '(' + sup.turnosRestantes + 't)' : ''}  — ${clima.desc}`, 't-dim');
       const aura = getAuraComp(nodeId);
-      if(aura) Out.line(`  ✦ AURA COMPAÑERO: ${aura}  ${ELEMENTOS[aura]?.desc || ''}`, ELEMENTOS[aura]?.color || 't-eco');
+      if(aura) _line(`  ✦ AURA COMPAÑERO: ${aura}  ${ELEMENTOS[aura]?.desc || ''}`, ELEMENTOS[aura]?.color || 't-eco');
       battle.cola.filter(c => c.vivo).forEach(c => {
         const el = c.elemento_estado ? ` [${c.elemento_estado}${ELEMENTOS[c.elemento_estado]?.icon || ''}]` : '';
         const poise = c.poise != null ? ` POISE:${c.poise}/${calcPoise(c)}` : '';
         const roto = c.poise_roto ? ' ⚡VULNERABLE' : '';
         const stun = c.stun_turnos > 0 ? ' 💫ATURDIDO' : '';
-        if(el || poise || roto || stun) Out.line(`  ${c.name}:${el}${poise}${roto}${stun}`, 't-dim');
+        if(el || poise || roto || stun) _line(`  ${c.name}:${el}${poise}${roto}${stun}`, 't-dim');
       });
-      const p = Player.get();
+      const p = _player();
+      if(!p) return false;
       const stpct = Math.round(staminaPct() * 100);
       const mnapct = Math.round(((p.mana != null ? p.mana : 60) / (p.maxMana || 60)) * 100);
-      Out.line(`  STAMINA: ${stpct}%${stpct < 20 ? ' ⚠AGOTADO' : ''}  MANÁ: ${mnapct}%  HP: ${p.hp}/${p.maxHp}`, 't-dim');
-      if((p.heridas || []).length) Out.line(`  HERIDAS: ${p.heridas.map(h => HERIDAS[h]?.icon + h).join(', ')}`, 't-pel');
-      Out.sp();
+      _line(`  STAMINA: ${stpct}%${stpct < 20 ? ' ⚠AGOTADO' : ''}  MANÁ: ${mnapct}%  HP: ${p.hp}/${p.maxHp}`, 't-dim');
+      if((p.heridas || []).length) _line(`  HERIDAS: ${p.heridas.map(h => HERIDAS[h]?.icon + h).join(', ')}`, 't-pel');
+      _sp();
       return true;
     }
 
@@ -356,7 +406,7 @@
       'runtime.tactics.get_sup': (nodeId=null) => api().getSup(nodeId),
       'runtime.tactics.reaction_meta': (key='') => api().REACCIONES?.[key] || null,
       'runtime.tactics.climate_reac_mult': (nodeId=null) => {
-        const nodeType = typeof World !== 'undefined' ? (World.node(nodeId)?.tipo || 'hub') : 'hub';
+        const nodeType = _worldNode(nodeId)?.tipo || 'hub';
         return api().CLIMAS_NODO?.[nodeType]?.mult_reac || 1;
       },
       'runtime.tactics.apply_reaction': (reac, actor, target, battle=null) => { api().aplicarReaccion(reac, actor, target, battle); return true; },

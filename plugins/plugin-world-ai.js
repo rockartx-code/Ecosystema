@@ -4,6 +4,52 @@
 // ════════════════════════════════════════════════════════════════
 
 (function initWorldAIPlugin(global) {
+  function _svc(name) {
+    return (typeof ServiceRegistry !== 'undefined' && typeof ServiceRegistry.get === 'function')
+      ? ServiceRegistry.get(name)
+      : null;
+  }
+  function _player() {
+    const fn = _svc('runtime.player.current');
+    return typeof fn === 'function' ? fn() : null;
+  }
+  function _playerPos() {
+    const fn = _svc('runtime.player.position');
+    return typeof fn === 'function' ? fn() : null;
+  }
+  function _worldAll() {
+    const fn = _svc('runtime.world.all');
+    return typeof fn === 'function' ? (fn() || {}) : {};
+  }
+  function _worldNode(nodeId) {
+    const fn = _svc('runtime.world.node');
+    return typeof fn === 'function' ? fn(nodeId) : null;
+  }
+  function _worldExits(nodeId) {
+    const fn = _svc('runtime.world.exits');
+    return typeof fn === 'function' ? (fn(nodeId) || {}) : {};
+  }
+  function _clockCurrent() {
+    const fn = _svc('runtime.clock.current');
+    return typeof fn === 'function' ? (fn() || {}) : {};
+  }
+  function _aliveNPCs() {
+    const fn = _svc('runtime.gs.alive_npcs');
+    return typeof fn === 'function' ? (fn() || []) : [];
+  }
+  function _line(text, color='t-out', bold=false) {
+    const fn = _svc('runtime.output.line');
+    if(typeof fn === 'function') fn(text, color, bold);
+  }
+  function _sp() {
+    const fn = _svc('runtime.output.sp');
+    if(typeof fn === 'function') fn();
+  }
+  function _refreshStatus() {
+    const fn = _svc('runtime.status.refresh');
+    if(typeof fn === 'function') fn();
+  }
+
   function loadWorldAIData() {
     const fallback = {
       migration_interval: 5,
@@ -51,7 +97,7 @@
     let lastMigrationCycle = 0;
 
     function _randomExit(nodeId) {
-      const exits = Object.values(World.exits(nodeId));
+      const exits = Object.values(_worldExits(nodeId));
       if(!exits.length) return null;
       return exits[Math.floor(Math.random() * exits.length)];
     }
@@ -68,14 +114,14 @@
 
     const COMPORTAMIENTOS = {
       cazador(entity, nodeId) {
-        const playerNode = Player.pos();
-        const exits = World.exits(nodeId);
+        const playerNode = _playerPos();
+        const exits = _worldExits(nodeId);
         const dirHacia = Object.entries(exits).find(([, destId]) => destId === playerNode);
         if(dirHacia && entity.vio_jugador) return dirHacia[1];
         return _randomExit(nodeId);
       },
       patrullero(entity, nodeId) {
-        const exits = Object.values(World.exits(nodeId));
+        const exits = Object.values(_worldExits(nodeId));
         if(!exits.length) return null;
         if(entity._patrol_idx == null) entity._patrol_idx = 0;
         entity._patrol_idx = (entity._patrol_idx + 1) % Math.max(1, exits.length);
@@ -83,11 +129,11 @@
       },
       migrante(entity, nodeId) {
         const prefs = PREFERENCIAS[entity.tipo || 'enemy'] || {};
-        const exits = Object.entries(World.exits(nodeId));
+        const exits = Object.entries(_worldExits(nodeId));
         if(!exits.length) return null;
         let best = null, bestScore = -1;
         exits.forEach(([, destId]) => {
-          const destNode = World.node(destId);
+          const destNode = _worldNode(destId);
           const score = (prefs[destNode?.tipo] || 1) + Math.random() * 0.5;
           if(score > bestScore) { bestScore = score; best = destId; }
         });
@@ -97,52 +143,52 @@
     };
 
     function _procesarEventos(eventos) {
-      eventos.forEach(ev => {
-        setTimeout(() => {
-          switch(ev.tipo) {
-            case 'enemy_enter': Out.sp(); Out.line(`⚠ ${ev.entity.nombre || ev.entity.name} entra en tu nodo.`, 't-pel'); Out.line(`HP:${ev.entity.hp}  ATK:${ev.entity.atk}  — "atacar" para iniciar combate.`, 't-dim'); refreshStatus(); break;
-            case 'enemy_leave': Out.line(`${ev.entity.nombre || ev.entity.name} abandona el nodo.`, 't-dim'); break;
-            case 'creature_enter': Out.sp(); Out.line(`✦ ${ev.entity.nombre} merodea por aquí.`, 't-cri'); Out.line(`"capturar ${ev.entity.nombre.split('-')[0].toLowerCase()}" para intentar vincularlo.`, 't-dim'); refreshStatus(); break;
-            case 'npc_enter': Out.sp(); Out.line(`◈ ${ev.entity.nombre} llega a este nodo.`, 't-npc'); Out.line(`"hablar ${ev.entity.nombre.split(' ')[0].toLowerCase()}" para interactuar.`, 't-dim'); refreshStatus(); break;
-            case 'npc_leave': Out.line(`${ev.entity.nombre} se marcha.`, 't-dim'); break;
-          }
-        }, 200);
-      });
+        eventos.forEach(ev => {
+          setTimeout(() => {
+            switch(ev.tipo) {
+              case 'enemy_enter': _sp(); _line(`⚠ ${ev.entity.nombre || ev.entity.name} entra en tu nodo.`, 't-pel'); _line(`HP:${ev.entity.hp}  ATK:${ev.entity.atk}  — "atacar" para iniciar combate.`, 't-dim'); _refreshStatus(); break;
+              case 'enemy_leave': _line(`${ev.entity.nombre || ev.entity.name} abandona el nodo.`, 't-dim'); break;
+              case 'creature_enter': _sp(); _line(`✦ ${ev.entity.nombre} merodea por aquí.`, 't-cri'); _line(`"capturar ${ev.entity.nombre.split('-')[0].toLowerCase()}" para intentar vincularlo.`, 't-dim'); _refreshStatus(); break;
+              case 'npc_enter': _sp(); _line(`◈ ${ev.entity.nombre} llega a este nodo.`, 't-npc'); _line(`"hablar ${ev.entity.nombre.split(' ')[0].toLowerCase()}" para interactuar.`, 't-dim'); _refreshStatus(); break;
+              case 'npc_leave': _line(`${ev.entity.nombre} se marcha.`, 't-dim'); break;
+            }
+          }, 200);
+        });
     }
 
     function tick() {
-      const cycle = Clock.cycle;
+      const cycle = Number(_clockCurrent().cycle) || 0;
       if(cycle - lastMigrationCycle < MIGRATION_INTERVAL) return false;
       lastMigrationCycle = cycle;
       let movidos = 0;
       const eventos = [];
-      Object.values(World.all()).forEach(nodo => {
+      Object.values(_worldAll()).forEach(nodo => {
         (nodo.enemies || []).forEach(enemy => {
           if(!enemy.id) return;
           const comp = _asignarComportamiento({ ...enemy, tipo:'enemy' });
           enemy.comportamiento = comp;
           const destId = (COMPORTAMIENTOS[comp] || _randomExit)(enemy, nodo.id);
           if(!destId || destId === nodo.id) return;
-          const destNode = World.node(destId); if(!destNode) return;
+          const destNode = _worldNode(destId); if(!destNode) return;
           destNode.enemies = destNode.enemies || []; destNode.enemies.push(enemy);
           nodo.enemies = nodo.enemies.filter(e => e.id !== enemy.id); movidos++;
-          const invisible = Player.get().flags?.some(f => f.tipo === 'invisible' && (f.ciclos || 0) > 0);
-          if(destId === Player.pos() && !invisible) { enemy.vio_jugador = true; eventos.push({ tipo:'enemy_enter', entity:enemy, nodeId:destId }); }
-          if(nodo.id === Player.pos()) eventos.push({ tipo:'enemy_leave', entity:enemy, nodeId:nodo.id });
+          const invisible = _player()?.flags?.some(f => f.tipo === 'invisible' && (f.ciclos || 0) > 0);
+          if(destId === _playerPos() && !invisible) { enemy.vio_jugador = true; eventos.push({ tipo:'enemy_enter', entity:enemy, nodeId:destId }); }
+          if(nodo.id === _playerPos()) eventos.push({ tipo:'enemy_leave', entity:enemy, nodeId:nodo.id });
         });
       });
-      EventBus.emit('worldai:tick_creatures', { nodes:World.all(), playerPos:Player.pos(), eventos });
-      GS.aliveNPCs().forEach(npc => {
+      EventBus.emit('worldai:tick_creatures', { nodes:_worldAll(), playerPos:_playerPos(), eventos });
+      _aliveNPCs().forEach(npc => {
         if(!npc.id || npc.estado !== 'vivo') return;
         const esAmbulante = NPC_ROAMING_ROLES.includes(npc.arq_vis || '');
         if(!esAmbulante || Math.random() > NPC_MOVE_CHANCE) return;
-        const exits = Object.values(World.exits(npc.nodeId));
+        const exits = Object.values(_worldExits(npc.nodeId));
         if(!exits.length) return;
         const prevNode = npc.nodeId;
         npc.nodeId = exits[Math.floor(Math.random() * exits.length)];
         movidos++;
-        if(npc.nodeId === Player.pos()) eventos.push({ tipo:'npc_enter', entity:npc, nodeId:npc.nodeId });
-        if(prevNode === Player.pos()) eventos.push({ tipo:'npc_leave', entity:npc, nodeId:prevNode });
+        if(npc.nodeId === _playerPos()) eventos.push({ tipo:'npc_enter', entity:npc, nodeId:npc.nodeId });
+        if(prevNode === _playerPos()) eventos.push({ tipo:'npc_leave', entity:npc, nodeId:prevNode });
       });
       if(eventos.length) _procesarEventos(eventos);
       if(movidos > 0) EventBus.emit('worldai:tick', { cycle, movidos, eventos:eventos.length });
@@ -150,7 +196,7 @@
     }
 
     function onNodeEnter(nodeId) {
-      const n = World.node(nodeId);
+      const n = _worldNode(nodeId);
       if(!n) return false;
       (n.enemies || []).forEach(e => { e.vio_jugador = true; });
       return true;

@@ -16,6 +16,13 @@ function read(file) { return fs.readFileSync(file, 'utf8'); }
 (function testPluginSombraUsesRuntimeMemoryServices() {
   const src = read('plugins/plugin-sombra-herrante.js');
   assert.ok(src.includes("runtime.memory.runs"), 'plugin-sombra-herrante debe usar runtime.memory.runs');
+  assert.strictEqual(src.includes('RunMem.'), false, 'plugin-sombra-herrante no debe usar RunMem directo');
+})();
+
+(function testPluginInvocacionesUsesRuntimeMemoryServices() {
+  const src = read('plugins/plugin-invocaciones.js');
+  assert.ok(src.includes("runtime.memory.data.get"), 'plugin-invocaciones debe usar runtime.memory.data.get');
+  assert.strictEqual(src.includes('RunMem.'), false, 'plugin-invocaciones no debe usar RunMem directo');
 })();
 
 console.log('OK plugins_memory_services_smoke');

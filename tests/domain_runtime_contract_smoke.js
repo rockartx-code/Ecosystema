@@ -83,6 +83,15 @@ function expectServices(file, services) {
     'runtime.world_ai.api',
     'runtime.world_ai.tick',
   ]);
+
+  expectServices('plugins/plugin-habilidades.js', [
+    'runtime.combat.enemy.use_habilidad',
+    'runtime.combat.enemy.tick_habilidad_buffs',
+  ]);
+
+  expectServices('plugins/plugin-magias.js', [
+    'runtime.combat.enemy.cast_magia',
+  ]);
 })();
 
 console.log('OK domain_runtime_contract_smoke');

@@ -4,6 +4,36 @@
 // ════════════════════════════════════════════════════════════════
 
 (function initXPPlugin(global) {
+  function _svc(name) {
+    return (typeof ServiceRegistry !== 'undefined' && typeof ServiceRegistry.get === 'function')
+      ? ServiceRegistry.get(name)
+      : null;
+  }
+  function _player() {
+    const fn = _svc('runtime.player.current');
+    return typeof fn === 'function' ? fn() : null;
+  }
+  function _line(text, color='t-out', bold=false) {
+    const fn = _svc('runtime.output.line');
+    if(typeof fn === 'function') fn(text, color, bold);
+  }
+  function _sp() {
+    const fn = _svc('runtime.output.sp');
+    if(typeof fn === 'function') fn();
+  }
+  function _sep(ch='─', len=46) {
+    const fn = _svc('runtime.output.sep');
+    if(typeof fn === 'function') fn(ch, len);
+  }
+  function _statusRefresh() {
+    const fn = _svc('runtime.status.refresh');
+    if(typeof fn === 'function') fn();
+  }
+  function _saveGame() {
+    const fn = _svc('runtime.game.save');
+    if(typeof fn === 'function') fn();
+  }
+
   const EFFECTS = {
     atk_plus_1: (p)=>{ p.atk++; },
     hp_plus_5: (p)=>{ p.maxHp += 5; p.hp = Math.min(p.hp + 5, p.maxHp); },
@@ -107,13 +137,13 @@
         state.puntos += ganados;
         const ramaDef = RAMAS[rama];
         setTimeout(() => {
-          Out.sp(); Out.sep('═');
-          Out.line(`⬆ NIVEL ${r.nivel} — ${ramaDef.icon} ${ramaDef.label}`, ramaDef.color, true);
-          if(ganados > 1) Out.line(`Saltaste ${ganados} niveles.`, 't-dim');
-          Out.line(`+${ganados} punto${ganados > 1 ? 's' : ''} de atributo disponible${ganados > 1 ? 's' : ''}.`, 't-mem');
-          Out.line(`Puntos totales: ${state.puntos}  →  "asignar [atributo]"`, 't-dim');
-          Out.sep('═'); Out.sp();
-          refreshStatus();
+          _sp(); _sep('═');
+          _line(`⬆ NIVEL ${r.nivel} — ${ramaDef.icon} ${ramaDef.label}`, ramaDef.color, true);
+          if(ganados > 1) _line(`Saltaste ${ganados} niveles.`, 't-dim');
+          _line(`+${ganados} punto${ganados > 1 ? 's' : ''} de atributo disponible${ganados > 1 ? 's' : ''}.`, 't-mem');
+          _line(`Puntos totales: ${state.puntos}  →  "asignar [atributo]"`, 't-dim');
+          _sep('═'); _sp();
+          _statusRefresh();
         }, 100);
       }
       return true;
@@ -122,36 +152,38 @@
     function asignar(atributo) {
       const def = ATRIBUTOS[atributo];
       if(!def) {
-        Out.line(`Atributo desconocido: "${atributo}". Escribe "atributos" para ver opciones.`, 't-dim');
+        _line(`Atributo desconocido: "${atributo}". Escribe "atributos" para ver opciones.`, 't-dim');
         return false;
       }
       if(state.puntos <= 0) {
-        Out.line('Sin puntos de atributo. Sube de nivel en cualquier rama.  ("experiencia" para ver progreso)', 't-dim');
+        _line('Sin puntos de atributo. Sube de nivel en cualquier rama.  ("experiencia" para ver progreso)', 't-dim');
         return false;
       }
 
       state.puntos--;
       state.atributos[atributo] = (state.atributos[atributo] || 0) + 1;
-      def.apply(Player.get());
+      const player = _player();
+      if(!player) return false;
+      def.apply(player);
 
-      Out.sp();
-      Out.line(`▲ ${def.label}  →  ${def.desc}`, def.color, true);
-      Out.line(`Puntos restantes: ${state.puntos}`, 't-dim');
-      Out.sp();
+      _sp();
+      _line(`▲ ${def.label}  →  ${def.desc}`, def.color, true);
+      _line(`Puntos restantes: ${state.puntos}`, 't-dim');
+      _sp();
 
-      if(atributo === 'voluntad') Player.get()._extra_mag_slots = Math.floor(state.atributos.voluntad / 3);
-      if(atributo === 'vigor') Player.get()._extra_hab_slots = Math.floor(state.atributos.vigor / 3);
+      if(atributo === 'voluntad') player._extra_mag_slots = Math.floor(state.atributos.voluntad / 3);
+      if(atributo === 'vigor') player._extra_hab_slots = Math.floor(state.atributos.vigor / 3);
 
-      refreshStatus();
+      _statusRefresh();
       return true;
     }
 
     function cmdExperiencia() {
       init();
-      Out.sp(); Out.line('— EXPERIENCIA —', 't-acc');
+      _sp(); _line('— EXPERIENCIA —', 't-acc');
       if(state.puntos > 0) {
-        Out.line(`⬆ ${state.puntos} punto${state.puntos > 1 ? 's' : ''} disponible${state.puntos > 1 ? 's' : ''}  →  "asignar [atributo]"`, 't-mem', true);
-        Out.sp();
+        _line(`⬆ ${state.puntos} punto${state.puntos > 1 ? 's' : ''} disponible${state.puntos > 1 ? 's' : ''}  →  "asignar [atributo]"`, 't-mem', true);
+        _sp();
       }
       Object.entries(RAMAS).forEach(([id, def]) => {
         const r = state.ramas[id] || { xp: 0, nivel: 1 };
@@ -161,40 +193,40 @@
         const pct = lv >= 100 ? 100 : Math.floor(enNivel / paraNext * 100);
         const filled = Math.floor(pct / 100 * 24);
         const bar = '█'.repeat(filled) + '░'.repeat(24 - filled);
-        Out.line(`  ${def.icon} ${def.label.padEnd(12)} Lv${String(lv >= 100 ? 'MAX' : lv).padStart(3)}  ${bar}  ${lv < 100 ? enNivel + '/' + paraNext + 'xp' : ''}`, def.color);
+        _line(`  ${def.icon} ${def.label.padEnd(12)} Lv${String(lv >= 100 ? 'MAX' : lv).padStart(3)}  ${bar}  ${lv < 100 ? enNivel + '/' + paraNext + 'xp' : ''}`, def.color);
       });
-      Out.sp();
+      _sp();
       const invertidos = Object.entries(state.atributos).filter(([, v]) => v > 0);
       if(invertidos.length) {
-        Out.line('Atributos invertidos:', 't-acc');
+        _line('Atributos invertidos:', 't-acc');
         invertidos.forEach(([a, v]) => {
           const def = ATRIBUTOS[a];
-          Out.line(`  ${def.label.padEnd(12)} ${v} pts  — ${def.desc}`, def.color);
+          _line(`  ${def.label.padEnd(12)} ${v} pts  — ${def.desc}`, def.color);
         });
       }
-      Out.sp();
+      _sp();
     }
 
     function cmdAtributos() {
       init();
-      Out.sp(); Out.line('— ATRIBUTOS —', 't-acc');
-      Out.line(`Puntos disponibles: ${state.puntos}`, 't-mem'); Out.sp();
+      _sp(); _line('— ATRIBUTOS —', 't-acc');
+      _line(`Puntos disponibles: ${state.puntos}`, 't-mem'); _sp();
       Object.entries(ATRIBUTOS).forEach(([id, def]) => {
         const pts = state.atributos[id] || 0;
-        Out.line(`  asignar ${id.padEnd(12)} ${def.desc.padEnd(30)} [${pts} pts]`, def.color);
+        _line(`  asignar ${id.padEnd(12)} ${def.desc.padEnd(30)} [${pts} pts]`, def.color);
       });
-      Out.sp(); Out.line('Uso: asignar [atributo]', 't-dim'); Out.sp();
+      _sp(); _line('Uso: asignar [atributo]', 't-dim'); _sp();
     }
 
     function cmdAsignar(target) {
       if(!target) { cmdAtributos(); return false; }
       const key = Object.keys(ATRIBUTOS).find(k => k.startsWith(String(target).toLowerCase()));
       if(!key) {
-        Out.line(`"${target}" no es un atributo válido. Escribe "atributos" para ver opciones.`, 't-dim');
+        _line(`"${target}" no es un atributo válido. Escribe "atributos" para ver opciones.`, 't-dim');
         return false;
       }
       const ok = asignar(key);
-      if(ok && typeof save === 'function') save();
+      if(ok) _saveGame();
       return ok;
     }
 
@@ -209,8 +241,8 @@
       getRama: r => (state.ramas[r] || { xp: 0, nivel: 1 }),
       getPuntos: () => state.puntos,
       getAtributos: () => state.atributos,
-      extraMagSlots: () => Player.get()._extra_mag_slots || 0,
-      extraHabSlots: () => Player.get()._extra_hab_slots || 0,
+      extraMagSlots: () => _player()?._extra_mag_slots || 0,
+      extraHabSlots: () => _player()?._extra_hab_slots || 0,
       ser, load, init, RAMAS, ATRIBUTOS,
     };
   }

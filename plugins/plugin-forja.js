@@ -4,6 +4,16 @@
 // ════════════════════════════════════════════════════════════════
 
 (function initForgePlugin(global) {
+  function _svc(name) {
+    return (typeof ServiceRegistry !== 'undefined' && typeof ServiceRegistry.get === 'function')
+      ? ServiceRegistry.get(name)
+      : null;
+  }
+  function _clockCurrent() {
+    const fn = _svc('runtime.clock.current');
+    return typeof fn === 'function' ? (fn() || {}) : {};
+  }
+
   function createForgeApi() {
     const Imprint = {
       gen(blueprint, materials, ctx, tension = 0) {
@@ -64,15 +74,15 @@
         const dom = Object.entries(freq).sort((a, b) => b[1] - a[1]).map(e => e[0]);
         const tension = Tags.tension(dom);
         const afRes = Tags.aff(dom);
-        const c = Clock.get();
-        const bonus = [...(c.bonusTags || [])];
+        const clock = _clockCurrent();
+        const bonus = [...(clock.slot?.bonusTags || [])];
         if(nodeEstado === 'corrompido') bonus.push('corrupto');
         const allTagsPlus = [...dom, ...bonus];
 
         let rType = afRes?.resultado || 'consumible';
         let strength = afRes?.fuerza || 0.3;
         if(tension > 0.7 && rng() < tension - 0.4) rType = 'colapso';
-        if(Clock.cycle >= (ModuleLoader.get('mitico_chance_ciclo_min') || 10) && rng() < (ModuleLoader.get('mitico_chance') || 0.12)) rType = 'mítico';
+        if((Number(clock.cycle) || 0) >= (ModuleLoader.get('mitico_chance_ciclo_min') || 10) && rng() < (ModuleLoader.get('mitico_chance') || 0.12)) rType = 'mítico';
 
         if(modo === 'corporal' && rType !== 'colapso' && rType !== 'mítico') { rType = 'habilidad'; strength = Math.max(strength, 0.6); }
         if(modo === 'mágico' && rType !== 'colapso' && rType !== 'mítico') { rType = 'magia'; strength = Math.max(strength, 0.6); }

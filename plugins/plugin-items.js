@@ -17,6 +17,22 @@
     const fn = _svc('runtime.tactics.wound_meta');
     return typeof fn === 'function' ? fn(key) : null;
   }
+  function _player() {
+    const fn = _svc('runtime.player.current');
+    return typeof fn === 'function' ? fn() : null;
+  }
+  function _playerRemoveItem(itemId) {
+    const fn = _svc('runtime.player.remove_item');
+    return typeof fn === 'function' ? !!fn(itemId) : false;
+  }
+  function _line(text, color='t-out', bold=false) {
+    const fn = _svc('runtime.output.line');
+    if(typeof fn === 'function') fn(text, color, bold);
+  }
+  function _refreshStatus() {
+    const fn = _svc('runtime.status.refresh');
+    if(typeof fn === 'function') fn();
+  }
 
   function createItemsApi() {
     const CATALOGO = {
@@ -73,72 +89,73 @@
     }
 
     function aplicar(item, battle) {
-      const p = Player.get();
+      const p = _player();
+      if(!p) return false;
       const def = CATALOGO[item.blueprint] || _inferirEfecto(item);
-      if(!def) { Out.line(`"${item.nombre || item.blueprint}" sin efecto táctico conocido.`, 't-dim'); return false; }
+      if(!def) { _line(`"${item.nombre || item.blueprint}" sin efecto táctico conocido.`, 't-dim'); return false; }
       const efecto = def.efecto || item.efecto;
 
       switch(efecto) {
         case 'curar_herida': {
           const h = def.herida;
-          if(!(p.heridas || []).includes(h)) { Out.line(`No tienes ${h}.`, 't-dim'); return false; }
+          if(!(p.heridas || []).includes(h)) { _line(`No tienes ${h}.`, 't-dim'); return false; }
           p.heridas = p.heridas.filter(x => x !== h);
           if(def.hp) p.hp = Math.min(p.maxHp, p.hp + def.hp);
-          Out.line(`✓ ${h} curada.${def.hp ? ` +${def.hp}HP` : ''}`, 't-mem');
+          _line(`✓ ${h} curada.${def.hp ? ` +${def.hp}HP` : ''}`, 't-mem');
           break;
         }
         case 'curar_todas': {
           const n = (p.heridas || []).length;
           p.heridas = [];
           if(def.hp) p.hp = Math.min(p.maxHp, p.hp + def.hp);
-          Out.line(`✓ ${n} herida${n !== 1 ? 's' : ''} curada${n !== 1 ? 's' : ''}. +${def.hp || 0}HP`, 't-mem');
+          _line(`✓ ${n} herida${n !== 1 ? 's' : ''} curada${n !== 1 ? 's' : ''}. +${def.hp || 0}HP`, 't-mem');
           break;
         }
-        case 'stamina': p.stamina = Math.min(p.maxStamina || 100, (p.stamina || 0) + def.valor); Out.line(`+${def.valor} Stamina  (${p.stamina}/${p.maxStamina || 100})`, 't-cra'); break;
-        case 'mana': p.mana = Math.min(p.maxMana || 60, (p.mana || 0) + def.valor); Out.line(`+${def.valor} Maná  (${p.mana}/${p.maxMana || 60})`, 't-mag'); break;
-        case 'stamina_max': p.maxStamina = (p.maxStamina || 100) + def.valor; p.stamina = Math.min(p.maxStamina, p.stamina || 0); Out.line(`Stamina máxima +${def.valor} → ${p.maxStamina}`, 't-cra'); break;
-        case 'mana_max': p.maxMana = (p.maxMana || 60) + def.valor; p.mana = Math.min(p.maxMana, p.mana || 0); Out.line(`Maná máximo +${def.valor} → ${p.maxMana}`, 't-mag'); break;
-        case 'hp': p.hp = Math.min(p.maxHp, p.hp + def.valor); Out.line(`+${def.valor}HP  (${p.hp}/${p.maxHp})`, 't-cra'); break;
+        case 'stamina': p.stamina = Math.min(p.maxStamina || 100, (p.stamina || 0) + def.valor); _line(`+${def.valor} Stamina  (${p.stamina}/${p.maxStamina || 100})`, 't-cra'); break;
+        case 'mana': p.mana = Math.min(p.maxMana || 60, (p.mana || 0) + def.valor); _line(`+${def.valor} Maná  (${p.mana}/${p.maxMana || 60})`, 't-mag'); break;
+        case 'stamina_max': p.maxStamina = (p.maxStamina || 100) + def.valor; p.stamina = Math.min(p.maxStamina, p.stamina || 0); _line(`Stamina máxima +${def.valor} → ${p.maxStamina}`, 't-cra'); break;
+        case 'mana_max': p.maxMana = (p.maxMana || 60) + def.valor; p.mana = Math.min(p.maxMana, p.mana || 0); _line(`Maná máximo +${def.valor} → ${p.maxMana}`, 't-mag'); break;
+        case 'hp': p.hp = Math.min(p.maxHp, p.hp + def.valor); _line(`+${def.valor}HP  (${p.hp}/${p.maxHp})`, 't-cra'); break;
         case 'elemento_arma': {
           const arma = p.equipped?.arma;
-          if(!arma) { Out.line('No tienes arma equipada.', 't-dim'); return false; }
+          if(!arma) { _line('No tienes arma equipada.', 't-dim'); return false; }
           arma._elemento_temporal = def.elemento;
           arma._elemento_dur = def.dur || 3;
           arma.tags = arma.tags || [];
           if(!arma.tags.includes(def.elemento.toLowerCase())) arma.tags.push(def.elemento.toLowerCase());
-          Out.line(`${arma.nombre || arma.blueprint} infundida con ${def.elemento} (${def.dur} ataques).`, _elementColor(def.elemento));
+          _line(`${arma.nombre || arma.blueprint} infundida con ${def.elemento} (${def.dur} ataques).`, _elementColor(def.elemento));
           break;
         }
         case 'reparar': {
           const arma = p.equipped?.arma || p.inventory.find(i => i.tipo === 'arma');
-          if(!arma) { Out.line('No hay arma que reparar.', 't-dim'); return false; }
+          if(!arma) { _line('No hay arma que reparar.', 't-dim'); return false; }
           const antes = arma.durabilidad || 0;
           arma.durabilidad = Math.min(100, (arma.durabilidad || 0) + def.valor);
           arma.mellada = arma.durabilidad > 0 ? false : arma.mellada;
-          Out.line(`${arma.nombre || arma.blueprint}: durabilidad ${antes}% → ${arma.durabilidad}%`, 't-cra');
+          _line(`${arma.nombre || arma.blueprint}: durabilidad ${antes}% → ${arma.durabilidad}%`, 't-cra');
           break;
         }
         case 'reparar_total': {
           const arma = p.equipped?.arma || p.inventory.find(i => i.tipo === 'arma');
-          if(!arma) { Out.line('No hay arma que reparar.', 't-dim'); return false; }
+          if(!arma) { _line('No hay arma que reparar.', 't-dim'); return false; }
           arma.durabilidad = 100; arma.mellada = false; arma.atk = (arma.atk || 0) + 1;
-          Out.line(`${arma.nombre || arma.blueprint}: restaurada 100% · ATK +1`, 't-cra');
+          _line(`${arma.nombre || arma.blueprint}: restaurada 100% · ATK +1`, 't-cra');
           break;
         }
         case 'afilar': {
           const arma = p.equipped?.arma || p.inventory.find(i => i.tipo === 'arma');
-          if(!arma) { Out.line('No hay arma que afilar.', 't-dim'); return false; }
+          if(!arma) { _line('No hay arma que afilar.', 't-dim'); return false; }
           arma.atk = (arma.atk || 0) + 2;
-          Out.line(`${arma.nombre || arma.blueprint}: ATK +2 permanente`, 't-cra');
+          _line(`${arma.nombre || arma.blueprint}: ATK +2 permanente`, 't-cra');
           break;
         }
-        case 'poise_shield': p._poise_shield = true; Out.line('Escudo de postura activo: el próximo golpe no romperá tu postura.', 't-sis'); break;
-        case 'reaccion_boost': p._reaccion_boost = def.valor || 1.5; Out.line(`Próxima reacción elemental ×${def.valor || 1.5}.`, 't-cor'); break;
-        case 'niebla_personal': p._niebla_turnos = 2; Out.line('Niebla personal: 40% fallo en ataques contra ti (2 turnos).', 't-dim'); break;
+        case 'poise_shield': p._poise_shield = true; _line('Escudo de postura activo: el próximo golpe no romperá tu postura.', 't-sis'); break;
+        case 'reaccion_boost': p._reaccion_boost = def.valor || 1.5; _line(`Próxima reacción elemental ×${def.valor || 1.5}.`, 't-cor'); break;
+        case 'niebla_personal': p._niebla_turnos = 2; _line('Niebla personal: 40% fallo en ataques contra ti (2 turnos).', 't-dim'); break;
         case 'romper_poise': {
-          if(!battle) { Out.line('Solo funciona en batalla.', 't-dim'); return false; }
+          if(!battle) { _line('Solo funciona en batalla.', 't-dim'); return false; }
           const target = battle.cola.find(c => c.vivo && c.tipo !== 'player');
-          if(!target) { Out.line('Sin objetivo.', 't-dim'); return false; }
+          if(!target) { _line('Sin objetivo.', 't-dim'); return false; }
           target.poise = 0; target.poise_roto = true; target.poise_turnos = 2;
           battleLog(battle, `⚡ ${target.name} POSTURA ROTA por ${item.nombre || item.blueprint}!`, 't-cor');
           break;
@@ -150,16 +167,16 @@
           const before = p.ext.concentracion || 0;
           p.ext.concentracion = Math.min(cmax, before + bonusConc);
           p._concentracion_focus = Math.max(p._concentracion_focus || 0, def.valor || 0.1);
-          Out.line(`Concentración +${p.ext.concentracion - before} (${p.ext.concentracion}/${cmax}) · enfoque táctico activo.`, 't-acc');
+          _line(`Concentración +${p.ext.concentracion - before} (${p.ext.concentracion}/${cmax}) · enfoque táctico activo.`, 't-acc');
           break;
         }
         default:
-          if(def.hp || item.hp) { const v = def.hp || item.hp; p.hp = Math.min(p.maxHp, p.hp + v); Out.line(`+${v}HP`, 't-cra'); }
-          else Out.line(`Usas ${item.nombre || item.blueprint}.`, 't-dim');
+          if(def.hp || item.hp) { const v = def.hp || item.hp; p.hp = Math.min(p.maxHp, p.hp + v); _line(`+${v}HP`, 't-cra'); }
+          else _line(`Usas ${item.nombre || item.blueprint}.`, 't-dim');
       }
 
-      Player.rmItem(item.id);
-      refreshStatus();
+      _playerRemoveItem(item.id);
+      _refreshStatus();
       return true;
     }
 
@@ -189,33 +206,36 @@
     }
 
     function cmdItems() {
-      Out.sp(); Out.line('— ÍTEMS TÁCTICOS —', 't-acc');
-      const p = Player.get();
+      const sp = _svc('runtime.output.sp');
+      if(typeof sp === 'function') sp();
+      _line('— ÍTEMS TÁCTICOS —', 't-acc');
+      const p = _player();
+      if(!p) return false;
       const tacticos = p.inventory.filter(i => CATALOGO[i.blueprint]);
-      if(!tacticos.length) { Out.line('Sin ítems tácticos. Busca en nodos o forja.', 't-dim'); Out.sp(); return true; }
+      if(!tacticos.length) { _line('Sin ítems tácticos. Busca en nodos o forja.', 't-dim'); if(typeof sp === 'function') sp(); return true; }
       const porTipo = {};
       tacticos.forEach(i => { const t = (CATALOGO[i.blueprint]?.tipo || i.tipo); if(!porTipo[t]) porTipo[t] = []; porTipo[t].push(i); });
       Object.entries(porTipo).forEach(([tipo, lista]) => {
-        Out.line(`${tipo.toUpperCase()}:`, 't-acc');
+        _line(`${tipo.toUpperCase()}:`, 't-acc');
         lista.forEach(i => {
           const def = CATALOGO[i.blueprint];
           const col = tipo === 'medicina' ? 't-mem' : tipo === 'reparacion' ? 't-cra' : tipo === 'potenciador' ? 't-cor' : 't-out';
-          Out.line(`  usar ${i.blueprint}  — ${def.nombre}  ${def.desc || ''}`, col);
+          _line(`  usar ${i.blueprint}  — ${def.nombre}  ${def.desc || ''}`, col);
         });
       });
       const arma = p.equipped?.arma;
       if(arma) {
         const dur = arma.durabilidad != null ? arma.durabilidad : 100;
-        Out.line(`Arma: ${arma.nombre || arma.blueprint}  Dur:${dur}%${arma.mellada ? ' [MELLADA]' : ''}${arma._elemento_temporal ? ' [' + arma._elemento_temporal + ']' : ''}`, dur < 30 ? 't-pel' : 't-cra');
+        _line(`Arma: ${arma.nombre || arma.blueprint}  Dur:${dur}%${arma.mellada ? ' [MELLADA]' : ''}${arma._elemento_temporal ? ' [' + arma._elemento_temporal + ']' : ''}`, dur < 30 ? 't-pel' : 't-cra');
       }
       if((p.heridas || []).length) {
-        Out.sp(); Out.line('Heridas activas:', 't-pel');
+        if(typeof sp === 'function') sp(); _line('Heridas activas:', 't-pel');
         p.heridas.forEach(h => {
           const hi = _woundMeta(h);
-          Out.line(`  ${hi?.icon || '⚠'} ${h}: ${hi?.desc || ''}`, 't-pel');
+          _line(`  ${hi?.icon || '⚠'} ${h}: ${hi?.desc || ''}`, 't-pel');
         });
       }
-      Out.sp();
+      if(typeof sp === 'function') sp();
       return true;
     }
 

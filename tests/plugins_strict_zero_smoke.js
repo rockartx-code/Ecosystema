@@ -5,14 +5,10 @@ const fs = require('fs');
 const assert = require('assert');
 
 const TOKENS = ['Net', 'XP', 'Tactics', 'RunMem'];
-const CRITICAL_PLUGINS = [
-  'plugins/plugin-habilidades.js',
-  'plugins/plugin-magias.js',
-  'plugins/plugin-criaturas.js',
-  'plugins/plugin-facciones.js',
-  'plugins/plugin-guarida.js',
-  'plugins/plugin-sombra-herrante.js',
-];
+const CRITICAL_PLUGINS = fs.readdirSync('plugins')
+  .filter((file) => /^plugin-.*\.js$/.test(file))
+  .map((file) => `plugins/${file}`)
+  .sort();
 
 function countToken(content, token) {
   const re = new RegExp(`\\b${token}\\.`, 'g');
