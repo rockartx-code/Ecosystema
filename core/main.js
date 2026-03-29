@@ -7,8 +7,7 @@
 //   3. Player, Clock, World, GS
 //   4. CombatResolution + battleLog
 //   5. CTX — contexto compartido disponible para todos los plugins
-//   6. Sistemas internos (WorldAI, FactionSystem, NPCEngine, Forge…)
-//      que se registran en EventBus pero no en PluginLoader
+//   6. Plugins de dominio registrados en PluginLoader
 //   7. Plugins externos registrados vía PluginLoader
 //   8. Módulo de datos base cargado en ModuleLoader
 //   9. init() — genera mundo y arranca el juego
@@ -31,6 +30,22 @@ const RCompat = {
   upd: ()=>refreshStatus(),
 };
 
+function _svc(name) {
+  return (typeof ServiceRegistry !== 'undefined' && typeof ServiceRegistry.get === 'function')
+    ? ServiceRegistry.get(name)
+    : null;
+}
+
+function _xpRead() {
+  const read = _svc('runtime.xp.read');
+  return typeof read === 'function' ? (read() || { ser:null, atributos:{} }) : { ser:null, atributos:{} };
+}
+
+function _xpInit(reset = false) {
+  const initXP = _svc('runtime.xp.init');
+  return typeof initXP === 'function' ? !!initXP(reset) : false;
+}
+
 const CTX = {
   // Core
   U, EventBus, ModuleLoader, PluginLoader, CommandRegistry, ServiceRegistry, D,
@@ -47,14 +62,6 @@ const CTX = {
   Out, R: RCompat,
   In,
   refreshStatus,
-
-  // Sistemas de juego (se asignan tras su declaración):
-  //   CTX.Forge = Forge;  CTX.NPCEngine = NPCEngine;
-  //   CTX.RunMem = RunMem; CTX.XP = XP; CTX.Net = Net;
-  //   CTX.Imprint = Imprint; CTX.Tags = Tags;
-  //   CTX.Tactics = Tactics; CTX.ItemSystem = ItemSystem;
-  //   CTX.FactionSystem = FactionSystem; CTX.BossSystem = BossSystem;
-  //   CTX.ArcEngine = ArcEngine;
 
   // Helpers de juego expuestos a plugins
   save:       ()=>save(),
@@ -119,10 +126,7 @@ CTX.runtime = {
     addTwist: (twist)=>GS.addTwist(twist),
   },
   xp: {
-    read: ()=>({
-      ser: typeof XP !== 'undefined' && typeof XP.ser === 'function' ? XP.ser() : null,
-      atributos: typeof XP !== 'undefined' ? (XP.ATRIBUTOS || {}) : {},
-    }),
+    read: ()=>_xpRead(),
   },
 };
 PluginLoader.setEventsVersion?.(CTX.runtime.eventsVersion);
@@ -351,6 +355,13 @@ if(typeof globalThis.Combat.active === 'undefined') {
 
 function _registerDomainPlugins() {
   const corePluginDefs = [
+    typeof pluginXP               !== 'undefined' ? pluginXP : null,
+    typeof pluginTacticas         !== 'undefined' ? pluginTacticas : null,
+    typeof pluginItems            !== 'undefined' ? pluginItems : null,
+    typeof pluginForja            !== 'undefined' ? pluginForja : null,
+    typeof pluginNPCs             !== 'undefined' ? pluginNPCs : null,
+    typeof pluginArcos            !== 'undefined' ? pluginArcos : null,
+    typeof pluginWorldAI          !== 'undefined' ? pluginWorldAI : null,
     typeof pluginCreaturas        !== 'undefined' ? pluginCreaturas : null,
     typeof pluginHabilidades      !== 'undefined' ? pluginHabilidades : null,
     typeof pluginMagias           !== 'undefined' ? pluginMagias : null,
@@ -519,7 +530,7 @@ async function bootSeq() {
 
   Out.boot('b3', '▸ Registrando plugins de dominio...', 'pending');
   _registerDomainPlugins();
-  Out.boot('b3', '✓ Plugins: criaturas, habilidades, magias, supervivencia, dificultad, enemigos', 'ok');
+  Out.boot('b3', '✓ Plugins: xp, tacticas, items, forja, npcs, arcos, world-ai y dominio', 'ok');
 
   Out.boot('b4', '▸ Cargando plugins JSON...', 'plug');
   if(consolidated.plugins.length) {
@@ -569,7 +580,7 @@ async function init() {
   const { startId } = World.gen(U.uid()+U.uid(), { ecos: CTX.RunMem?.ecos?.() || [] });
   Player.setPos(startId);
   World.visit(startId);
-  if(typeof XP !== 'undefined') XP.init?.(true);
+  _xpInit(true);
   Clock.tick(0);
 
   D.itemsInicio.forEach(bp => {

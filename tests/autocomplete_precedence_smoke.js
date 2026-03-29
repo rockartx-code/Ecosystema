@@ -79,9 +79,14 @@ function loadAutocomplete(precedence = null) {
     U: { clamp: (x, a, b) => Math.max(a, Math.min(b, x)) },
     PluginLoader: { order: [] },
     CommandRegistry: { commands: {} },
-    XP: { ATRIBUTOS: {} },
     Net: { getMyBattle: () => null },
-    ServiceRegistry: { register() {} },
+    ServiceRegistry: {
+      register() {},
+      get(name) {
+        if(name === 'runtime.xp.read') return () => ({ atributos:{} });
+        return null;
+      },
+    },
     globalThis: null,
   };
   sandbox.globalThis = sandbox;

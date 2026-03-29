@@ -179,7 +179,7 @@ const FactionSystem = (() => {
           { tipo:'player', id:p.id, name:p.name, hp:p.hp, maxHp:p.maxHp, atk:stats.atk || 0, def:stats.def || 0, nodeId, playerId:p.id },
           ...nuevos.map(e => ({ tipo:'enemy', id:e.id, name:e.nombre, hp:e.hp, maxHp:e.hp, atk:e.atk, def:e.def||0, nodeId, tags:[facId] })),
         ];
-        const startBattleSvc = _svc('runtime.battle.start');
+        const startBattleSvc = ServiceRegistry?.get?.('runtime.battle.start') || _svc('runtime.battle.start');
         if(startBattleSvc) startBattleSvc(nodeId, combatants);
         else _line('Servicio runtime.battle.start no disponible para emboscada de facción.', 't-dim');
       }, 800);

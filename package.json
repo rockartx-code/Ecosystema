@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "scripts": {
-    "test": "node tests/runtime_smoke.js && node tests/autocomplete_precedence_smoke.js && node tests/plugins_critical_smoke.js && node tests/plugins_strict_zero_smoke.js && node tests/plugins_battle_services_smoke.js && node tests/plugins_memory_services_smoke.js && node tests/runtime_memory_services_smoke.js && node tests/architecture_guard_smoke.js && node tests/events_contract_smoke.js && node tests/ownership_matrix_smoke.js && node tests/dod_audit_smoke.js",
+    "test": "node tests/domain_runtime_contract_smoke.js && node tests/runtime_smoke.js && node tests/autocomplete_precedence_smoke.js && node tests/plugins_critical_smoke.js && node tests/plugins_strict_zero_smoke.js && node tests/plugins_battle_services_smoke.js && node tests/plugins_memory_services_smoke.js && node tests/runtime_memory_services_smoke.js && node tests/architecture_guard_smoke.js && node tests/events_contract_smoke.js && node tests/ownership_matrix_smoke.js && node tests/dod_audit_smoke.js",
     "test:runtime": "node tests/runtime_smoke.js",
     "test:autocomplete": "node tests/autocomplete_precedence_smoke.js",
     "test:plugins": "node tests/plugins_critical_smoke.js",

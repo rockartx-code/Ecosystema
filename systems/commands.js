@@ -69,6 +69,10 @@ function _svc(name) {
     ? ServiceRegistry.get(name)
     : null;
 }
+function _serviceApi(name) {
+  const fn = _svc(name);
+  return typeof fn === 'function' ? fn() : null;
+}
 function _battleCurrent() {
   const getBattle = _svc('gameplay.battle.current');
   if(typeof getBattle === 'function') return getBattle();
@@ -105,35 +109,35 @@ function _battleTickAI(battle) {
 async function _playerRest() {
   const rest = _svc('runtime.player.rest');
   if(typeof rest === 'function') return !!(await rest());
-  if(typeof Tactics === 'undefined' || typeof TacticsRef().cmdDescansar !== 'function') return false;
+  if(typeof TacticsRef().cmdDescansar !== 'function') return false;
   await TacticsRef().cmdDescansar();
   return true;
 }
 function _playerTactic() {
   const tactica = _svc('runtime.player.tactic');
   if(typeof tactica === 'function') return !!tactica();
-  if(typeof Tactics === 'undefined' || typeof TacticsRef().cmdTactica !== 'function') return false;
+  if(typeof TacticsRef().cmdTactica !== 'function') return false;
   TacticsRef().cmdTactica();
   return true;
 }
 function _xpShowAttrs() {
   const attrs = _svc('runtime.xp.show_attrs');
   if(typeof attrs === 'function') return !!attrs();
-  if(typeof XP === 'undefined' || typeof XPRef().cmdAtributos !== 'function') return false;
+  if(typeof XPRef().cmdAtributos !== 'function') return false;
   XPRef().cmdAtributos();
   return true;
 }
 function _xpShowExp() {
   const exp = _svc('runtime.xp.show_exp');
   if(typeof exp === 'function') return !!exp();
-  if(typeof XP === 'undefined' || typeof XPRef().cmdExperiencia !== 'function') return false;
+  if(typeof XPRef().cmdExperiencia !== 'function') return false;
   XPRef().cmdExperiencia();
   return true;
 }
 function _xpAssign(raw='') {
   const assign = _svc('runtime.xp.assign');
   if(typeof assign === 'function') return !!assign(raw);
-  if(typeof XP === 'undefined' || typeof XPRef().cmdAsignar !== 'function') return false;
+  if(typeof XPRef().cmdAsignar !== 'function') return false;
   XPRef().cmdAsignar(String(raw || ''));
   if(typeof save === 'function') save();
   return true;
@@ -207,10 +211,87 @@ function _globalApi(name) {
   return null;
 }
 const NetRef = () => _globalApi('Net') || {};
-const XPRef = () => _globalApi('XP') || {};
-const TacticsRef = () => _globalApi('Tactics') || {};
-const ArcEngineRef = () => _globalApi('ArcEngine') || {};
+const XPRef = () => _serviceApi('runtime.xp.api') || {};
+const TacticsRef = () => _serviceApi('runtime.tactics.api') || {};
+const ArcEngineRef = () => _serviceApi('runtime.arc.api') || {};
 const FactionSystemRef = () => _globalApi('FactionSystem') || {};
+const ItemSystemRef = () => _serviceApi('runtime.items.api') || {};
+const NPCEngineRef = () => _serviceApi('runtime.npc.api') || {};
+const ForgeRef = () => _serviceApi('runtime.forge.api') || {};
+
+function _memoryRuns() {
+  const fn = _svc('runtime.memory.runs');
+  return typeof fn === 'function' ? (fn() || []) : (typeof RunMem !== 'undefined' ? RunMem.runs() : []);
+}
+function _memoryEcos() {
+  const fn = _svc('runtime.memory.ecos');
+  return typeof fn === 'function' ? (fn() || []) : (typeof RunMem !== 'undefined' ? RunMem.ecos() : []);
+}
+function _itemsCatalog() {
+  const fn = _svc('runtime.items.catalog');
+  return typeof fn === 'function' ? (fn() || {}) : (ItemSystemRef().CATALOGO || {});
+}
+function _itemsApply(item, battle=null) {
+  const fn = _svc('runtime.items.apply');
+  if(typeof fn === 'function') return !!fn(item, battle);
+  return typeof ItemSystemRef().aplicar === 'function' ? !!ItemSystemRef().aplicar(item, battle) : false;
+}
+function _itemsShow() {
+  const fn = _svc('runtime.items.show');
+  if(typeof fn === 'function') return !!fn();
+  return typeof ItemSystemRef().cmdItems === 'function' ? !!ItemSystemRef().cmdItems() : false;
+}
+function _npcDialogue(npc) {
+  const fn = _svc('runtime.npc.dialogue');
+  return typeof fn === 'function' ? fn(npc, _memoryRuns()) : NPCEngineRef().dialogo?.(npc, _memoryRuns()) || '';
+}
+function _npcInteract(npc) {
+  const fn = _svc('runtime.npc.interact');
+  return typeof fn === 'function' ? fn(npc) : NPCEngineRef().interactuar?.(npc);
+}
+function _npcCheckTwists(npc) {
+  const fn = _svc('runtime.npc.check_twists');
+  return typeof fn === 'function'
+    ? (fn(npc, Player.get(), GS.allMisiones(), _memoryEcos()) || [])
+    : (NPCEngineRef().checkTwists?.(npc, Player.get(), GS.allMisiones(), _memoryEcos(), []) || []);
+}
+function _npcGenMission(npc) {
+  const fn = _svc('runtime.npc.gen_mission');
+  return typeof fn === 'function' ? fn(npc, GS.aliveNPCs(), _memoryEcos()) : NPCEngineRef().genMision?.(npc, GS.aliveNPCs(), _memoryEcos()) || null;
+}
+function _npcObserve(npc) {
+  const fn = _svc('runtime.npc.observe');
+  return typeof fn === 'function' ? (fn(npc) || []) : (NPCEngineRef().observar?.(npc) || []);
+}
+function _npcDespair(npc) {
+  const fn = _svc('runtime.npc.despair');
+  if(typeof fn === 'function') return !!fn(npc);
+  return typeof NPCEngineRef().consecuenciaDesperación === 'function' ? !!NPCEngineRef().consecuenciaDesperación(npc) : false;
+}
+function _npcCombatStats(npc) {
+  const fn = _svc('runtime.npc.combat_stats');
+  return typeof fn === 'function' ? (fn(npc) || { hp:20, atk:5, def:1 }) : (NPCEngineRef().combatStats?.(npc) || { hp:20, atk:5, def:1 });
+}
+function _arcShow() {
+  const fn = _svc('runtime.arc.show');
+  if(typeof fn === 'function') return !!fn();
+  return typeof ArcEngineRef().cmdArcs === 'function' ? !!ArcEngineRef().cmdArcs() : false;
+}
+function _arcTryGenerate(npc) {
+  const fn = _svc('runtime.arc.try_generate');
+  if(typeof fn === 'function') return fn(npc);
+  return typeof ArcEngineRef().intentarGenArc === 'function' ? ArcEngineRef().intentarGenArc(npc) : null;
+}
+function _arcOnMissionResolved(mision) {
+  const fn = _svc('runtime.arc.on_mission_resolved');
+  if(typeof fn === 'function') return !!fn(mision);
+  return typeof ArcEngineRef().onMisionResuelta === 'function' ? !!ArcEngineRef().onMisionResuelta(mision) : false;
+}
+function _forgeRun(ids, ctx, nodeEstado, phaseName, modo) {
+  const fn = _svc('runtime.forge.run');
+  if(typeof fn === 'function') return fn(ids, ctx, nodeEstado, phaseName, modo);
+  return typeof ForgeRef().Forge?.forjar === 'function' ? ForgeRef().Forge.forjar(ids, ctx, nodeEstado, phaseName, modo) : { cancelled:true };
+}
 
 // ── Dispatch principal ────────────────────────────────────────
 async function dispatch(cmd) {
@@ -267,7 +348,7 @@ async function dispatch(cmd) {
     }
     if(verb==='usar') {
       const item = Player.findItem(args.join(' '));
-      if(item && typeof ItemSystem!=='undefined' && ItemSystem.CATALOGO[item.blueprint]) { ItemSystem.aplicar(item,battle); refreshStatus(); _battleAction(battle.id,Player.get().id,'defender',null); return; }
+      if(item && _itemsCatalog()[item.blueprint]) { _itemsApply(item, battle); refreshStatus(); _battleAction(battle.id,Player.get().id,'defender',null); return; }
       Out.line('No puedes usar eso en batalla.','t-dim'); return;
     }
     if(verb==='copiar')    { if(typeof cmdCopiar!=='undefined')    cmdCopiar(args);    return; }
@@ -287,7 +368,7 @@ async function dispatch(cmd) {
   // Comandos del motor
   switch(verb) {
     // Movement/Narrative/Crafting/Progression se enrutan en domain dispatchers
-    case 'arcos': case 'arcs': case 'arc': if(typeof ArcEngine!=='undefined') ArcEngineRef().cmdArcs(); break;
+    case 'arcos': case 'arcs': case 'arc': _arcShow(); break;
 
     case 'facciones': case 'faccion': if(typeof FactionSystem!=='undefined') FactionSystemRef().cmdFacciones(); break;
     case 'reputacion': case 'rep':    _cmdReputacion(); break;
@@ -297,11 +378,11 @@ async function dispatch(cmd) {
 
     case 'descansar': case 'rest': case 'dormir': await _playerRest(); break; // fallback legacy
     case 'tactica': case 'táctica': case 'tac':   _playerTactic(); break; // fallback legacy
-    case 'items': case 'ítems':    if(typeof ItemSystem!=='undefined') ItemSystem.cmdItems(); break;
+    case 'items': case 'ítems':    _itemsShow(); break;
     case 'reparar': {
       const kit = args[0] ? Player.findItem(args[0]) : Player.get().inventory.find(i=>['kit_reparacion','kit_maestro','lima_afilado'].includes(i.blueprint));
       if(!kit) { Out.line('No tienes kit de reparación.','t-dim'); break; }
-      if(typeof ItemSystem !== 'undefined') { ItemSystem.aplicar(kit, null); save(); }
+      if(_itemsApply(kit, null)) save();
       break;
     }
 
@@ -409,16 +490,16 @@ function _enterNode(dest, opts = {}) {
   if(grantXP) {
     if(!nodoActual?.visitado_prev) {
       nodoActual.visitado_prev = true;
-      if(typeof XP!=='undefined') XPRef().ganar('exploración', 10 + (nodoActual?.seccion||0)*5, 'nodo nuevo');
+      if(typeof XPRef().ganar === 'function') XPRef().ganar('exploración', 10 + (nodoActual?.seccion||0)*5, 'nodo nuevo');
       if(nodoActual?.dificultad >= 2.5) Out.line(`⚠ ZONA HOSTIL — Enemigos ×${(nodoActual.dificultad||1).toFixed(1)}`, 't-pel');
-    } else if(typeof XP !== 'undefined') { XPRef().ganar('exploración', 2, 'movimiento'); }
+    } else if(typeof XPRef().ganar === 'function') { XPRef().ganar('exploración', 2, 'movimiento'); }
   }
 
   EventBus.emit('world:tick', { cycle:Clock.cycle });
   GS.aliveNPCs().forEach(n => {
     if(U.chance(0.12)) n.desesperacion = U.clamp(n.desesperacion + U.rand(1,5), 0, 100);
     if(U.chance(0.07)) n.corrupcion    = U.clamp(n.corrupcion    + U.rand(1,3), 0, 100);
-    if(n.desesperacion >= 90 && U.chance(0.15)) setTimeout(() => NPCEngine.consecuenciaDesperación(n), 500);
+    if(n.desesperacion >= 90 && U.chance(0.15)) setTimeout(() => _npcDespair(n), 500);
   });
 
   if(showLook) cmdMirar();
@@ -508,16 +589,16 @@ function cmdMirar() {
 function cmdHablar(target) {
   const npc = findNPC(target); if(!npc) { npcNoAqui(target); return; }
   Out.sp(); Out.sep('─');
-  Out.line(NPCEngine.dialogo(npc, typeof RunMem!=='undefined'?RunMem.runs():[]), 't-npc', true);
-  const res = NPCEngine.interactuar(npc);
+  Out.line(_npcDialogue(npc), 't-npc', true);
+  const res = _npcInteract(npc);
   if(res) { Out.sp(); Out.line(res.texto, res.tipo==='secreto'?'t-cor':'t-twi', true); }
-  NPCEngine.checkTwists(npc, Player.get(), GS.allMisiones(), typeof RunMem!=='undefined'?RunMem.ecos():[], []).forEach(t => { GS.addTwist(t); if(typeof XP!=='undefined') XPRef().ganar('narrativa',60,'plot twist'); Out.sp(); Out.sep('═'); Out.line(`⟁ REVELACIÓN — ${t.titulo}`,'t-twi',true); Out.line(t.texto,'t-out'); Out.sep('═'); });
+  _npcCheckTwists(npc).forEach(t => { GS.addTwist(t); if(typeof XPRef().ganar === 'function') XPRef().ganar('narrativa',60,'plot twist'); Out.sp(); Out.sep('═'); Out.line(`⟁ REVELACIÓN — ${t.titulo}`,'t-twi',true); Out.line(t.texto,'t-out'); Out.sep('═'); });
   const misNPC = GS.allMisiones().filter(m=>m.npc_id===npc.id&&!m.completada&&!m.fallida);
   if(!misNPC.length && U.chance(.55)) {
-    const m = NPCEngine.genMision(npc, GS.aliveNPCs(), typeof RunMem!=='undefined'?RunMem.ecos():[]);
+    const m = _npcGenMission(npc);
     if(m) { GS.addMision(m); Out.sp(); Out.line(`◈ MISIÓN — "${m.titulo}"`, 't-mis', true); Out.line(m.desc,'t-out'); Out.line(`Recompensa: ${m.recompensa}`,'t-dim'); Out.line('"aceptar" o "rechazar"','t-dim'); }
   } else if(misNPC.length) Out.line(`◈ Misión activa: "${misNPC[0].titulo}"`, 't-mis');
-  if(typeof ArcEngine !== 'undefined') ArcEngineRef().intentarGenArc(npc);
+  _arcTryGenerate(npc);
   Out.sep('─'); Out.sp(); save();
 }
 
@@ -536,15 +617,15 @@ function cmdPreguntar(tQ, tema) {
   Out.sep('─'); Out.sp(); save();
 }
 
-function cmdObservar(target) { const npc=findNPC(target); if(!npc){npcNoAqui(target);return;} Out.sp(); Out.line(`— OBSERVACIÓN: ${npc.nombre} —`,'t-acc'); NPCEngine.observar(npc).forEach((o,i)=>Out.line(o,i===0?'t-npc':npc.arq_ocu_expuesto&&i>3?'t-twi':'t-dim')); Out.sp(); }
+function cmdObservar(target) { const npc=findNPC(target); if(!npc){npcNoAqui(target);return;} Out.sp(); Out.line(`— OBSERVACIÓN: ${npc.nombre} —`,'t-acc'); _npcObserve(npc).forEach((o,i)=>Out.line(o,i===0?'t-npc':npc.arq_ocu_expuesto&&i>3?'t-twi':'t-dim')); Out.sp(); }
 function cmdTraicionar(target) { const npc=findNPC(target); if(!npc){npcNoAqui(target);return;} Out.sp(); Out.sep('═'); Out.line(`TRAICIÓN — ${npc.nombre}`,'t-twi',true); npc.lealtad=0; npc.desesperacion=U.clamp(npc.desesperacion+30,0,100); if((D.npcs?.arquetipos_hostiles||[]).includes(npc.arq_ocu)||npc.desesperacion>80){npc.estado='hostil';Out.line(`${npc.nombre}: "Lo recordaré."`, 't-npc');GS.allMisiones().filter(m=>m.npc_id===npc.id&&!m.completada).forEach(m=>m.fallida=true);}else Out.line(`${npc.nombre} no dice nada. Eso es peor.`,'t-npc'); if(typeof FactionSystem!=='undefined') FactionSystemRef().onTraicion(npc); Out.sep('═'); Out.sp(); save(); }
 function cmdNPCs() { Out.sp(); Out.line('— PERSONAS DEL MUNDO —','t-acc'); const todos=Object.values(GS.npcs); if(!todos.length){Out.line('Nadie encontrado.','t-dim');return;} const vivos=todos.filter(n=>['vivo','sometido','hostil'].includes(n.estado)); vivos.forEach(npc=>{const aqui=npc.nodeId===Player.pos(); Out.line(`  ${npc.nombre}  #${targetHash(npc)||'—'}  [${npc.arq_vis}]${npc.estado!=='vivo'?' ['+npc.estado.toUpperCase()+']':''}  ${aqui?'← AQUÍ':World.node(npc.nodeId)?.name||'?'}  Leal:${npc.lealtad}`,aqui?'t-npc':'t-dim');if(npc.arq_ocu_expuesto)Out.line(`       Real: ${npc.arq_ocu.toUpperCase()}`,'t-twi');}); const perdidos=todos.filter(n=>!['vivo','sometido','hostil'].includes(n.estado)); if(perdidos.length){Out.sp();Out.line('Perdidos:','t-pel');perdidos.forEach(n=>Out.line(`  ✝ ${n.nombre} #${targetHash(n)||'—'} [${n.arq_vis}] ${n.estado.toUpperCase()}`,'t-pel'));} Out.sp(); }
 
 // ── MISIONES ──────────────────────────────────────────────────
 function cmdMisiones() { Out.sp(); Out.line('— MISIONES —','t-acc'); const act=GS.activas(); const ok=GS.allMisiones().filter(m=>m.completada); const fail=GS.allMisiones().filter(m=>m.fallida); if(act.length){Out.line('ACTIVAS:','t-mis');act.forEach(m=>{Out.line(`  ◈ ${m.id}  "${m.titulo}"  [${m.tipo}]${m.aceptada?' ✓':''}${m.es_imposible?' [IMP]':''}${m.es_trampa?' [?]':''}`,'t-mis');Out.line(`    ${m.desc}`,'t-dim');Out.line(`    → ${m.consecuencia_fallo}`,'t-dim');});} if(ok.length) Out.line(`Completadas: ${ok.map(m=>'"'+m.titulo+'"').join(', ')}`,'t-cra'); if(fail.length) Out.line(`Fallidas: ${fail.map(m=>'"'+m.titulo+'"').join(', ')}`,'t-pel'); if(!act.length&&!ok.length) Out.line('Sin misiones. Habla con los NPCs.','t-dim'); Out.sp(); }
 function cmdAceptar(q) { const m=q?findMision(q):GS.activas().filter(x=>!x.aceptada).slice(-1)[0]; if(!m){Out.line(q?`"${q}" no encontrada.`:'Sin misiones pendientes.','t-dim');return;} if(m.aceptada){Out.line('Ya aceptada.','t-dim');return;} m.aceptada=true; Out.line(`Aceptas: "${m.titulo}"`, 't-mis', true); const npc=GS.npc(m.npc_id); if(npc){npc.lealtad=U.clamp(npc.lealtad+10,0,100);Out.line(`${npc.nombre} registra tu compromiso.`,'t-npc');} if(m.es_imposible)Out.line('Nota: puede ser imposible.','t-dim'); save(); }
-function cmdRechazar(q) { const m=q?findMision(q):GS.activas().filter(x=>!x.aceptada).slice(-1)[0]; if(!m){Out.line(q?`"${q}" no encontrada.`:'Sin misiones pendientes.','t-dim');return;} m.fallida=true; Out.line(`Rechazas: "${m.titulo}"`, 't-pel'); const npc=GS.npc(m.npc_id); if(npc){npc.lealtad=U.clamp(npc.lealtad-15,0,100);npc.desesperacion=U.clamp(npc.desesperacion+20,0,100);Out.line(`${npc.nombre}: "${m.consecuencia_fallo}"`, 't-npc');if(npc.desesperacion>80)setTimeout(()=>NPCEngine.consecuenciaDesperación(npc),1200);} EventBus.emit('narrative:mission_fail',{mision:m}); if(m.arc_id)setTimeout(()=>ArcEngineRef().onMisionResuelta(m),500); save(); }
-function cmdCompletar(q) { const m=findMision(q); if(!m){Out.line(`"${q}" no encontrada.`,'t-dim');return;} if(m.completada){Out.line('Ya completada.','t-dim');return;} m.completada=true; Out.sp(); Out.sep('═'); Out.line(`MISIÓN COMPLETADA — "${m.titulo}"`, 't-cra', true); const xpMision={deuda:40,búsqueda:50,protección:45,revelación:60,traición:55,sacrificio:70,ambigua:50,imposible:80,legado:65,venganza:55}; if(typeof XP!=='undefined') XPRef().ganar('narrativa', xpMision[m.tipo]||45, `misión: ${m.tipo}`); const npc=GS.npc(m.npc_id); if(npc){npc.lealtad=U.clamp(npc.lealtad+20,0,100);npc.desesperacion=U.clamp(npc.desesperacion-15,0,100);Out.line(`${npc.nombre} recibe la resolución.`,'t-npc');NPCEngine.checkTwists(npc,Player.get(),GS.allMisiones(),typeof RunMem!=='undefined'?RunMem.ecos():[],[]).forEach(t=>{GS.addTwist(t);Out.sp();Out.line(`⟁ REVELACIÓN — ${t.titulo}`,'t-twi',true);Out.line(t.texto,'t-out');});} Out.line(`Recompensa: ${m.recompensa}`,'t-mis'); EventBus.emit('narrative:mission_complete',{mision:m,npc}); if(m.arc_id)setTimeout(()=>ArcEngineRef().onMisionResuelta(m),500); Out.sep('═'); Out.sp(); save(); }
+function cmdRechazar(q) { const m=q?findMision(q):GS.activas().filter(x=>!x.aceptada).slice(-1)[0]; if(!m){Out.line(q?`"${q}" no encontrada.`:'Sin misiones pendientes.','t-dim');return;} m.fallida=true; Out.line(`Rechazas: "${m.titulo}"`, 't-pel'); const npc=GS.npc(m.npc_id); if(npc){npc.lealtad=U.clamp(npc.lealtad-15,0,100);npc.desesperacion=U.clamp(npc.desesperacion+20,0,100);Out.line(`${npc.nombre}: "${m.consecuencia_fallo}"`, 't-npc');if(npc.desesperacion>80)setTimeout(()=>_npcDespair(npc),1200);} EventBus.emit('narrative:mission_fail',{mision:m}); if(m.arc_id)setTimeout(()=>_arcOnMissionResolved(m),500); save(); }
+function cmdCompletar(q) { const m=findMision(q); if(!m){Out.line(`"${q}" no encontrada.`,'t-dim');return;} if(m.completada){Out.line('Ya completada.','t-dim');return;} m.completada=true; Out.sp(); Out.sep('═'); Out.line(`MISIÓN COMPLETADA — "${m.titulo}"`, 't-cra', true); const xpMision={deuda:40,búsqueda:50,protección:45,revelación:60,traición:55,sacrificio:70,ambigua:50,imposible:80,legado:65,venganza:55}; if(typeof XPRef().ganar === 'function') XPRef().ganar('narrativa', xpMision[m.tipo]||45, `misión: ${m.tipo}`); const npc=GS.npc(m.npc_id); if(npc){npc.lealtad=U.clamp(npc.lealtad+20,0,100);npc.desesperacion=U.clamp(npc.desesperacion-15,0,100);Out.line(`${npc.nombre} recibe la resolución.`,'t-npc');_npcCheckTwists(npc).forEach(t=>{GS.addTwist(t);Out.sp();Out.line(`⟁ REVELACIÓN — ${t.titulo}`,'t-twi',true);Out.line(t.texto,'t-out');});} Out.line(`Recompensa: ${m.recompensa}`,'t-mis'); EventBus.emit('narrative:mission_complete',{mision:m,npc}); if(m.arc_id)setTimeout(()=>_arcOnMissionResolved(m),500); Out.sep('═'); Out.sp(); save(); }
 
 // ── FORJA ─────────────────────────────────────────────────────
 function cmdForjar(args, modo) {
@@ -560,7 +641,7 @@ function cmdForjar(args, modo) {
   if(modo==='corporal'){const tagsCorp=['tendón','nervio','hueso','sangre','tejido','médula'];if(!ids.some(id=>D.matTags(id).some(t=>tagsCorp.includes(t)))){Out.line('Encarnar requiere material corporal.','t-pel');return;}}
   if(modo==='mágico'){const tagsMag=['resonante','corrupto','cristal','susurro','llama','vacío'];if(!ids.some(id=>D.matTags(id).some(t=>tagsMag.includes(t)))){Out.line('Conjurar requiere material mágico.','t-pel');return;}}
   const ctx={nodeId:Player.pos(),cycle:Clock.cycle,pid:Player.get().id,modo};
-  const res=Forge.forjar(ids,ctx,World.node(Player.pos())?.estado,Clock.get().name,modo);
+  const res=_forgeRun(ids,ctx,World.node(Player.pos())?.estado,Clock.get().name,modo);
   if(res.cancelled){Out.line('La forja fue cancelada.','t-dim');return;}
   Clock.tick(2); EventBus.emit('player:tick',{player:Player.get()});
   if(res.colapso){Out.sp();Out.line('⚠ COLAPSO DE FORJA','t-pel',true);Out.line(`Tensión: ${(res.tension*100).toFixed(0)}%`,'t-cor');const d=Player.damage(U.rand(5,15));Out.line(`−${d} HP`,'t-pel');used.forEach(id=>Player.rmItem(id));refreshStatus();save();return;}
@@ -576,7 +657,7 @@ function cmdForjar(args, modo) {
   if(item.desc)  Out.line(item.desc,'t-dim');
   Out.line(`Tags: ${res.domTags.join(', ')}  #${item.imprint?.hash||'—'}`, 't-dim');
   Player.get().stats.crafted++;
-  if(typeof XP!=='undefined'){const xpForja={arma:15,armadura:12,consumible:8,habilidad:30,magia:35,mítico:80,reliquia:20,ancla:12,colapso:5};XPRef().ganar('forja',xpForja[res.rType]||10,`forja: ${res.rType}`);}
+  if(typeof XPRef().ganar === 'function'){const xpForja={arma:15,armadura:12,consumible:8,habilidad:30,magia:35,mítico:80,reliquia:20,ancla:12,colapso:5};XPRef().ganar('forja',xpForja[res.rType]||10,`forja: ${res.rType}`);}
   if(item.tipo==='habilidad'){if(!Player.addHab?.(item)){Out.line('Slots llenos. En inventario.','t-dim');Player.addItem(item);}else Out.line('Habilidad encarnada.','t-hab');}
   else if(item.tipo==='magia'){if(!Player.addMag?.(item)){Out.line('Slots llenos. En inventario.','t-dim');Player.addItem(item);}else Out.line('Magia conjurada.','t-mag');}
   else Player.addItem(item);
@@ -588,7 +669,7 @@ function cmdFusionar(args) {
   const items=args.map(q=>Player.findItem(q)||Player.findHab?.(q)||Player.findMag?.(q)).filter(Boolean);
   if(items.length<2){Out.line(`Solo encontré ${items.length} ítem(s).`,'t-dim');return;}
   const allTags=items.flatMap(i=>i.tags||[]);
-  const tension=Tags.tension(allTags);
+  const tension=ForgeRef().Tags?.tension?.(allTags) || 0;
   Out.sp(); Out.line('CONVERGENCIA — FUSIÓN','t-cor',true);
   Out.line(`Tensión: ${(tension*100).toFixed(0)}%`,tension>.6?'t-pel':'t-dim');
   if(tension>.8){
@@ -605,7 +686,7 @@ function cmdFusionar(args) {
   const tier=tension>.55?'inestable':items.length>=4?'sublime':'estable';
   const adj=tier==='inestable'?['Inestable','Corrupta','Fragmentada']:tier==='sublime'?['Ascendida','Soberana','Arcana']:['Convergente','Primordial','Eterna'];
   const nombre=`${U.pick(adj,rng)} ${muts.length?U.pick(muts,rng):'Reliquia'}`;
-  const imp=Imprint.gen('reliquia_viva',allTags,{nodeId:Player.pos(),cycle:Clock.cycle,pid:Player.get().id},tension);
+  const imp=ForgeRef().Imprint?.gen?.('reliquia_viva',allTags,{nodeId:Player.pos(),cycle:Clock.cycle,pid:Player.get().id},tension) || null;
   const tieneHab=items.some(i=>i.tipo==='habilidad');
   const tieneMag=items.some(i=>i.tipo==='magia');
   const tipoResultado = (items.some(i=>['casco','guantes','peto','botas','accesorio'].includes(i.tipo)) && U.chance(0.45)) ? 'accesorio' : 'mítico';
@@ -626,7 +707,7 @@ function cmdFusionar(args) {
   }
   items.forEach(i=>{Player.rmItem(i.id);Player.rmHab?.(i.id);Player.rmMag?.(i.id);});
   Player.addItem(rel);
-  if(typeof XP!=='undefined'){XPRef().ganar('forja',60+items.length*10,'fusión ontológica');XPRef().ganar('mente',30,'convergencia');}
+  if(typeof XPRef().ganar === 'function'){XPRef().ganar('forja',60+items.length*10,'fusión ontológica');XPRef().ganar('mente',30,'convergencia');}
   Out.line(`${rel.nombre}  [${rel.tipo.toUpperCase()}]`,'t-cor',true);
   if(rel.atk)Out.line(`ATK +${rel.atk}`,'t-pel');
   if(rel.def)Out.line(`DEF +${rel.def}`,'t-sis');
@@ -642,7 +723,7 @@ function cmdMateriales() { Out.sp(); Out.line('— MATERIALES —','t-acc'); con
 
 // ── INVENTARIO Y OBJETOS ──────────────────────────────────────
 function cmdInv() { Out.sp(); Out.line('— INVENTARIO —','t-acc'); const p=Player.get(); const inv=p.inventory; if(!inv.length){Out.line('Vacío.','t-dim');Out.sp();return;} const grupos={}; inv.forEach(i=>{const g=i.tipo||'misc';if(!grupos[g])grupos[g]=[];grupos[g].push(i);}); Object.entries(grupos).forEach(([g,items])=>{const col=g==='arma'?'t-pel':g==='armadura'||['casco','guantes','peto','botas'].includes(g)?'t-sis':g==='magia'?'t-mag':g==='habilidad'?'t-hab':g==='mítico'?'t-cor':g==='reliquia'||g==='accesorio'?'t-cor':g==='material'?'t-cra':'t-out'; Out.line(`${g.toUpperCase()} (${items.length}):`,col); items.forEach(i=>Out.line(`  ${i.nombre||i.blueprint}${i.imprint?' #'+i.imprint.hash.slice(0,4):''}${i.atk?' ATK+'+i.atk:''}${i.def?' DEF+'+i.def:''}${i.durabilidad!=null&&i.tipo==='arma'?' Dur:'+i.durabilidad+'%':''}${i.efecto_accesorio?`  +${i.efecto_accesorio.valor} ${i.efecto_accesorio.stat}`:''}`,col));}); if(p.equipped){Out.sp();Out.line('Equipado:','t-acc'); const eq=p.equipped; const slots=[['Casco','casco'],['Guantes','guantes'],['Peto','peto'],['Botas','botas'],['Mano I','mano_izquierda'],['Mano D','mano_derecha'],['Accesorio 1','accesorio_1'],['Accesorio 2','accesorio_2']]; slots.forEach(([label,key])=>{if(eq[key])Out.line(`  ${label}: ${eq[key].nombre||eq[key].blueprint}`,'t-dim');}); if(eq.mitico)Out.line(`  Mítico: ${eq.mitico.nombre||eq.mitico.blueprint}`,'t-cor'); if((p._resonance?.habilidades||[]).length){Out.line('Resonancias ocultas:','t-mag'); p._resonance.habilidades.forEach(h=>Out.line(`  ✦ ${h}`,'t-mag'));}} Out.sp(); }
-function cmdRecoger(q) { const n=World.node(Player.pos()); if(!n){return;} const lootStr=n.loot.find(l=>typeof l==='string'&&l.toLowerCase().includes((q||'').toLowerCase())); const lootItem=n.loot._items?.find(i=>(i.nombre||i.blueprint).toLowerCase().includes((q||'').toLowerCase())); if(!lootStr&&!lootItem){Out.line(`No hay "${q||'nada'}" aquí.`,'t-dim');const lootNames=n.loot.filter(l=>typeof l==='string');if(lootNames.length)Out.line(`Objetos: ${lootNames.join(', ')}`,'t-cra');return;} if(lootItem){Player.addItem({...lootItem,id:U.uid()});n.loot._items=n.loot._items.filter(i=>i!==lootItem);World.rmLoot(Player.pos(),lootItem.blueprint);Out.line(`Recoges: ${lootItem.nombre}`,'t-cra');}else{const mat=D.mat(lootStr);Player.addItem({id:U.uid(),blueprint:lootStr,nombre:lootStr.replace(/_/g,' '),tipo:'material',tags:D.matTags(lootStr),estado:'nativo',desc:mat?.desc});World.rmLoot(Player.pos(),lootStr);Out.line(`Recoges: ${lootStr.replace(/_/g,' ')}`,'t-cra');} if(Player.get()._duplicar_loot){const dup={...Player.get().inventory.slice(-1)[0],id:U.uid()};Player.addItem(dup);Player.get()._duplicar_loot=false;Out.line('Duplicado.','t-mag');} if(typeof XP!=='undefined')XPRef().ganar('exploración',3,'objeto recogido'); refreshStatus();save(); }
+function cmdRecoger(q) { const n=World.node(Player.pos()); if(!n){return;} const lootStr=n.loot.find(l=>typeof l==='string'&&l.toLowerCase().includes((q||'').toLowerCase())); const lootItem=n.loot._items?.find(i=>(i.nombre||i.blueprint).toLowerCase().includes((q||'').toLowerCase())); if(!lootStr&&!lootItem){Out.line(`No hay "${q||'nada'}" aquí.`,'t-dim');const lootNames=n.loot.filter(l=>typeof l==='string');if(lootNames.length)Out.line(`Objetos: ${lootNames.join(', ')}`,'t-cra');return;} if(lootItem){Player.addItem({...lootItem,id:U.uid()});n.loot._items=n.loot._items.filter(i=>i!==lootItem);World.rmLoot(Player.pos(),lootItem.blueprint);Out.line(`Recoges: ${lootItem.nombre}`,'t-cra');}else{const mat=D.mat(lootStr);Player.addItem({id:U.uid(),blueprint:lootStr,nombre:lootStr.replace(/_/g,' '),tipo:'material',tags:D.matTags(lootStr),estado:'nativo',desc:mat?.desc});World.rmLoot(Player.pos(),lootStr);Out.line(`Recoges: ${lootStr.replace(/_/g,' ')}`,'t-cra');} if(Player.get()._duplicar_loot){const dup={...Player.get().inventory.slice(-1)[0],id:U.uid()};Player.addItem(dup);Player.get()._duplicar_loot=false;Out.line('Duplicado.','t-mag');} if(typeof XPRef().ganar === 'function') XPRef().ganar('exploración',3,'objeto recogido'); refreshStatus();save(); }
 function cmdSoltar(q) { const item=Player.findItem(q); if(!item){Out.line(`No tienes "${q}".`,'t-dim');return;} Player.rmItem(item.id); const n=World.node(Player.pos()); if(n){n.loot=n.loot||[];n.loot.push(item.blueprint);} Out.line(`Sueltas: ${item.nombre||item.blueprint}`,'t-dim'); save(); }
 function cmdEquipar(q) {
   const raw=(q||'').trim();
@@ -660,14 +741,14 @@ function cmdEquipar(q) {
   if(res.length) Out.line(`Resonancia activa: ${res[res.length-1]}`, 't-mag');
   refreshStatus(); save();
 }
-function cmdUsar(q) { const item=Player.findItem(q); if(!item){Out.line(`No tienes "${q}".`,'t-dim');return;} if(typeof ItemSystem!=='undefined'&&ItemSystem.CATALOGO[item.blueprint]){ItemSystem.aplicar(item,null);save();return;} if(item.tipo==='material'&&(item.hunger||item.hp)){if(item.hunger)Player.feed(item.hunger);if(item.hp)Player.heal(item.hp);Player.rmItem(item.id);Out.line(`Usas ${item.nombre||item.blueprint}.`,'t-cra');refreshStatus();save();return;} Out.line(`No puedes usar "${item.nombre||item.blueprint}" directamente.`,'t-dim'); }
+function cmdUsar(q) { const item=Player.findItem(q); if(!item){Out.line(`No tienes "${q}".`,'t-dim');return;} if(_itemsCatalog()[item.blueprint]){_itemsApply(item,null);save();return;} if(item.tipo==='material'&&(item.hunger||item.hp)){if(item.hunger)Player.feed(item.hunger);if(item.hp)Player.heal(item.hp);Player.rmItem(item.id);Out.line(`Usas ${item.nombre||item.blueprint}.`,'t-cra');refreshStatus();save();return;} Out.line(`No puedes usar "${item.nombre||item.blueprint}" directamente.`,'t-dim'); }
 
 function cmdAtacar(q) {
   const n = World.node(Player.pos()); if(!n){return;}
   const qn = (q||'').toLowerCase().replace(/_/g,' ').trim();
   const npc = findNPC(qn);
   if(npc) {
-    const stats = NPCEngine.combatStats(npc);
+    const stats = _npcCombatStats(npc);
     const p = Player.get();
     NetRef().startBattle(n.id, [
       { tipo:'player', id:p.id, name:p.name, hp:p.hp, maxHp:p.maxHp, atk:Player.getAtk(), def:Player.getDef(), nodeId:n.id, playerId:p.id, vivo:true },
@@ -1355,90 +1436,86 @@ if(typeof ServiceRegistry !== 'undefined') {
     return true;
   }, { pluginId:'core', version:'0.1.0' });
   ServiceRegistry.register('runtime.player.rest', async () => {
-    if(typeof Tactics==='undefined' || typeof TacticsRef().cmdDescansar!=='function') return false;
+    if(typeof TacticsRef().cmdDescansar!=='function') return false;
     await TacticsRef().cmdDescansar();
     return true;
   }, { pluginId:'core', version:'0.1.0' });
   ServiceRegistry.register('runtime.player.tactic', () => {
-    if(typeof Tactics==='undefined' || typeof TacticsRef().cmdTactica!=='function') return false;
+    if(typeof TacticsRef().cmdTactica!=='function') return false;
     TacticsRef().cmdTactica();
     return true;
   }, { pluginId:'core', version:'0.1.0' });
   ServiceRegistry.register('runtime.xp.read', () => {
-    if(typeof XP==='undefined') return null;
+    if(typeof XPRef().ser !== 'function') return null;
     return {
       ser: typeof XPRef().ser === 'function' ? XPRef().ser() : null,
-      atributos: typeof XPRef().cmdAtributos === 'function' ? XPRef().ATRIBUTOS || {} : {},
+      atributos: XPRef().ATRIBUTOS || {},
     };
   }, { pluginId:'core', version:'0.1.0' });
   ServiceRegistry.register('runtime.xp.assign', (raw='') => {
-    if(typeof XP==='undefined' || typeof XPRef().cmdAsignar!=='function') return false;
+    if(typeof XPRef().cmdAsignar!=='function') return false;
     XPRef().cmdAsignar(String(raw || ''));
     if(typeof save === 'function') save();
     return true;
   }, { pluginId:'core', version:'0.1.0' });
   ServiceRegistry.register('runtime.xp.show_attrs', () => {
-    if(typeof XP==='undefined' || typeof XPRef().cmdAtributos!=='function') return false;
+    if(typeof XPRef().cmdAtributos!=='function') return false;
     XPRef().cmdAtributos();
     return true;
   }, { pluginId:'core', version:'0.1.0' });
   ServiceRegistry.register('runtime.xp.show_exp', () => {
-    if(typeof XP==='undefined' || typeof XPRef().cmdExperiencia!=='function') return false;
+    if(typeof XPRef().cmdExperiencia!=='function') return false;
     XPRef().cmdExperiencia();
     return true;
   }, { pluginId:'core', version:'0.1.0' });
   ServiceRegistry.register('runtime.xp.gain', (atributo, amount=0, reason='') => {
-    if(typeof XP==='undefined' || typeof XPRef().ganar!=='function') return false;
+    if(typeof XPRef().ganar!=='function') return false;
     XPRef().ganar(atributo, amount, reason);
     return true;
   }, { pluginId:'core', version:'0.1.0' });
   ServiceRegistry.register('runtime.tactics.consume_stamina', (delta=0) => {
-    if(typeof Tactics==='undefined' || typeof TacticsRef().consumirStamina!=='function') return false;
+    if(typeof TacticsRef().consumirStamina!=='function') return false;
     TacticsRef().consumirStamina(delta);
     return true;
   }, { pluginId:'core', version:'0.1.0' });
   ServiceRegistry.register('runtime.tactics.calc_wound', (dmg=0, maxHp=1) => {
-    if(typeof Tactics==='undefined' || typeof TacticsRef().calcularHerida!=='function') return null;
+    if(typeof TacticsRef().calcularHerida!=='function') return null;
     return TacticsRef().calcularHerida(dmg, maxHp);
   }, { pluginId:'core', version:'0.1.0' });
   ServiceRegistry.register('runtime.tactics.wound_meta', (key='') => {
-    if(typeof Tactics==='undefined') return null;
     return TacticsRef().HERIDAS?.[key] || null;
   }, { pluginId:'core', version:'0.1.0' });
   ServiceRegistry.register('runtime.tactics.apply_element', (target, element, battle=null) => {
-    if(typeof Tactics==='undefined' || typeof TacticsRef().aplicarElemento!=='function') return false;
+    if(typeof TacticsRef().aplicarElemento!=='function') return false;
     TacticsRef().aplicarElemento(target, element, battle);
     return true;
   }, { pluginId:'core', version:'0.1.0' });
   ServiceRegistry.register('runtime.tactics.get_sup', (nodeId=null) => {
-    if(typeof Tactics==='undefined' || typeof TacticsRef().getSup!=='function') return { tipo:'normal' };
+    if(typeof TacticsRef().getSup!=='function') return { tipo:'normal' };
     return TacticsRef().getSup(nodeId);
   }, { pluginId:'core', version:'0.1.0' });
   ServiceRegistry.register('runtime.tactics.reaction_meta', (key='') => {
-    if(typeof Tactics==='undefined') return null;
     return TacticsRef().REACCIONES?.[key] || null;
   }, { pluginId:'core', version:'0.1.0' });
   ServiceRegistry.register('runtime.tactics.climate_reac_mult', (nodeId=null) => {
-    if(typeof Tactics==='undefined') return 1;
     const nodeType = typeof World!=='undefined' ? (World.node(nodeId)?.tipo || 'hub') : 'hub';
     return TacticsRef().CLIMAS_NODO?.[nodeType]?.mult_reac || 1;
   }, { pluginId:'core', version:'0.1.0' });
   ServiceRegistry.register('runtime.tactics.apply_reaction', (reac, actor, target, battle=null) => {
-    if(typeof Tactics==='undefined' || typeof TacticsRef().aplicarReaccion!=='function') return false;
+    if(typeof TacticsRef().aplicarReaccion!=='function') return false;
     TacticsRef().aplicarReaccion(reac, actor, target, battle);
     return true;
   }, { pluginId:'core', version:'0.1.0' });
   ServiceRegistry.register('runtime.tactics.update_surface', (nodeId, element, battle=null) => {
-    if(typeof Tactics==='undefined' || typeof TacticsRef().actualizarSuperficie!=='function') return false;
+    if(typeof TacticsRef().actualizarSuperficie!=='function') return false;
     TacticsRef().actualizarSuperficie(nodeId, element, battle);
     return true;
   }, { pluginId:'core', version:'0.1.0' });
   ServiceRegistry.register('runtime.tactics.element_color', (element='') => {
-    if(typeof Tactics==='undefined') return null;
     return TacticsRef().ELEMENTOS?.[element]?.color || null;
   }, { pluginId:'core', version:'0.1.0' });
   ServiceRegistry.register('runtime.tactics.apply_poise_dmg', (target, amount=0, battle=null) => {
-    if(typeof Tactics==='undefined' || typeof TacticsRef().aplicarPoiseDmg!=='function') return false;
+    if(typeof TacticsRef().aplicarPoiseDmg!=='function') return false;
     TacticsRef().aplicarPoiseDmg(target, amount, battle);
     return true;
   }, { pluginId:'core', version:'0.1.0' });

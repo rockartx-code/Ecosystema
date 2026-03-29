@@ -3,7 +3,39 @@
 // ════════════════════════════════════════════════════════════════
 (function initNetLogic(global) {
   function create({ data, deps }) {
-    const { U, Out, EventBus, World, GS, Clock, XP, Player, Combat, CombatResolution, Tactics, refreshStatus, save, ConcentracionSystem, ItemSystem, ArcEngine, ModuleLoader } = deps;
+    const { U, Out, EventBus, World, GS, Clock, Player, Combat, CombatResolution, refreshStatus, save, ConcentracionSystem, ModuleLoader } = deps;
+
+  function _svc(name) {
+    return (typeof global.ServiceRegistry !== 'undefined' && typeof global.ServiceRegistry.get === 'function')
+      ? global.ServiceRegistry.get(name)
+      : null;
+  }
+  function _xpState() {
+    const fn = _svc('runtime.xp.state');
+    if(typeof fn === 'function') return fn() || null;
+    const api = _svc('runtime.xp.api');
+    const xp = typeof api === 'function' ? api() : null;
+    return typeof xp?.ser === 'function' ? xp.ser() : null;
+  }
+  function _xpLoad(payload) {
+    const fn = _svc('runtime.xp.load');
+    if(typeof fn === 'function') return !!fn(payload);
+    const api = _svc('runtime.xp.api');
+    const xp = typeof api === 'function' ? api() : null;
+    return typeof xp?.load === 'function' ? !!xp.load(payload) : false;
+  }
+  function _xpGain(branch, amount, reason) {
+    const fn = _svc('runtime.xp.gain');
+    return typeof fn === 'function' ? !!fn(branch, amount, reason) : false;
+  }
+  function _tactics() {
+    const fn = _svc('runtime.tactics.api');
+    return typeof fn === 'function' ? (fn() || null) : null;
+  }
+  function _items() {
+    const fn = _svc('runtime.items.api');
+    return typeof fn === 'function' ? (fn() || null) : null;
+  }
 
   let role      = null;    // 'host' | 'client' | null
   const peers   = {};      // peerId → RTCDataChannel wrapper
@@ -44,7 +76,7 @@
     return {
       type:'WORLD_SNAPSHOT',
       world:World.ser(), gs:GS.ser(), clock:Clock.ser(),
-      xp: typeof XP !== 'undefined' ? XP.ser() : null,
+      xp: _xpState(),
       players: { ...players, [Player.get().id]:{ id:Player.get().id, name:Player.get().name, nodeId:Player.pos(), hp:Player.get().hp, maxHp:Player.get().maxHp, atk:Player.getAtk(), def:Player.getDef(), color:'t-cra', peerId:'host', isHost:true } },
       ts: Date.now(),
     };
@@ -52,21 +84,21 @@
 
   function applySnapshot(d) {
     World.load(d.world); GS.load(d.gs); Clock.load(d.clock);
-    if(d.xp && typeof XP !== 'undefined') XP.load(d.xp);
+    if(d.xp) _xpLoad(d.xp);
     Object.assign(players, d.players||{});
     refreshStatus();
     netMsg('Mundo sincronizado con el host.');
   }
 
   function buildPatch() {
-    return { type:'WORLD_PATCH', world:World.ser(), gs:GS.ser(), clock:Clock.ser(), xp:typeof XP!=='undefined'?XP.ser():null, players:{...players} };
+    return { type:'WORLD_PATCH', world:World.ser(), gs:GS.ser(), clock:Clock.ser(), xp:_xpState(), players:{...players} };
   }
 
   function applyPatch(d) {
     if(d.world) World.load(d.world);
     if(d.gs)    GS.load(d.gs);
     if(d.clock) Clock.load(d.clock);
-    if(d.xp && typeof XP !== 'undefined') XP.load(d.xp);
+    if(d.xp) _xpLoad(d.xp);
     if(d.players) Object.assign(players, d.players);
     refreshStatus();
   }
@@ -153,7 +185,7 @@
       vivo:     c.vivo ?? true,
       huyó:     false,
       defendiendo: false,
-      poise:    typeof Tactics !== 'undefined' ? Tactics.calcPoise(c) : 50,
+      poise:    _tactics()?.calcPoise?.(c) || 50,
       poise_roto:  false,
       poise_turnos:0,
       habilidades: c.habilidades || [],
@@ -172,7 +204,7 @@
       _aiThinking:false,
     };
 
-    if(typeof Tactics !== 'undefined') Tactics.initBattle(battle);
+    _tactics()?.initBattle?.(battle);
     battles[id]  = battle;
     myBattleId   = id;
     _setCombatActive(true);
@@ -226,15 +258,16 @@
         if(!target) { Out.line('Sin objetivo.','t-dim'); return; }
 
         const arma     = p.equipped?.arma;
-        const elemento = typeof Tactics !== 'undefined' ? Tactics.getElementoArma(arma) : null;
+        const tactics = _tactics();
+        const elemento = tactics?.getElementoArma?.(arma) || null;
         let   dmg, reaccion;
 
-        if(typeof Tactics !== 'undefined') {
-          const res = Tactics.calcularDaño(actor, target, arma, elemento, battle);
+        if(tactics?.calcularDaño) {
+          const res = tactics.calcularDaño(actor, target, arma, elemento, battle);
           dmg      = res.dmg;
           reaccion = res.reaccion;
-          if(arma) Tactics.desgastarArma(arma);
-          Tactics.consumirStamina(12);
+          if(arma) tactics.desgastarArma?.(arma);
+          tactics.consumirStamina?.(12);
         } else {
           dmg = Math.max(1, actor.atk - (target.def||0));
         }
@@ -254,15 +287,15 @@
         let log = `${actor.name}${parsedArg.variantLabel||''} → ${target.name}  −${dmg}HP  (${target.hp}/${target.maxHp})`;
         if(reaccion) {
           log += `  ⚗${reaccion.nombre}!`;
-          if(typeof Tactics !== 'undefined') {
-            Tactics.aplicarReaccion(reaccion, actor, target, battle);
-            Tactics.actualizarSuperficie(battle.nodeId, elemento, battle);
+          if(tactics) {
+            tactics.aplicarReaccion?.(reaccion, actor, target, battle);
+            tactics.actualizarSuperficie?.(battle.nodeId, elemento, battle);
           }
-        } else if(elemento && typeof Tactics !== 'undefined') {
-          Tactics.aplicarElemento(target, elemento, battle);
+        } else if(elemento && tactics) {
+          tactics.aplicarElemento?.(target, elemento, battle);
         }
         battleLog(battle, log, reaccion?'t-cor':'t-pel');
-        if(typeof Tactics !== 'undefined' && !reaccion) Tactics.aplicarPoiseDmg(target, Math.floor(dmg*0.4), battle);
+        if(tactics && !reaccion) tactics.aplicarPoiseDmg?.(target, Math.floor(dmg*0.4), battle);
         if(target.hp <= 0) { target.vivo=false; battleLog(battle, `${target.name} cae.`, 't-cor'); }
 
         EventBus.emit('combat:after_damage_apply', {
@@ -271,13 +304,13 @@
           targetDied: target.hp <= 0,
         });
 
-        if(typeof XP !== 'undefined') XP.ganar('combate', Math.ceil(dmg/3), 'daño en batalla');
+        _xpGain('combate', Math.ceil(dmg/3), 'daño en batalla');
         break;
       }
       case 'defender':
         actor.defendiendo = true;
         battleLog(battle, `${actor.name} adopta postura defensiva.`, 't-sis');
-        if(typeof Tactics !== 'undefined') Tactics.consumirStamina(-5);
+        _tactics()?.consumirStamina?.(-5);
         break;
       case 'magia': {
         const parsedArg = (typeof ConcentracionSystem !== 'undefined' && ConcentracionSystem.parseVariantArg)
@@ -422,7 +455,7 @@
         return;
       }
       EventBus.emit('combat:enemy_turn_announce', { actor: actorTurno, battle });
-      if(typeof Tactics !== 'undefined') Tactics.tickTurno(actorTurno, battle);
+      _tactics()?.tickTurno?.(actorTurno, battle);
       if(actorTurno.skipping) {
         battleLog(battle, `${actorTurno.name} no puede actuar este turno.`, 't-dim');
       } else {
@@ -472,17 +505,17 @@
           Player.addItem({ id:U.uid(), blueprint:d, nombre:d, tipo:'material', tags:D.matTags(d), estado:'nativo', desc:D.mat(d)?.desc });
           battleLog(battle, `Loot: ${d}`, 't-cra');
         }
-        if(typeof ItemSystem !== 'undefined' && U.chance(0.30+suerteBonus)) {
+        if(U.chance(0.30+suerteBonus)) {
           const nodo = World.node(battle.nodeId);
-          const itemTac = ItemSystem.genLootTactico(nodo?.tipo||'ruina', U.rng(Date.now()));
+          const itemTac = _items()?.genLootTactico?.(nodo?.tipo||'ruina', U.rng(Date.now()));
           if(itemTac) { Player.addItem({...itemTac,id:U.uid()}); battleLog(battle,`Loot táctico: ${itemTac.nombre}`,'t-cra'); }
         }
         const xpKill = 20 + (e.maxHp||10)/5;
-        if(typeof XP !== 'undefined') XP.ganar('combate', Math.floor(xpKill), `kill: ${e.name}`);
+        _xpGain('combate', Math.floor(xpKill), `kill: ${e.name}`);
         if(e.tipo==='enemy') World.rmEnemy(battle.nodeId, e.id);
         EventBus.emit('combat:enemy_defeat', { enemy:e, nodeId:battle.nodeId });
       });
-      if(typeof XP !== 'undefined' && jugadores.length === battle.cola.filter(c=>c.tipo==='player').length) XP.ganar('combate',10,'victoria sin bajas');
+      if(jugadores.length === battle.cola.filter(c=>c.tipo==='player').length) _xpGain('combate', 10, 'victoria sin bajas');
       EventBus.emit('combat:post_resolve', { battle, finalDmg:0, actor:null });
     }
 
@@ -626,16 +659,12 @@ const Net = (() => {
       World,
       GS,
       Clock,
-      XP: typeof globalThis.XP !== 'undefined' ? globalThis.XP : undefined,
       Player,
       Combat: typeof globalThis.Combat !== 'undefined' ? globalThis.Combat : undefined,
       CombatResolution: typeof globalThis.CombatResolution !== 'undefined' ? globalThis.CombatResolution : undefined,
-      Tactics: typeof globalThis.Tactics !== 'undefined' ? globalThis.Tactics : undefined,
       refreshStatus,
       save: typeof globalThis.save === 'function' ? globalThis.save : () => {},
       ConcentracionSystem: typeof globalThis.ConcentracionSystem !== 'undefined' ? globalThis.ConcentracionSystem : undefined,
-      ItemSystem: typeof globalThis.ItemSystem !== 'undefined' ? globalThis.ItemSystem : undefined,
-      ArcEngine: typeof globalThis.ArcEngine !== 'undefined' ? globalThis.ArcEngine : undefined,
       ModuleLoader,
     },
   });

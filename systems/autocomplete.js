@@ -11,6 +11,17 @@ const AC = (() => {
   let sel = -1;
   const providers = [];
 
+  function _svc(name) {
+    return (typeof ServiceRegistry !== 'undefined' && typeof ServiceRegistry.get === 'function')
+      ? ServiceRegistry.get(name)
+      : null;
+  }
+
+  function _xpRead() {
+    const read = _svc('runtime.xp.read');
+    return typeof read === 'function' ? (read() || { atributos:{} }) : { atributos:{} };
+  }
+
   function _inp() {
     return document.getElementById('inp');
   }
@@ -143,8 +154,7 @@ const AC = (() => {
     registerBase('plugins', ['descargar_plugin'], () => getPlugins());
     registerBase('nombre', ['nombre'], () => [{ label: Player.get().name, value: Player.get().name.replace(/\s+/g, '_'), hint: 'nombre actual', color: 't-npc', group: 'nombre' }]);
     registerBase('asignar', ['asignar', 'assign'], () => {
-      if(typeof XP === 'undefined') return [];
-      return Object.entries(XP.ATRIBUTOS || {}).map(([k, def]) => ({ label: k, value: k, hint: def.desc, color: def.color, group: 'atributo' }));
+      return Object.entries(_xpRead().atributos || {}).map(([k, def]) => ({ label: k, value: k, hint: def.desc, color: def.color, group: 'atributo' }));
     });
   }
 

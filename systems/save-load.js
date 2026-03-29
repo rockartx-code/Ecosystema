@@ -2,6 +2,34 @@
 // SAVE / LOAD / DIE — Persistencia y muerte permanente
 // ════════════════════════════════════════════════════════════════
 
+function _svc(name) {
+  return (typeof ServiceRegistry !== 'undefined' && typeof ServiceRegistry.get === 'function')
+    ? ServiceRegistry.get(name)
+    : null;
+}
+
+function _xpState() {
+  const fn = _svc('runtime.xp.state');
+  if(typeof fn === 'function') return fn() || null;
+  const api = _svc('runtime.xp.api');
+  const xp = typeof api === 'function' ? api() : null;
+  return typeof xp?.ser === 'function' ? xp.ser() : null;
+}
+
+function _xpLoad(data) {
+  const fn = _svc('runtime.xp.load');
+  if(typeof fn === 'function') return !!fn(data);
+  const api = _svc('runtime.xp.api');
+  const xp = typeof api === 'function' ? api() : null;
+  return typeof xp?.load === 'function' ? !!xp.load(data) : false;
+}
+
+function _arcThemeIcon(theme) {
+  const apiSvc = _svc('runtime.arc.api');
+  const api = typeof apiSvc === 'function' ? apiSvc() : null;
+  return api?.TEMAS?.[theme]?.icon || '◈';
+}
+
 function save() {
   localStorage.setItem('eco_v12', JSON.stringify({
     ver:'1.2',
@@ -10,13 +38,13 @@ function save() {
     gs:     GS.ser(),
     clock:  Clock.ser(),
     plugins:PluginLoader.ser(),
-    xp:     typeof XP     !== 'undefined' ? XP.ser()     : null,
+    xp:     _xpState(),
   }));
   if(typeof Net !== 'undefined' && Net.isHost()) {
     EventBus.emit('net:patch', {
       type:'WORLD_PATCH',
       world:World.ser(), gs:GS.ser(), clock:Clock.ser(),
-      xp: typeof XP !== 'undefined' ? XP.ser() : null,
+      xp: _xpState(),
       players: Net.getPlayers(),
     });
   }
@@ -32,7 +60,7 @@ function loadSave() {
     GS.load(d.gs);
     Clock.load(d.clock);
     if(d.plugins) PluginLoader.load(d.plugins);
-    if(d.xp && typeof XP !== 'undefined') XP.load(d.xp);
+    if(d.xp) _xpLoad(d.xp);
     return true;
   } catch { return false; }
 }
@@ -63,7 +91,7 @@ function die(causa = 'desconocida') {
     Out.sep('─'); Out.line('Arcos narrativos:', 't-acc');
     arcsCompletos.forEach(a => {
       const col = a.resultado==='victoria'?'t-cra':a.resultado==='tragedia'?'t-pel':'t-mem';
-      Out.line(`  ${typeof ArcEngine !== 'undefined' ? ArcEngine.TEMAS[a.tema]?.icon||'◈' : '◈'} "${a.titulo}" — ${a.epitafio}`, col);
+      Out.line(`  ${_arcThemeIcon(a.tema)} "${a.titulo}" — ${a.epitafio}`, col);
     });
   }
 
@@ -92,7 +120,7 @@ function die(causa = 'desconocida') {
 // ── Exportar partida como archivo .ecohex ─────────────────────
 function exportarPartida() {
   try {
-    const json  = JSON.stringify({ ver:'1.4', ts:Date.now(), world:World.ser(), player:Player.ser(), gs:GS.ser(), clock:Clock.ser(), plugins:PluginLoader.ser(), xp:typeof XP!=='undefined'?XP.ser():null });
+    const json  = JSON.stringify({ ver:'1.4', ts:Date.now(), world:World.ser(), player:Player.ser(), gs:GS.ser(), clock:Clock.ser(), plugins:PluginLoader.ser(), xp:_xpState() });
     const bytes = new TextEncoder().encode(json);
     let hex = '45434f14';  // ECO + v1.4
     const len = bytes.length;
@@ -134,7 +162,7 @@ function importarPartida() {
       const d = JSON.parse(new TextDecoder().decode(bytes));
       World.load(d.world); Player.load(d.player); GS.load(d.gs); Clock.load(d.clock);
       if(d.plugins) PluginLoader.load(d.plugins);
-      if(d.xp && typeof XP !== 'undefined') XP.load(d.xp);
+      if(d.xp) _xpLoad(d.xp);
       localStorage.setItem('eco_v12', JSON.stringify(d));
       Out.sp(); Out.sep('═');
       Out.line('✓ PARTIDA IMPORTADA', 't-cra', true);

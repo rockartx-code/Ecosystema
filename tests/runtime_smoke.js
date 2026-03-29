@@ -137,6 +137,8 @@ function loadCommandsSandbox() {
   vm.createContext(sandbox);
   const src = fs.readFileSync('systems/commands.js', 'utf8');
   vm.runInContext(src, sandbox, { filename:'systems/commands.js' });
+  sandbox.ServiceRegistry.register('runtime.xp.api', () => sandbox.XP, { pluginId:'test', version:'0.0.1' });
+  sandbox.ServiceRegistry.register('runtime.tactics.api', () => sandbox.Tactics, { pluginId:'test', version:'0.0.1' });
   return { sandbox, outLines };
 }
 
@@ -397,25 +399,40 @@ function withCapturedConsole(fn) {
   assert.ok(!/Net\.getMyBattle\s*\?/.test(sombra), 'plugin-sombra-herrante no debe consultar Net.getMyBattle directo');
 })();
 
-(function testLegacySystemsUseDataLogicStructure() {
+(function testDomainSystemsDataLivesInModuleWithoutAdapters() {
   const moduleJson = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/module.json'), 'utf8'));
   const systemsFromModule = new Map((moduleJson.systems || []).map(s => [s.name, s.data]));
   const required = [
-    { name:'tactics', bootstrap:'systems/tactics.js', logic:'systems/tactics.js' },
-    { name:'xp', bootstrap:'systems/xp.js', logic:'systems/xp.js' },
-    { name:'arc-engine', bootstrap:'systems/arc-engine.js', logic:'systems/arc-engine.js' },
-    { name:'world-ai', bootstrap:'systems/world-ai.js', logic:'systems/world-ai.js' },
+    { name:'tactics', plugin:'plugins/plugin-tacticas.js' },
+    { name:'xp', plugin:'plugins/plugin-xp.js' },
+    { name:'arc-engine', plugin:'plugins/plugin-arcos.js' },
+    { name:'world-ai', plugin:'plugins/plugin-world-ai.js' },
     { name:'net', bootstrap:'systems/net.js', logic:'systems/net.js' },
     { name:'sfx', bootstrap:'systems/sfx.js', logic:'systems/sfx.js' },
     { name:'music', bootstrap:'systems/music.js', logic:'systems/music.js' },
   ];
 
   required.forEach((r) => {
-    assert.strictEqual(fs.existsSync(r.logic), true, `debe existir ${r.logic}`);
+    const artifact = r.plugin || r.logic;
+    assert.strictEqual(fs.existsSync(artifact), true, `debe existir ${artifact}`);
     assert.ok(systemsFromModule.has(r.name), `module.json debe incluir systems[].name=${r.name}`);
     assert.strictEqual(typeof systemsFromModule.get(r.name), 'object', `systems[].data debe existir para ${r.name}`);
-    const src = fs.readFileSync(r.bootstrap, 'utf8');
-    assert.ok(src.includes(`getSystemData?.('${r.name}'`), `${r.bootstrap} debe cargar data con getSystemData('${r.name}')`);
+    if(r.bootstrap) {
+      const src = fs.readFileSync(r.bootstrap, 'utf8');
+      assert.ok(src.includes(`getSystemData?.('${r.name}'`), `${r.bootstrap} debe cargar data con getSystemData('${r.name}')`);
+    }
+  });
+
+  [
+    'systems/forge.js',
+    'systems/item-system.js',
+    'systems/arc-engine.js',
+    'systems/npc-engine.js',
+    'systems/tactics.js',
+    'systems/xp.js',
+    'systems/world-ai.js',
+  ].forEach((file) => {
+    assert.strictEqual(fs.existsSync(file), false, `${file} debe haber sido eliminado`);
   });
 })();
 

@@ -262,15 +262,13 @@ function _aplicarDanoJugador(target, dmg, battle) {
   const p = _player();
   if(target.playerId !== p.id) return;
   p.hp = target.hp;
-  if(typeof Tactics !== 'undefined') {
-    const herida = _tactCalcWound(dmg, target.maxHp);
-    if(herida) {
-      p.heridas = p.heridas||[];
-      if(!p.heridas.includes(herida)) {
-        p.heridas.push(herida);
-        const hm = _tactWoundMeta(herida);
-        battleLog(battle, `  ${hm?.icon} ¡${herida}! ${hm?.desc}`, hm?.color||'t-pel');
-      }
+  const herida = _tactCalcWound(dmg, target.maxHp);
+  if(herida) {
+    p.heridas = p.heridas||[];
+    if(!p.heridas.includes(herida)) {
+      p.heridas.push(herida);
+      const hm = _tactWoundMeta(herida);
+      battleLog(battle, `  ${hm?.icon} ¡${herida}! ${hm?.desc}`, hm?.color||'t-pel');
     }
   }
 }

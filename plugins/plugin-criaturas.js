@@ -65,6 +65,11 @@ function _worldRemoveCreature(nodeId, creatureId) {
   const fn = _svc('runtime.world.remove_creature');
   return typeof fn === 'function' ? !!fn(nodeId, creatureId) : false;
 }
+function _forgeTension(tags=[]) {
+  const fn = _svc('runtime.forge.api');
+  const api = typeof fn === 'function' ? fn() : null;
+  return api?.Tags?.tension?.(tags) || 0;
+}
 function _line(text, color='t-out', bold=false) {
   const fn = _svc('runtime.output.line');
   if(typeof fn === 'function') fn(text, color, bold);
@@ -484,7 +489,7 @@ function cmdCriar(args) {
     def:  Math.round(Math.max(a.def||0,b.def||0)*genBonus),
     voluntad:      Math.round((a.voluntad+b.voluntad)/2)+U.rand(-5,5),
     afinidad:      50,
-    inestabilidad: Math.max(0,Math.floor(Tags?.tension(tagsH)*80||30)-genHijo*3),
+    inestabilidad: Math.max(0,Math.floor((_forgeTension(tagsH) * 80) || 30)-genHijo*3),
     estado:        'latente', modo:'latente',
     linaje: { parent_a:a.imprint?.hash, parent_b:b.imprint?.hash, generacion:genHijo },
   });
