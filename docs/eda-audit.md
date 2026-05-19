@@ -26,8 +26,8 @@ Matriz viva de ownership para el runtime orientado a plugins.
     {
       "name": "world-simulation",
       "systems": ["systems/net.js", "systems/commands.js"],
-      "plugins": ["plugins/plugin-world-ai.js", "plugins/plugin-criaturas.js", "plugins/plugin-facciones.js"],
-      "contracts": ["runtime.world_ai.*", "runtime.battle.*", "world:tick", "worldai:tick_creatures"]
+      "plugins": ["plugins/plugin-world-ai.js", "plugins/plugin-criaturas.js", "plugins/plugin-facciones.js", "plugins/plugin-enemigos.js", "plugins/plugin-dificultad.js", "plugins/plugin-supervivencia.js"],
+      "contracts": ["runtime.world_ai.*", "runtime.battle.*", "world:tick", "worldai:tick_creatures", "world:request_enemies", "world:calc_difficulty", "player:tick"]
     },
     {
       "name": "memory-and-runtime-services",

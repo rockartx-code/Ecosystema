@@ -109,6 +109,9 @@ El namespace de configuracion en `data/module.json` NO define ownership arquitec
 | `facciones` | `plugin` | Reglas de facciones y control territorial. |
 | `magias` | `plugin` | Mecanicas especializadas de magia. |
 | `bosses` | `plugin` | Vertical de encounters y rewards. |
+| `supervivencia` | `plugin` | Regla de hambre y heridas persistentes sobre `player:tick`. |
+| `dificultad` | `plugin` | Calculo de dificultad del mundo via `world:calc_difficulty`. |
+| `enemigos` | `plugin` | Fabrica de entidad `enemy` y spawn por seccion via `world:request_enemies`. |
 
 ## Criterio de decision para futuros modulos
 

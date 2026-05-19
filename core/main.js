@@ -359,7 +359,14 @@ if(typeof globalThis.Combat.active === 'undefined') {
 // como plugins registrados. Cada uno recibe CTX en sus handlers.
 
 function _registerDomainPlugins() {
+  // Plugins de gameplay. Cada uno vive en su propio archivo bajo plugins/.
+  // El orden topológico final lo resuelve PluginLoader.registerMany().
+  // plugin:enemigos debe registrarse antes que plugins que hookean
+  // world:request_enemies (habilidades, magias, invocaciones, arbol-vida).
   const corePluginDefs = [
+    typeof pluginSupervivencia    !== 'undefined' ? pluginSupervivencia : null,
+    typeof pluginDificultad       !== 'undefined' ? pluginDificultad : null,
+    typeof pluginEnemigos         !== 'undefined' ? pluginEnemigos : null,
     typeof pluginXP               !== 'undefined' ? pluginXP : null,
     typeof pluginTacticas         !== 'undefined' ? pluginTacticas : null,
     typeof pluginItems            !== 'undefined' ? pluginItems : null,
@@ -384,108 +391,6 @@ function _registerDomainPlugins() {
     typeof pluginConcentracion    !== 'undefined' ? pluginConcentracion : null,
   ].filter(Boolean);
   PluginLoader.registerMany(corePluginDefs);
-
-  // ── Plugin: Supervivencia (hambre, heridas fuera de combate) ──
-  // Antes era Player.hungerTick() inline en cmdIr.
-  // Ahora escucha player:tick y gestiona hambre y heridas.
-  PluginLoader.register({
-    id: 'plugin:supervivencia',
-    nombre: 'Supervivencia',
-    version: '2.0.0',
-    hooks: {
-      'player:create': {
-        fn(payload) {
-          // El módulo base define los valores de hambre
-          payload.player.hunger    = D.playerDef?.hunger_base || 100;
-          payload.player.maxHunger = D.playerDef?.hunger_base || 100;
-          return payload;
-        }
-      },
-      'player:tick': {
-        fn(payload) {
-          const p = payload.player;
-          p.hunger -= ModuleLoader.get('ciclo_hunger_perdida') || 3;
-          if(p.hunger <= 0) {
-            p.hunger = 0;
-            p.hp    -= ModuleLoader.get('hunger_cero_hp_perdida') || 2;
-          }
-          // Heridas persistentes
-          const heridas = p.heridas || [];
-          if(heridas.includes('HEMORRAGIA'))    p.hp = Math.max(1, p.hp - 2);
-          if(heridas.includes('ENVENENAMIENTO'))p.hp = Math.max(1, p.hp - 1);
-          return payload;
-        }
-      },
-    },
-  });
-
-  // ── Plugin: Dificultad del mundo ──────────────────────────────
-  // Antes era World.calcDificultad() hardcodeado.
-  // Ahora escucha world:calc_difficulty.
-  PluginLoader.register({
-    id: 'plugin:dificultad',
-    nombre: 'Escalado de Dificultad',
-    version: '2.0.0',
-    hooks: {
-      'world:calc_difficulty': {
-        fn(payload) {
-          const p  = payload.player;
-          const atk = Player.getAtk();
-          const def = Player.getDef();
-          const equipPoder = atk*1.5 + def*2 + (p.equipped?.arma?.durabilidad||100)/20 + (p.equipped?.armadura?5:0);
-          const ciclos = Clock.cycle || 1;
-          const kills  = p.stats?.kills || 0;
-          const score  = (equipPoder/20*0.5) + (ciclos/5*0.3) + (kills/10*0.2);
-          payload.difficulty = Math.max(1.0, score);
-          return payload;
-        }
-      },
-    },
-  });
-
-  // ── Plugin: Enemigos ─────────────────────────────────────────
-  // Registra la fábrica y maneja world:request_enemies.
-  PluginLoader.register({
-    id: 'plugin:enemigos',
-    nombre: 'Sistema de Enemigos',
-    version: '2.0.0',
-
-    onLoad() {
-      EntityRegistry.register('enemy', (data) => {
-        // Los enemigos son Entity planos sin comportamiento especial por ahora
-        return new Entity({ ...data, tipo:'enemy' });
-      });
-    },
-
-    hooks: {
-      'world:request_enemies': {
-        fn(payload) {
-          const wd  = D.world;
-          const ep  = D.enemies;
-          if(!ep.length || !U.chance(wd?.enemy_chance || .38)) return payload;
-
-          const dif  = payload.difficulty || 1.0;
-          const base = { ...U.pick(ep, payload.rng) };
-          base.id         = U.uid();
-          base.tipo       = 'enemy';
-          base.hp         = Math.round((base.hp || 10) * dif);
-          base.atk        = Math.round((base.atk|| 4) * Math.sqrt(dif));
-          base.def        = Math.round((base.def|| 0) * Math.sqrt(dif) * 0.8);
-          base.hp_current = base.hp;
-
-          // Añadir tags elementales en secciones avanzadas
-          if(dif >= 2.5) {
-            const el = U.pick(['fuego','hielo','rayo','vacío','resonante'], payload.rng);
-            base.tags = [...(base.tags||[]), el];
-            base.nombre = `${base.nombre} [${el.toUpperCase()}]`;
-          }
-
-          payload.enemies.push(EntityRegistry.create('enemy', base));
-          return payload;
-        }
-      },
-    },
-  });
 }
 
 // ── Registrar plugins JSON declarativos de los <script> tags ──────
