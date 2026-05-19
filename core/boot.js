@@ -15,6 +15,7 @@
 // del binding global que el plugin expone al cargar su <script>. El orden
 // fisico final lo resuelve PluginLoader.registerMany via dependencias.
 const DOMAIN_PLUGIN_BINDINGS = [
+  'pluginBattleEngine',
   'pluginSupervivencia', 'pluginDificultad', 'pluginEnemigos',
   'pluginXP', 'pluginTacticas', 'pluginItems', 'pluginForja',
   'pluginNPCs', 'pluginArcos', 'pluginWorldAI', 'pluginCreaturas',

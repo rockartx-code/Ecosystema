@@ -66,6 +66,7 @@ Suite principal:
 - `architecture_guard_smoke`
 - `events_contract_smoke`
 - `ownership_matrix_smoke`
+- `battle_engine_functional_smoke` (motor de batalla extraido en C1)
 - `dod_audit_smoke` (genera `docs/dod-audit-report.md`)
 
 Ejecutar:

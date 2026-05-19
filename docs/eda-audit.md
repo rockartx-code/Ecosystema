@@ -38,8 +38,8 @@ Matriz viva de ownership para el runtime orientado a plugins.
     {
       "name": "combat-and-abilities",
       "systems": ["systems/commands.js", "systems/net.js"],
-      "plugins": ["plugins/plugin-habilidades.js", "plugins/plugin-magias.js", "plugins/plugin-ia-batalla.js", "plugins/plugin-bosses.js", "plugins/plugin-invocaciones.js", "plugins/plugin-concentracion.js", "plugins/plugin-transformaciones.js"],
-      "contracts": ["runtime.habilidades.*", "runtime.magias.*", "runtime.battle.*", "combat:resolve_habilidad", "combat:resolve_magia", "combat:resolve_ia", "boss:defeated"]
+      "plugins": ["plugins/plugin-battle-engine.js", "plugins/plugin-habilidades.js", "plugins/plugin-magias.js", "plugins/plugin-ia-batalla.js", "plugins/plugin-bosses.js", "plugins/plugin-invocaciones.js", "plugins/plugin-concentracion.js", "plugins/plugin-transformaciones.js"],
+      "contracts": ["runtime.battle.*", "gameplay.battle.*", "runtime.habilidades.*", "runtime.magias.*", "combat:start", "combat:resolve_habilidad", "combat:resolve_magia", "combat:resolve_ia", "combat:before_damage_apply", "combat:after_damage_apply", "combat:enemy_defeat", "combat:post_resolve", "boss:defeated"]
     },
     {
       "name": "npc-extensions",

@@ -65,6 +65,10 @@ function loadSave() {
   } catch { return false; }
 }
 
+if(typeof ServiceRegistry !== 'undefined') {
+  ServiceRegistry.register('runtime.game.die', (causa='desconocida') => { die(causa); return true; }, { pluginId:'core', version:'0.1.0' });
+}
+
 function die(causa = 'desconocida') {
   if(die._autoRestarting) return;
   die._autoRestarting = true;

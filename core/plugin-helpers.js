@@ -97,6 +97,14 @@ function _worldCalcDifficulty() {
   const fn = _svc('runtime.world.calc_difficulty');
   return typeof fn === 'function' ? Number(fn()) || 1.0 : 1.0;
 }
+function _worldRemoveEnemy(nodeId, enemyId) {
+  const fn = _svc('runtime.world.remove_enemy');
+  return typeof fn === 'function' ? !!fn(nodeId, enemyId) : false;
+}
+function _gameDie(causa='desconocida') {
+  const fn = _svc('runtime.game.die');
+  if(typeof fn === 'function') fn(causa);
+}
 
 // ── Clock ─────────────────────────────────────────────────────────
 function _clockCurrent() {

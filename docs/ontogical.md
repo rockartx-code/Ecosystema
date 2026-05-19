@@ -139,12 +139,15 @@ Reglas:
 
 ## Deuda tecnica conocida (a cerrar en fase posterior)
 
-- `core/main.js` mantiene `globalThis.Combat = CombatResolution` como shim de compatibilidad. `systems/commands.js:280` y `systems/net.js:172` aun lo consumen. La frontera limpia llega cuando se extraiga la maquina de batalla de `net.js` a un plugin con servicios `runtime.battle.*` propios.
-- `systems/net.js` aun contiene la maquina tactica completa (~350 lineas: `startBattle`, `sendBattleAction`, `_execSimpleAI`, gestion de cola/turnos/poise, loot). C1 del audit: extraer a un futuro `plugin-battle-engine` que registre `runtime.battle.*` directamente. Riesgo alto sin tests funcionales; sesion dedicada.
+- `core/main.js` mantiene `globalThis.Combat = CombatResolution` como shim de compatibilidad. `systems/commands.js:280` y `systems/net.js:172` aun lo consumen. La maquina de batalla ya esta en `plugin-battle-engine`, pero el flag `Combat.active` sigue siendo global; cuando todos los consumers usen `runtime.battle.current()?.estado === 'activo'`, el shim se elimina.
 - `systems/commands.js` aun contiene handlers de gameplay (`cmdHablar`, `cmdForjar`, `cmdAtacar`, `cmdPreguntar`, `cmdObservar`, `cmdTraicionar`, `cmdNPCs`). En la fase 1.2 se migraron `cmdAceptar/Rechazar/Completar` a `plugin-npcs`. El resto sigue C2 incremental.
 - `_zoneThemeFor` en `systems/music.js` consulta `data/module.json.music.zone_themes`; cualquier mapeo zona->tema nuevo debe vivir en data, no en el adapter.
 - ISP en `CTX` (A5 del audit): el segundo argumento de los hooks expone ~30 namespaces a todos los plugins. Una version futura podria filtrar segun `def.permissions` declaradas. Cambio cross-plugin, requiere su propia fase.
 - Split fisico de `core/core.js` (M1 del audit): el archivo agrupa 6 namespaces (U, EventBus, ServiceRegistry, ModuleLoader, PluginLoader, CommandRegistry, D). Sin un sistema de modulos ES en navegador, los tests dependen de cargar `core/core.js` como unico fichero (`vm.runInContext`). Split deferido hasta migrar a ESM o test harness con orquestacion multi-fichero.
+
+## Cerrado en fase 1.3 (C1)
+
+- **C1 del audit — `systems/net.js` maquina de batalla**: extraida a `plugins/plugin-battle-engine.js` (`runtime.battle.*` + `gameplay.battle.*` services). `net.js` queda como adaptador de red puro con wrappers de compat sobre el plugin. Validado por `tests/battle_engine_functional_smoke.js` (start, atacar, defender, IA fallback, victoria, huir, render, getMyBattle/Actor). El test corre en cada `npm test`.
 
 ## Invariantes para Fase 2
 
