@@ -141,7 +141,9 @@ PluginLoader.setEventsVersion?.(CTX.runtime.eventsVersion);
 defineRuntimeEvents(EventBus);
 
 
-// Compatibilidad global: algunos sistemas legacy referencian `Combat.active`.
+// Shim legacy: systems/commands.js:280 y systems/net.js:172 escriben
+// Combat.active. Ver docs/ontogical.md "Deuda tecnica conocida": la
+// limpieza llega al extraer la batalla de net.js a un plugin.
 if(typeof globalThis.Combat === 'undefined') {
   globalThis.Combat = CombatResolution;
 }

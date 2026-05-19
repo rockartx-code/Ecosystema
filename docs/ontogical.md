@@ -123,8 +123,28 @@ Resolver en este orden:
 4. Si solo describe contenido o configuracion, pertenece a `data`.
 5. Si hoy parece `core` por acoplamiento accidental, mantenerlo fuera de `core` hasta separar contrato de implementacion.
 
+## Politica de versionado de plugins (semver)
+
+Cada plugin declara su `version` segun semver:
+
+- **mayor** (`1.x.x -> 2.0.0`): rompe contrato runtime (servicios, eventos, comandos). Otros plugins que requieren la version anterior deben actualizar.
+- **menor** (`1.0.x -> 1.1.0`): agrega funcionalidad compatible (nuevo evento, nuevo comando, nuevo servicio).
+- **parche** (`1.0.0 -> 1.0.1`): bugfix interno sin cambio de contrato.
+
+Reglas:
+
+- Plugins nuevos arrancan en `1.0.0`.
+- Si un plugin expone una API publica (servicio `runtime.*`, hook publico), cualquier cambio incompatible obliga a subir mayor.
+- El runtime versiona los eventos via `CTX.runtime.eventsVersion`. Plugins con `requires.events` declaran rango semver de compatibilidad.
+
+## Deuda tecnica conocida (a cerrar en fase posterior)
+
+- `core/main.js:350` mantiene `globalThis.Combat = CombatResolution` como shim de compatibilidad. `systems/commands.js:280` y `systems/net.js:172` aun lo consumen. La frontera limpia llega cuando se extraiga la maquina de batalla de `net.js` a un plugin con servicios `runtime.battle.*` propios.
+- `systems/commands.js` y `systems/net.js` aun contienen reglas de gameplay (misiones, dialogo NPC, batalla tactica). Su migracion a plugins de dominio (`plugin-arcos`, `plugin-npcs`, futuro `plugin-battle-engine`) es la siguiente prioridad arquitectonica.
+- `_zoneThemeFor` en `systems/music.js` consulta `data/module.json.music.zone_themes`; cualquier mapeo zona->tema nuevo debe vivir en data, no en el adapter.
+
 ## Invariantes para Fase 2
 
 - Mover wrappers y facades legacy que hoy registran contratos de plugins desde `systems/commands.js` hacia ownership mas explicito.
-- Tipar y versionar eventos runtime visibles que hoy siguen fuera de `defineEvents(...)`.
+- Tipar y versionar eventos runtime visibles que hoy siguen fuera de `defineEvents(...)` (cerrado parcialmente en Fase 1.1 con 41 specs nuevas en `core/events.js`).
 - Reducir globals legacy sin cambiar la frontera documental acordada en esta fase.

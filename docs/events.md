@@ -5,15 +5,15 @@ Estado: **draft operativo alineado al runtime actual**
 
 ## Fuentes de verdad
 
-- Eventos versionados y validados: `EventBus.defineEvents(...)` en `core/main.js`.
+- Eventos versionados y validados: `defineRuntimeEvents(EventBus)` en `core/events.js`, invocado desde `core/main.js` en boot.
 - Adaptadores de I/O expuestos por runtime: `core/io-bus.js`.
 - Eventos legacy observables: emisiones y listeners actuales en `systems/*.js` y `plugins/*.js`.
 
 ## Alcance del contrato
 
-- **Tier 1 - versionado**: eventos definidos en `core/main.js`. Estos son los que entran en `eventsVersion` y en compatibilidad de plugins.
-- **Tier 2 - adaptadores expuestos**: eventos visibles del runtime/browser usados por `Out`, `In`, `OutputRouter` y `ControlRouter`. Existen hoy, pero no todos estan versionados en `defineEvents(...)`.
-- **Tier 3 - legacy/no tipado**: eventos reales observados en runtime que todavia no forman parte del contrato semver. Deben tratarse como internos hasta normalizacion en Fase 2.
+- **Tier 1 - versionado**: eventos definidos en `core/events.js`. Estos son los que entran en `eventsVersion` y en compatibilidad de plugins. Tras la auditoria SOLID fase 1.1, este tier cubre 85 eventos (era 44).
+- **Tier 2 - adaptadores expuestos**: eventos visibles del runtime/browser usados por `Out`, `In`, `OutputRouter` y `ControlRouter`. La mayoria estan ahora en Tier 1.
+- **Tier 3 - legacy/no tipado**: eventos reales observados en runtime que todavia no forman parte del contrato semver. Tras la fase 1.1 quedan muy pocos; revisar al añadir eventos nuevos.
 
 ## Tier 1 - catalogo versionado
 

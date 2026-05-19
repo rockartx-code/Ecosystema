@@ -29,9 +29,18 @@ class Entity {
     this._ext = data._ext || {};
   }
 
-  // ── Contrato de ciclo de vida ────────────────────────────────
-  // El motor llama estos métodos en los momentos apropiados.
-  // Las implementaciones de plugins los sobreescriben.
+  // ── Contrato de ciclo de vida (LSP) ──────────────────────────
+  // El motor llama estos métodos en los momentos apropiados. Las
+  // subclases de plugins pueden sobreescribir, pero DEBEN respetar
+  // la firma y el contrato de retorno:
+  //   onTick(clock):       void  — efectos en this; no devolver nada
+  //   onNodeEnter(nodeId): void  — efectos en this; no devolver nada
+  //   onCombatStart(b):    void  — efectos en this/battle; no devolver
+  //   onDamage(n, src):    number — DEBE devolver el daño efectivo
+  //                                (>= 0). Permite reducir o anular daño.
+  //   onDeath(killer):     void  — no devolver nada
+  // Violar estas firmas rompe LSP y provoca bugs silenciosos en
+  // EntityRegistry.tickAll() y en la cadena de combate.
 
   /** Llamado por EntityRegistry.tickAll() en cada Clock.tick() */
   onTick(clock) {}
@@ -42,7 +51,7 @@ class Entity {
   /** Llamado al inicio de un combate que involucra esta entidad */
   onCombatStart(battle) {}
 
-  /** Llamado al recibir daño, antes de aplicarlo */
+  /** Llamado al recibir daño, antes de aplicarlo. Devuelve daño final. */
   onDamage(amount, source) { return amount; }
 
   /** Llamado al morir */
