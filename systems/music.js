@@ -251,19 +251,17 @@
   }
 
   function _zoneThemeFor(nodeType) {
-    switch((nodeType || '').toLowerCase()) {
-      case 'hub':     return 'HUB_SAFE_HAVEN';
-      case 'templo':  return 'TEMPLO_ANTIGUO';
-      case 'umbral':  return 'UMBRAL_MISTERIO';
-      case 'caverna': return 'CAVERNA_ECOS';
-      case 'vacío':
-      case 'vacio':   return 'VACIO_ETÉREO';
-      case 'abismo':  return 'ABISMO_OSCURO';
-      case 'pantano': return 'PANTANO_TÓXICO';
-      case 'grieta':  return 'GRIETA_TEMPORAL';
-      case 'bosque':  return 'BOSQUE_VITAL';
-      default:        return 'YERMO_DESOLADO';
-    }
+    const table = (typeof ModuleLoader !== 'undefined' && ModuleLoader.get('music.zone_themes')) || null;
+    const key = (nodeType || '').toLowerCase();
+    if(table) return table[key] || table._default || 'YERMO_DESOLADO';
+    // Fallback hardcoded para tests/sandbox sin module.json cargado.
+    const FALLBACK = {
+      hub:'HUB_SAFE_HAVEN', templo:'TEMPLO_ANTIGUO', umbral:'UMBRAL_MISTERIO',
+      caverna:'CAVERNA_ECOS', 'vacío':'VACIO_ETÉREO', vacio:'VACIO_ETÉREO',
+      abismo:'ABISMO_OSCURO', pantano:'PANTANO_TÓXICO', grieta:'GRIETA_TEMPORAL',
+      bosque:'BOSQUE_VITAL',
+    };
+    return FALLBACK[key] || 'YERMO_DESOLADO';
   }
 
   function _updateBattleThemeFromState(battle) {

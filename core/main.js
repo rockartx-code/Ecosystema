@@ -136,214 +136,9 @@ CTX.runtime = {
 };
 PluginLoader.setEventsVersion?.(CTX.runtime.eventsVersion);
 
-const _isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
-const _isStr = (v) => typeof v === 'string';
-const _isNum = (v) => typeof v === 'number' && Number.isFinite(v);
-
-EventBus.defineEvents({
-  'output:line': {
-    kind:'ui', phase:'observe',
-    validateIn: (p)=>_isObj(p) && _isStr(p.text),
-  },
-  'output:status': {
-    kind:'ui', phase:'observe',
-    validateIn: (p)=>_isObj(p) && _isObj(p.slots),
-  },
-  'input:command': {
-    kind:'command', phase:'pre',
-    validateIn: (p)=>_isObj(p) && _isStr(p.verb) && Array.isArray(p.args),
-  },
-  'audio:sfx.play': {
-    kind:'command', phase:'post',
-    validateIn: (p)=>_isObj(p) && _isStr(p.cue || p.type || ''),
-  },
-  'audio:music.play': {
-    kind:'command', phase:'post',
-    validateIn: (p)=>_isObj(p) && _isStr(p.track || p.theme || ''),
-  },
-  'audio:sfx.played': {
-    kind:'domain', phase:'observe',
-    validateIn: (p)=>_isObj(p) && (_isStr(p.cue || '') || p.cue == null),
-  },
-  'audio:music.changed': {
-    kind:'domain', phase:'observe',
-    validateIn: (p)=>_isObj(p) && (_isStr(p.track || '') || p.track == null),
-  },
-  'audio:error': {
-    kind:'domain', phase:'observe',
-    validateIn: (p)=>_isObj(p),
-  },
-  'control:action': {
-    kind:'command', phase:'pre',
-    validateIn: (p)=>_isObj(p) && _isStr(p.verb || ''),
-  },
-  'control:binding.request': {
-    kind:'query', phase:'pre',
-    validateIn: (p)=>_isObj(p),
-    validateOut: (p)=>_isObj(p) || p == null,
-  },
-  'control:binding.changed': {
-    kind:'domain', phase:'post',
-    validateIn: (p)=>_isObj(p),
-  },
-  'module:loaded': {
-    kind:'domain', phase:'post',
-    validateIn: (p)=>_isObj(p) && (_isObj(p.meta || {}) || p.meta == null),
-  },
-  'plugin:loaded': {
-    kind:'domain', phase:'post',
-    validateIn: (p)=>_isObj(p) && _isStr(p.id || ''),
-  },
-  'plugin:unloaded': {
-    kind:'domain', phase:'post',
-    validateIn: (p)=>_isObj(p) && _isStr(p.id || ''),
-  },
-  'plugin:error': {
-    kind:'domain', phase:'post',
-    validateIn: (p)=>_isObj(p) && _isStr(p.id || '') && Array.isArray(p.errors),
-  },
-  'world:after_gen': {
-    kind:'domain', phase:'post',
-    validateIn: (p)=>_isObj(p) && _isObj(p.nodes || {}) && _isObj(p.edges || {}) && _isStr(p.seed || ''),
-  },
-  'world:node_enter': {
-    kind:'domain', phase:'post',
-    validateIn: (p)=>_isObj(p) && _isStr(p.nodeId || '') && (_isObj(p.node || {}) || p.node == null) && (_isObj(p.player || {}) || p.player == null),
-  },
-  'world:section_expand': {
-    kind:'domain', phase:'post',
-    validateIn: (p)=>_isObj(p) && Array.isArray(p.nodeIds) && _isStr(p.fromNodeId || '') && _isStr(p.dir || ''),
-  },
-  'boss:defeated': {
-    kind:'domain', phase:'post',
-    validateIn: (p)=>_isObj(p) && (_isObj(p.boss || {}) || p.boss == null) && (Array.isArray(p.loot) || p.loot == null) && (_isNum(p.xp) || p.xp == null),
-  },
-  'combat:resolve_magia': {
-    kind:'query', phase:'main',
-    validateIn: (p)=>_isObj(p) && _isObj(p.actor || {}),
-    validateOut: (p)=>_isObj(p) && typeof p.handled === 'boolean',
-  },
-  'combat:resolve_habilidad': {
-    kind:'query', phase:'main',
-    validateIn: (p)=>_isObj(p) && _isObj(p.actor || {}),
-    validateOut: (p)=>_isObj(p) && typeof p.handled === 'boolean',
-  },
-  'combat:resolve_ia': {
-    kind:'query', phase:'main',
-    validateIn: (p)=>_isObj(p) && _isObj(p.actor || {}) && _isObj(p.battle || {}),
-    validateOut: (p)=>_isObj(p) && (p.action == null || _isStr(p.action)),
-  },
-  'world:tick': {
-    kind:'domain', phase:'post',
-    validateIn: (p)=>_isObj(p) && (_isNum(p.cycle) || p.cycle == null),
-  },
-  'combat:start': {
-    kind:'domain', phase:'main',
-    validateIn: (p)=>_isObj(p) && _isObj(p.battle || {}) && (_isObj(p.enemy || {}) || p.enemy == null),
-  },
-  'combat:before_attack': {
-    kind:'query', phase:'pre',
-    validateIn: (p)=>_isObj(p) && _isObj(p.attacker || {}),
-    validateOut: (p)=>_isObj(p),
-  },
-  'combat:before_damage_apply': {
-    kind:'query', phase:'pre',
-    validateIn: (p)=>_isObj(p) && (_isNum(p.dmg) || p.dmg == null),
-    validateOut: (p)=>_isObj(p) && (_isNum(p.dmg) || p.dmg == null),
-  },
-  'combat:after_attack': {
-    kind:'domain', phase:'post',
-    validateIn: (p)=>_isObj(p) && _isObj(p.attacker || {}),
-  },
-  'combat:after_damage_apply': {
-    kind:'domain', phase:'post',
-    validateIn: (p)=>_isObj(p) && (_isObj(p.actor || {}) || _isObj(p.target || {})),
-  },
-  'combat:enemy_used_magia': {
-    kind:'domain', phase:'post',
-    validateIn: (p)=>_isObj(p) && (_isObj(p.actor || {}) || p.actor == null),
-  },
-  'combat:player_hit': {
-    kind:'domain', phase:'post',
-    validateIn: (p)=>_isObj(p) && (_isNum(p.damage) || p.damage == null),
-  },
-  'combat:enemy_defeat': {
-    kind:'domain', phase:'post',
-    validateIn: (p)=>_isObj(p) && (_isObj(p.enemy || {}) || p.enemy == null),
-  },
-  'combat:loot': {
-    kind:'domain', phase:'post',
-    validateIn: (p)=>_isObj(p) && (Array.isArray(p.items) || p.items == null),
-  },
-  'narrative:npc_gen': {
-    kind:'domain', phase:'main',
-    validateIn: (p)=>_isObj(p) && (_isObj(p.npc || {}) || p.npc == null),
-  },
-  'narrative:npc_speak': {
-    kind:'domain', phase:'main',
-    validateIn: (p)=>_isObj(p) && (_isStr(p.text || '') || p.text == null),
-  },
-  'narrative:npc_interact': {
-    kind:'domain', phase:'main',
-    validateIn: (p)=>_isObj(p) && (_isObj(p.npc || {}) || p.npc == null),
-  },
-  'narrative:npc_death': {
-    kind:'domain', phase:'post',
-    validateIn: (p)=>_isObj(p) && (_isObj(p.npc || {}) || p.npc == null),
-  },
-  'narrative:npc_twist': {
-    kind:'domain', phase:'post',
-    validateIn: (p)=>_isObj(p) && (_isObj(p.twist || {}) || p.twist == null),
-  },
-  'narrative:mission_gen': {
-    kind:'domain', phase:'main',
-    validateIn: (p)=>_isObj(p) && (_isObj(p.mision || {}) || p.mision == null),
-  },
-  'narrative:mission_complete': {
-    kind:'domain', phase:'post',
-    validateIn: (p)=>_isObj(p) && (_isObj(p.mision || {}) || p.mision == null),
-  },
-  'narrative:mission_fail': {
-    kind:'domain', phase:'post',
-    validateIn: (p)=>_isObj(p) && (_isObj(p.mision || {}) || p.mision == null),
-  },
-  'player:stat_change': {
-    kind:'domain', phase:'post',
-    validateIn: (p)=>_isObj(p) && (_isStr(p.stat || '') || p.stat == null),
-  },
-  'player:create': {
-    kind:'domain', phase:'main',
-    validateIn: (p)=>_isObj(p) && (_isObj(p.player || {}) || p.player == null),
-  },
-  'player:item_add': {
-    kind:'domain', phase:'post',
-    validateIn: (p)=>_isObj(p) && (_isObj(p.item || {}) || p.item == null),
-  },
-  'player:item_remove': {
-    kind:'domain', phase:'post',
-    validateIn: (p)=>_isObj(p) && (_isObj(p.item || {}) || p.item == null),
-  },
-  'player:equip': {
-    kind:'domain', phase:'post',
-    validateIn: (p)=>_isObj(p) && (_isObj(p.item || {}) || p.item == null),
-  },
-  'player:tick': {
-    kind:'domain', phase:'post',
-    validateIn: (p)=>_isObj(p) && (_isObj(p.player || {}) || p.player == null),
-  },
-  'player:die': {
-    kind:'domain', phase:'post',
-    validateIn: (p)=>_isObj(p),
-  },
-  'memory:run_start': {
-    kind:'domain', phase:'main',
-    validateIn: (p)=>_isObj(p),
-  },
-  'memory:run_end': {
-    kind:'domain', phase:'post',
-    validateIn: (p)=>_isObj(p),
-  },
-});
+// Definicion versionada de eventos (specs validateIn/validateOut).
+// Implementacion en core/events.js para mantener SRP en main.js.
+defineRuntimeEvents(EventBus);
 
 
 // Compatibilidad global: algunos sistemas legacy referencian `Combat.active`.
@@ -358,39 +153,27 @@ if(typeof globalThis.Combat.active === 'undefined') {
 // Estos son los sistemas que antes eran monolíticos y ahora viven
 // como plugins registrados. Cada uno recibe CTX en sus handlers.
 
+// Manifest declarativo de plugins de dominio. Cada entrada es el nombre
+// del binding global que el plugin expone al cargar su <script>. El orden
+// fisico final lo resuelve PluginLoader.registerMany via dependencias.
+const DOMAIN_PLUGIN_BINDINGS = [
+  'pluginSupervivencia', 'pluginDificultad', 'pluginEnemigos',
+  'pluginXP', 'pluginTacticas', 'pluginItems', 'pluginForja',
+  'pluginNPCs', 'pluginArcos', 'pluginWorldAI', 'pluginCreaturas',
+  'pluginHabilidades', 'pluginMagias', 'pluginIABatalla',
+  'pluginFacciones', 'pluginBosses', 'pluginTricksters',
+  'pluginSombraHerrante', 'pluginArbolVida', 'pluginTransformaciones',
+  'pluginGuarida', 'pluginInvocaciones', 'pluginCultos',
+  'pluginReinoPesadilla', 'pluginConcentracion',
+];
+
 function _registerDomainPlugins() {
-  // Plugins de gameplay. Cada uno vive en su propio archivo bajo plugins/.
-  // El orden topológico final lo resuelve PluginLoader.registerMany().
-  // plugin:enemigos debe registrarse antes que plugins que hookean
-  // world:request_enemies (habilidades, magias, invocaciones, arbol-vida).
-  const corePluginDefs = [
-    typeof pluginSupervivencia    !== 'undefined' ? pluginSupervivencia : null,
-    typeof pluginDificultad       !== 'undefined' ? pluginDificultad : null,
-    typeof pluginEnemigos         !== 'undefined' ? pluginEnemigos : null,
-    typeof pluginXP               !== 'undefined' ? pluginXP : null,
-    typeof pluginTacticas         !== 'undefined' ? pluginTacticas : null,
-    typeof pluginItems            !== 'undefined' ? pluginItems : null,
-    typeof pluginForja            !== 'undefined' ? pluginForja : null,
-    typeof pluginNPCs             !== 'undefined' ? pluginNPCs : null,
-    typeof pluginArcos            !== 'undefined' ? pluginArcos : null,
-    typeof pluginWorldAI          !== 'undefined' ? pluginWorldAI : null,
-    typeof pluginCreaturas        !== 'undefined' ? pluginCreaturas : null,
-    typeof pluginHabilidades      !== 'undefined' ? pluginHabilidades : null,
-    typeof pluginMagias           !== 'undefined' ? pluginMagias : null,
-    typeof pluginIABatalla        !== 'undefined' ? pluginIABatalla : null,
-    typeof pluginFacciones        !== 'undefined' ? pluginFacciones : null,
-    typeof pluginBosses           !== 'undefined' ? pluginBosses : null,
-    typeof pluginTricksters       !== 'undefined' ? pluginTricksters : null,
-    typeof pluginSombraHerrante   !== 'undefined' ? pluginSombraHerrante : null,
-    typeof pluginArbolVida        !== 'undefined' ? pluginArbolVida : null,
-    typeof pluginTransformaciones !== 'undefined' ? pluginTransformaciones : null,
-    typeof pluginGuarida          !== 'undefined' ? pluginGuarida : null,
-    typeof pluginInvocaciones     !== 'undefined' ? pluginInvocaciones : null,
-    typeof pluginCultos           !== 'undefined' ? pluginCultos : null,
-    typeof pluginReinoPesadilla   !== 'undefined' ? pluginReinoPesadilla : null,
-    typeof pluginConcentracion    !== 'undefined' ? pluginConcentracion : null,
-  ].filter(Boolean);
-  PluginLoader.registerMany(corePluginDefs);
+  const defs = DOMAIN_PLUGIN_BINDINGS
+    .map((name) => (typeof globalThis[name] !== 'undefined' ? globalThis[name] : null))
+    .filter(Boolean);
+  const missing = DOMAIN_PLUGIN_BINDINGS.filter((name) => typeof globalThis[name] === 'undefined');
+  if(missing.length) console.warn('[Boot] plugins de dominio sin binding global:', missing.join(', '));
+  PluginLoader.registerMany(defs);
 }
 
 // ── Registrar plugins JSON declarativos de los <script> tags ──────

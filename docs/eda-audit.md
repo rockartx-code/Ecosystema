@@ -34,6 +34,18 @@ Matriz viva de ownership para el runtime orientado a plugins.
       "systems": ["systems/run-memory.js", "systems/autocomplete.js", "systems/commands.js"],
       "plugins": ["plugins/plugin-sombra-herrante.js", "plugins/plugin-guarida.js"],
       "contracts": ["runtime.memory.*", "runtime.player.*", "runtime.world.*", "runtime.output.*"]
+    },
+    {
+      "name": "combat-and-abilities",
+      "systems": ["systems/commands.js", "systems/net.js"],
+      "plugins": ["plugins/plugin-habilidades.js", "plugins/plugin-magias.js", "plugins/plugin-ia-batalla.js", "plugins/plugin-bosses.js", "plugins/plugin-invocaciones.js", "plugins/plugin-concentracion.js", "plugins/plugin-transformaciones.js"],
+      "contracts": ["runtime.habilidades.*", "runtime.magias.*", "runtime.battle.*", "combat:resolve_habilidad", "combat:resolve_magia", "combat:resolve_ia", "boss:defeated"]
+    },
+    {
+      "name": "npc-extensions",
+      "systems": ["systems/commands.js"],
+      "plugins": ["plugins/plugin-cultos.js", "plugins/plugin-tricksters.js", "plugins/plugin-reino-pesadilla.js", "plugins/plugin-arbol-vida.js"],
+      "contracts": ["narrative:npc_gen", "narrative:npc_interact", "world:node_enter", "world:request_enemies"]
     }
   ]
 }

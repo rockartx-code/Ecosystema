@@ -2016,6 +2016,21 @@
         "texto_desaparicion": "{npc} desaparece. Solo el rastro de algo sin resolver.",
         "texto_quiebre": "{npc} llega al quiebre. Su naturaleza real: {arq_ocu}."
       }
+    },
+    "music": {
+      "zone_themes": {
+        "hub": "HUB_SAFE_HAVEN",
+        "templo": "TEMPLO_ANTIGUO",
+        "umbral": "UMBRAL_MISTERIO",
+        "caverna": "CAVERNA_ECOS",
+        "vacío": "VACIO_ETÉREO",
+        "vacio": "VACIO_ETÉREO",
+        "abismo": "ABISMO_OSCURO",
+        "pantano": "PANTANO_TÓXICO",
+        "grieta": "GRIETA_TEMPORAL",
+        "bosque": "BOSQUE_VITAL",
+        "_default": "YERMO_DESOLADO"
+      }
     }
   },
   "plugins": [

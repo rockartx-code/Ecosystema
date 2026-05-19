@@ -29,4 +29,15 @@ function parseMatrix() {
   });
 })();
 
+(function testNoOrphanPlugins() {
+  const data = parseMatrix();
+  const mapped = new Set();
+  data.domains.forEach((d) => (d.plugins || []).forEach((f) => mapped.add(f)));
+  const filesystem = fs.readdirSync('plugins')
+    .filter((f) => /^plugin-.*\.js$/.test(f))
+    .map((f) => `plugins/${f}`);
+  const orphans = filesystem.filter((f) => !mapped.has(f));
+  assert.deepStrictEqual(orphans, [], `plugins en filesystem sin dominio asignado: ${orphans.join(', ')}`);
+})();
+
 console.log('OK ownership_matrix_smoke');
