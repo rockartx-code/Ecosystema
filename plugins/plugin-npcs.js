@@ -208,6 +208,96 @@
     return global.__npcPluginApi;
   }
 
+  // ── Handlers de mision (extraidos de systems/commands.js en C2) ──
+  // Reciben el query como string (lo que el dispatch pasa via args.join).
+  function _findMisionLocal(q) {
+    if(!q) return null;
+    const ql = String(q).toLowerCase().trim();
+    const all = _allMisiones();
+    return _gsMision(q)
+        || all.find(m => m.id?.toLowerCase() === ql)
+        || all.find(m => m.id?.toLowerCase().includes(ql))
+        || all.find(m => m.aceptada && !m.completada && !m.fallida && m.titulo?.toLowerCase().includes(ql))
+        || null;
+  }
+  function _activasPendientes() {
+    return _allMisiones().filter(m => !m.completada && !m.fallida && !m.aceptada);
+  }
+  function _arcResolveMision(mision) {
+    const fn = _svc('runtime.arc.on_mission_resolved');
+    return typeof fn === 'function' ? !!fn(mision) : false;
+  }
+  function _npcDespairLocal(npc) {
+    const fn = _svc('runtime.npc.despair');
+    if(typeof fn === 'function') fn(npc);
+  }
+  function _npcCheckTwistsLocal(npc) {
+    const fn = _svc('runtime.npc.check_twists');
+    if(typeof fn !== 'function') return [];
+    const player = _player();
+    return fn(npc, player, _allMisiones(), _memoryEcos()) || [];
+  }
+
+  function _cmdAceptarMision(q) {
+    const m = q ? _findMisionLocal(q) : _activasPendientes().slice(-1)[0];
+    if(!m) { _line(q ? `"${q}" no encontrada.` : 'Sin misiones pendientes.', 't-dim'); return; }
+    if(m.aceptada) { _line('Ya aceptada.', 't-dim'); return; }
+    m.aceptada = true;
+    _line(`Aceptas: "${m.titulo}"`, 't-mis', true);
+    const npc = _gsNpc(m.npc_id);
+    if(npc) {
+      npc.lealtad = U.clamp(npc.lealtad + 10, 0, 100);
+      _line(`${npc.nombre} registra tu compromiso.`, 't-npc');
+    }
+    if(m.es_imposible) _line('Nota: puede ser imposible.', 't-dim');
+    _saveGame();
+  }
+
+  function _cmdRechazarMision(q) {
+    const m = q ? _findMisionLocal(q) : _activasPendientes().slice(-1)[0];
+    if(!m) { _line(q ? `"${q}" no encontrada.` : 'Sin misiones pendientes.', 't-dim'); return; }
+    m.fallida = true;
+    _line(`Rechazas: "${m.titulo}"`, 't-pel');
+    const npc = _gsNpc(m.npc_id);
+    if(npc) {
+      npc.lealtad       = U.clamp(npc.lealtad - 15, 0, 100);
+      npc.desesperacion = U.clamp(npc.desesperacion + 20, 0, 100);
+      _line(`${npc.nombre}: "${m.consecuencia_fallo}"`, 't-npc');
+      if(npc.desesperacion > 80) setTimeout(() => _npcDespairLocal(npc), 1200);
+    }
+    EventBus.emit('narrative:mission_fail', { mision: m });
+    if(m.arc_id) setTimeout(() => _arcResolveMision(m), 500);
+    _saveGame();
+  }
+
+  function _cmdCompletarMision(q) {
+    const m = _findMisionLocal(q);
+    if(!m) { _line(`"${q}" no encontrada.`, 't-dim'); return; }
+    if(m.completada) { _line('Ya completada.', 't-dim'); return; }
+    m.completada = true;
+    _sp(); _sep('═');
+    _line(`MISIÓN COMPLETADA — "${m.titulo}"`, 't-cra', true);
+    const xpMision = { deuda:40, búsqueda:50, protección:45, revelación:60, traición:55, sacrificio:70, ambigua:50, imposible:80, legado:65, venganza:55 };
+    _xpGanar('narrativa', xpMision[m.tipo] || 45, `misión: ${m.tipo}`);
+    const npc = _gsNpc(m.npc_id);
+    if(npc) {
+      npc.lealtad       = U.clamp(npc.lealtad + 20, 0, 100);
+      npc.desesperacion = U.clamp(npc.desesperacion - 15, 0, 100);
+      _line(`${npc.nombre} recibe la resolución.`, 't-npc');
+      _npcCheckTwistsLocal(npc).forEach(t => {
+        _gsAddTwist(t);
+        _sp();
+        _line(`⟁ REVELACIÓN — ${t.titulo}`, 't-twi', true);
+        _line(t.texto, 't-out');
+      });
+    }
+    _line(`Recompensa: ${m.recompensa}`, 't-mis');
+    EventBus.emit('narrative:mission_complete', { mision: m, npc });
+    if(m.arc_id) setTimeout(() => _arcResolveMision(m), 500);
+    _sep('═'); _sp();
+    _saveGame();
+  }
+
   global.pluginNPCs = {
     id: 'plugin:npcs',
     nombre: 'Motor de NPCs',
@@ -250,9 +340,9 @@
       'traicionar':{ fn: (args)=>{ if(typeof cmdTraicionar==='function') cmdTraicionar(args.join(' ')); },      meta:{ titulo:'traicionar [npc]',       color:'t-twi', desc:'Traicionar a un NPC, perdiendo su lealtad.' } },
       'misiones':  { fn: ()    =>{ if(typeof cmdMisiones==='function')  cmdMisiones(); },                       meta:{ titulo:'misiones',               color:'t-mis', desc:'Ver misiones activas, completadas y fallidas.' } },
       'mis':       { fn: ()    =>{ if(typeof cmdMisiones==='function')  cmdMisiones(); },                       meta:{ titulo:'mis (alias misiones)',   color:'t-mis', desc:'Ver misiones.' } },
-      'aceptar':   { fn: (args)=>{ if(typeof cmdAceptar==='function')   cmdAceptar(args.join(' ')); },          meta:{ titulo:'aceptar [id]',           color:'t-mis', desc:'Aceptar una misión pendiente.' } },
-      'rechazar':  { fn: (args)=>{ if(typeof cmdRechazar==='function')  cmdRechazar(args.join(' ')); },         meta:{ titulo:'rechazar [id]',          color:'t-pel', desc:'Rechazar una misión (consecuencias narrativas).' } },
-      'completar': { fn: (args)=>{ if(typeof cmdCompletar==='function') cmdCompletar(args.join(' ')); },        meta:{ titulo:'completar [id]',         color:'t-cra', desc:'Marcar una misión como completada y recibir recompensas.' } },
+      'aceptar':   { fn: (args)=>_cmdAceptarMision(args.join(' ')),    meta:{ titulo:'aceptar [id]',   color:'t-mis', desc:'Aceptar una misión pendiente.' } },
+      'rechazar':  { fn: (args)=>_cmdRechazarMision(args.join(' ')),   meta:{ titulo:'rechazar [id]',  color:'t-pel', desc:'Rechazar una misión (consecuencias narrativas).' } },
+      'completar': { fn: (args)=>_cmdCompletarMision(args.join(' ')),  meta:{ titulo:'completar [id]', color:'t-cra', desc:'Marcar una misión como completada y recibir recompensas.' } },
     },
   };
 })(globalThis);

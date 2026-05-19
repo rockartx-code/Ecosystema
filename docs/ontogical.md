@@ -139,9 +139,12 @@ Reglas:
 
 ## Deuda tecnica conocida (a cerrar en fase posterior)
 
-- `core/main.js:350` mantiene `globalThis.Combat = CombatResolution` como shim de compatibilidad. `systems/commands.js:280` y `systems/net.js:172` aun lo consumen. La frontera limpia llega cuando se extraiga la maquina de batalla de `net.js` a un plugin con servicios `runtime.battle.*` propios.
-- `systems/commands.js` y `systems/net.js` aun contienen reglas de gameplay (misiones, dialogo NPC, batalla tactica). Su migracion a plugins de dominio (`plugin-arcos`, `plugin-npcs`, futuro `plugin-battle-engine`) es la siguiente prioridad arquitectonica.
+- `core/main.js` mantiene `globalThis.Combat = CombatResolution` como shim de compatibilidad. `systems/commands.js:280` y `systems/net.js:172` aun lo consumen. La frontera limpia llega cuando se extraiga la maquina de batalla de `net.js` a un plugin con servicios `runtime.battle.*` propios.
+- `systems/net.js` aun contiene la maquina tactica completa (~350 lineas: `startBattle`, `sendBattleAction`, `_execSimpleAI`, gestion de cola/turnos/poise, loot). C1 del audit: extraer a un futuro `plugin-battle-engine` que registre `runtime.battle.*` directamente. Riesgo alto sin tests funcionales; sesion dedicada.
+- `systems/commands.js` aun contiene handlers de gameplay (`cmdHablar`, `cmdForjar`, `cmdAtacar`, `cmdPreguntar`, `cmdObservar`, `cmdTraicionar`, `cmdNPCs`). En la fase 1.2 se migraron `cmdAceptar/Rechazar/Completar` a `plugin-npcs`. El resto sigue C2 incremental.
 - `_zoneThemeFor` en `systems/music.js` consulta `data/module.json.music.zone_themes`; cualquier mapeo zona->tema nuevo debe vivir en data, no en el adapter.
+- ISP en `CTX` (A5 del audit): el segundo argumento de los hooks expone ~30 namespaces a todos los plugins. Una version futura podria filtrar segun `def.permissions` declaradas. Cambio cross-plugin, requiere su propia fase.
+- Split fisico de `core/core.js` (M1 del audit): el archivo agrupa 6 namespaces (U, EventBus, ServiceRegistry, ModuleLoader, PluginLoader, CommandRegistry, D). Sin un sistema de modulos ES en navegador, los tests dependen de cargar `core/core.js` como unico fichero (`vm.runInContext`). Split deferido hasta migrar a ESM o test harness con orquestacion multi-fichero.
 
 ## Invariantes para Fase 2
 
