@@ -217,6 +217,19 @@
     hooks: {
       'world:request_npcs': { fn(payload) { return api().poblarMundo(payload); } },
       'world:tick': { fn() { api().tickNPCs(); } },
+      'output:collect_status': {
+        fn(payload) {
+          const p = payload?.player;
+          const slots = payload?.slots;
+          if(!p || !slots) return payload;
+          const inNode  = _aliveNPCs().filter(n => n.nodeId === p.position).length;
+          const total   = _aliveNPCs().length;
+          const misAct  = _allMisiones().filter(m => m.aceptada && !m.completada && !m.fallida).length;
+          slots.npc = { text:`${inNode}/${total}`, color:'t-npc' };
+          slots.mis = { text:`${misAct}`,         color:'t-mis' };
+          return payload;
+        },
+      },
     },
     services: {
       'runtime.npc.api': () => api(),

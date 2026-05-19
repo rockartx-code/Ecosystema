@@ -73,38 +73,30 @@ function _serviceApi(name) {
   const fn = _svc(name);
   return typeof fn === 'function' ? fn() : null;
 }
+// Helpers de batalla. Acceden a la maquina via ServiceRegistry. Los
+// servicios gameplay.battle.* y runtime.battle.* los registra este mismo
+// archivo al cargar (linea ~1132); por eso no necesitamos fallbacks a Net.
+// La extraccion completa de la maquina a un plugin propio es deuda
+// documentada en docs/ontogical.md.
 function _battleCurrent() {
   const getBattle = _svc('gameplay.battle.current');
-  if(typeof getBattle === 'function') return getBattle();
-  return typeof Net !== 'undefined' ? NetRef().getMyBattle?.() : null;
+  return typeof getBattle === 'function' ? getBattle() : null;
 }
 function _battleActor(battle) {
   const getActor = _svc('gameplay.battle.actor');
-  if(typeof getActor === 'function') return getActor(battle);
-  return typeof Net !== 'undefined' ? NetRef().getBattleActor?.(battle) : null;
+  return typeof getActor === 'function' ? getActor(battle) : null;
 }
 function _battleRender(battle=null) {
   const render = _svc('runtime.battle.render');
-  if(typeof render === 'function') return !!render(battle);
-  if(typeof Net === 'undefined') return false;
-  const current = battle || NetRef().getMyBattle?.();
-  if(!current) return false;
-  NetRef().renderBattle?.(current);
-  return true;
+  return typeof render === 'function' ? !!render(battle) : false;
 }
 function _battleAction(battleId, playerId, action, payload=null) {
   const send = _svc('runtime.battle.action') || _svc('gameplay.combat.action');
-  if(typeof send === 'function') return !!send(battleId, playerId, action, payload);
-  if(typeof Net === 'undefined') return false;
-  NetRef().sendBattleAction?.(battleId, playerId, action, payload);
-  return true;
+  return typeof send === 'function' ? !!send(battleId, playerId, action, payload) : false;
 }
 function _battleTickAI(battle) {
   const tickAI = _svc('runtime.battle.tick_ai');
-  if(typeof tickAI === 'function') return !!tickAI(battle);
-  if(typeof Net === 'undefined') return false;
-  NetRef().tickAI?.(battle);
-  return true;
+  return typeof tickAI === 'function' ? !!tickAI(battle) : false;
 }
 async function _playerRest() {
   const rest = _svc('runtime.player.rest');

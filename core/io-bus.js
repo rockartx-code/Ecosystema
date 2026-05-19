@@ -138,30 +138,23 @@ function _refreshStatus() {
   const c     = Clock.get();
   const n     = World.node(p.position);
 
-  // Slots base — el motor los conoce porque son intrínsecos al juego
+  // Slots base — solo los intrinsecos al motor (no de dominio de plugins).
+  // Los slots de gameplay (hun/sta/mna/npc/mis...) los inyectan los
+  // plugins responsables via 'output:collect_status'.
   const slots = {
-    'hp':   { text:`${p.hp}/${p.maxHp}`,
-              color: p.hp < 15 ? 't-pel' : p.hp < 30 ? 't-mem' : 't-cra' },
-    'hun':  { text: p.hunger > 60 ? 'bien' : p.hunger > 30 ? 'hambre' : 'crítico',
-              color: p.hunger > 60 ? 't-cra' : p.hunger > 30 ? 't-mem' : 't-pel' },
-    'sta':  { text: `${p.stamina ?? p.maxStamina ?? 100}`,
-              color: (p.stamina ?? 100) < 20 ? 't-pel' : (p.stamina ?? 100) < 50 ? 't-mem' : 't-out' },
-    'mna':  { text: `${p.mana ?? p.maxMana ?? 60}`,
-              color: (p.mana ?? 60) < 15 ? 't-pel' : 't-mag' },
-    'loc':  { text: n ? n.name.slice(0, 16) : '—', color: 't-sis' },
-    'cyc':  { text: `${c.cycle}·${c.name}`,        color: 't-mem' },
-    'inv':  { text: `${p.inventory.length}` },
-    'npc':  { text: `${GS.npcEnNodo(p.position).length}/${GS.aliveNPCs().length}`,
-              color: 't-npc' },
-    'mis':  { text: `${GS.activas().length}`, color: 't-mis' },
-    'mod':  { text: ModuleLoader.list().join('+') },
+    'hp':  { text:`${p.hp}/${p.maxHp}`,
+             color: p.hp < 15 ? 't-pel' : p.hp < 30 ? 't-mem' : 't-cra' },
+    'loc': { text: n ? n.name.slice(0, 16) : '—', color: 't-sis' },
+    'cyc': { text: `${c.cycle}·${c.name}`,        color: 't-mem' },
+    'inv': { text: `${p.inventory.length}` },
+    'mod': { text: ModuleLoader.list().join('+') },
   };
 
-  // Los slots de habilidades/magias/compañeros los declaran los plugins
-  // via 'output:collect_status' — el motor NO hardcodea estos campos
+  // Plugins agregan/modifican slots: supervivencia (hun), tacticas (sta),
+  // magias (mna), npcs (npc/mis), etc.
   const collectPayload = EventBus.emit('output:collect_status', {
     player: p, clock: c, node: n,
-    slots,   // plugins pueden añadir o modificar slots
+    slots,
   });
 
   Out.status(collectPayload?.slots ?? slots);

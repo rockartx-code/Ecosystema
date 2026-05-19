@@ -35,5 +35,17 @@ const pluginSupervivencia = {
         return payload;
       },
     },
+    'output:collect_status': {
+      fn(payload) {
+        const h = payload?.player?.hunger;
+        if(typeof h === 'number' && payload.slots) {
+          payload.slots.hun = {
+            text:  h > 60 ? 'bien' : h > 30 ? 'hambre' : 'crítico',
+            color: h > 60 ? 't-cra' : h > 30 ? 't-mem' : 't-pel',
+          };
+        }
+        return payload;
+      },
+    },
   },
 };

@@ -354,6 +354,21 @@
     version: '2.0.0',
     descripcion: 'Estado elemental, superficies, poise y descanso cargados como plugin.',
     onLoad() { api(); },
+    hooks: {
+      'output:collect_status': {
+        fn(payload) {
+          const p = payload?.player;
+          if(p && payload.slots) {
+            const sta = p.stamina ?? p.maxStamina ?? 100;
+            payload.slots.sta = {
+              text:  `${sta}`,
+              color: sta < 20 ? 't-pel' : sta < 50 ? 't-mem' : 't-out',
+            };
+          }
+          return payload;
+        },
+      },
+    },
     services: {
       'runtime.tactics.api': () => api(),
       'runtime.player.rest': async () => api().cmdDescansar(),
