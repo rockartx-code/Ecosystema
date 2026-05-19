@@ -4,11 +4,14 @@
 // ════════════════════════════════════════════════════════════════
 
 (function initNPCPlugin(global) {
-  function _svc(name) {
-    return (typeof ServiceRegistry !== 'undefined' && typeof ServiceRegistry.get === 'function')
-      ? ServiceRegistry.get(name)
-      : null;
-  }
+  // Helpers compartidos via core/plugin-helpers.js (_svc, _player, _worldRead,
+  // _clockCurrent, _line, _refreshStatus, _saveGame). Locales con nombre
+  // distinto (alias hacia canonicos):
+  const _allNPCs    = _gsAllNPCs;
+  const _aliveNPCs  = _gsAliveNPCs;
+  const _addNPC     = _gsAddNPC;
+  const _allMisiones= _gsAllMisiones;
+  const _addMision  = _gsAddMision;
   function _gainXP(rama, cantidad, motivo) {
     const fn = _svc('runtime.xp.gain');
     return typeof fn === 'function' ? fn(rama, cantidad, motivo) : false;
@@ -16,50 +19,6 @@
   function _memoryEcos() {
     const fn = _svc('runtime.memory.ecos');
     return typeof fn === 'function' ? (fn() || []) : [];
-  }
-  function _player() {
-    const fn = _svc('runtime.player.current');
-    return typeof fn === 'function' ? fn() : null;
-  }
-  function _worldRead() {
-    const fn = _svc('runtime.world.read');
-    return typeof fn === 'function' ? (fn() || {}) : {};
-  }
-  function _clockCurrent() {
-    const fn = _svc('runtime.clock.current');
-    return typeof fn === 'function' ? (fn() || {}) : {};
-  }
-  function _allNPCs() {
-    const fn = _svc('runtime.gs.all_npcs');
-    return typeof fn === 'function' ? (fn() || []) : [];
-  }
-  function _aliveNPCs() {
-    const fn = _svc('runtime.gs.alive_npcs');
-    return typeof fn === 'function' ? (fn() || []) : [];
-  }
-  function _addNPC(npc) {
-    const fn = _svc('runtime.gs.add_npc');
-    return typeof fn === 'function' ? !!fn(npc) : false;
-  }
-  function _allMisiones() {
-    const fn = _svc('runtime.gs.all_misiones');
-    return typeof fn === 'function' ? (fn() || []) : [];
-  }
-  function _addMision(mision) {
-    const fn = _svc('runtime.gs.add_mision');
-    return typeof fn === 'function' ? !!fn(mision) : false;
-  }
-  function _line(text, color='t-out', bold=false) {
-    const fn = _svc('runtime.output.line');
-    if(typeof fn === 'function') fn(text, color, bold);
-  }
-  function _refreshStatus() {
-    const fn = _svc('runtime.status.refresh');
-    if(typeof fn === 'function') fn();
-  }
-  function _saveGame() {
-    const fn = _svc('runtime.game.save');
-    if(typeof fn === 'function') fn();
   }
 
   function createNPCApi() {

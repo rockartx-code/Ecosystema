@@ -20,19 +20,8 @@ const SombraHerrante = (() => {
   function _clone(v) {
     return JSON.parse(JSON.stringify(v));
   }
-  function _svc(name) {
-    return (typeof ServiceRegistry !== 'undefined' && typeof ServiceRegistry.get === 'function')
-      ? ServiceRegistry.get(name)
-      : null;
-  }
-  function _player() {
-    const fn = _svc('runtime.player.current');
-    return typeof fn === 'function' ? fn() : null;
-  }
-  function _playerPos() {
-    const fn = _svc('runtime.player.position');
-    return typeof fn === 'function' ? fn() : null;
-  }
+  // Helpers compartidos via core/plugin-helpers.js (_svc, _player, _playerPos,
+  // _worldAll, _worldNode, _worldExits, _line, _sp, _sep, _xpRead). Variantes:
   function _playerCombatStats(p = _player()) {
     const fn = _svc('runtime.player.combat_stats');
     const stats = typeof fn === 'function' ? (fn() || {}) : {};
@@ -41,38 +30,10 @@ const SombraHerrante = (() => {
       def: Math.max(0, Math.floor(stats.def || p?.def || 0)),
     };
   }
-  function _worldAll() {
-    const fn = _svc('runtime.world.all');
-    return typeof fn === 'function' ? (fn() || {}) : {};
-  }
-  function _worldNode(nodeId) {
-    const fn = _svc('runtime.world.node');
-    return typeof fn === 'function' ? fn(nodeId) : null;
-  }
-  function _worldExits(nodeId) {
-    const fn = _svc('runtime.world.exits');
-    return typeof fn === 'function' ? (fn(nodeId) || {}) : {};
-  }
   function _clockCycle() {
     const fn = _svc('runtime.clock.current');
     const current = typeof fn === 'function' ? fn() : null;
     return current?.cycle ?? 0;
-  }
-  function _line(text, color='t-out', bold=false) {
-    const fn = _svc('runtime.output.line');
-    if(typeof fn === 'function') fn(text, color, bold);
-  }
-  function _sp() {
-    const fn = _svc('runtime.output.sp');
-    if(typeof fn === 'function') fn();
-  }
-  function _sep(ch='─', len=46) {
-    const fn = _svc('runtime.output.sep');
-    if(typeof fn === 'function') fn(ch, len);
-  }
-  function _xpRead() {
-    const fn = _svc('runtime.xp.read');
-    return typeof fn === 'function' ? (fn() || null) : null;
   }
 
   function _lastRun() {

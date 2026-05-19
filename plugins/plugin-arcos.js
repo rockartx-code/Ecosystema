@@ -4,11 +4,11 @@
 // ════════════════════════════════════════════════════════════════
 
 (function initArcPlugin(global) {
-  function _svc(name) {
-    return (typeof ServiceRegistry !== 'undefined' && typeof ServiceRegistry.get === 'function')
-      ? ServiceRegistry.get(name)
-      : null;
-  }
+  // Helpers compartidos via core/plugin-helpers.js (_svc, _clockCurrent,
+  // _gsAddMision, _gsMision, _gsAddArc, _gsArc, _gsAllArcs, _gsActiveArcs,
+  // _gsAddTwist, _gsAliveNPCs, _gsAllMisiones, _line, _sp, _sep, _saveGame).
+  // Locales con alias o nombre distinto:
+  const _gsNPC = _gsNpc; // ARCs usa _gsNPC (mayusculas).
   function _npcMission(npc, npcs, ecos) {
     const fn = _svc('runtime.npc.gen_mission');
     return typeof fn === 'function' ? fn(npc, npcs, ecos) : null;
@@ -20,66 +20,6 @@
   function _ecos() {
     const fn = _svc('runtime.memory.ecos');
     return typeof fn === 'function' ? (fn() || []) : [];
-  }
-  function _clockCurrent() {
-    const fn = _svc('runtime.clock.current');
-    return typeof fn === 'function' ? (fn() || {}) : {};
-  }
-  function _gsNPC(npcId) {
-    const fn = _svc('runtime.gs.npc');
-    return typeof fn === 'function' ? fn(npcId) : null;
-  }
-  function _gsAliveNPCs() {
-    const fn = _svc('runtime.gs.alive_npcs');
-    return typeof fn === 'function' ? (fn() || []) : [];
-  }
-  function _gsAllMisiones() {
-    const fn = _svc('runtime.gs.all_misiones');
-    return typeof fn === 'function' ? (fn() || []) : [];
-  }
-  function _gsAddMision(mision) {
-    const fn = _svc('runtime.gs.add_mision');
-    return typeof fn === 'function' ? !!fn(mision) : false;
-  }
-  function _gsMision(misionId) {
-    const fn = _svc('runtime.gs.mision');
-    return typeof fn === 'function' ? fn(misionId) : null;
-  }
-  function _gsAddArc(arc) {
-    const fn = _svc('runtime.gs.add_arc');
-    return typeof fn === 'function' ? !!fn(arc) : false;
-  }
-  function _gsArc(arcId) {
-    const fn = _svc('runtime.gs.arc');
-    return typeof fn === 'function' ? fn(arcId) : null;
-  }
-  function _gsAllArcs() {
-    const fn = _svc('runtime.gs.all_arcs');
-    return typeof fn === 'function' ? (fn() || []) : [];
-  }
-  function _gsActiveArcs() {
-    const fn = _svc('runtime.gs.active_arcs');
-    return typeof fn === 'function' ? (fn() || []) : [];
-  }
-  function _gsAddTwist(twist) {
-    const fn = _svc('runtime.gs.add_twist');
-    return typeof fn === 'function' ? !!fn(twist) : false;
-  }
-  function _line(text, color='t-out', bold=false) {
-    const fn = _svc('runtime.output.line');
-    if(typeof fn === 'function') fn(text, color, bold);
-  }
-  function _sp() {
-    const fn = _svc('runtime.output.sp');
-    if(typeof fn === 'function') fn();
-  }
-  function _sep(ch='─', len=46) {
-    const fn = _svc('runtime.output.sep');
-    if(typeof fn === 'function') fn(ch, len);
-  }
-  function _saveGame() {
-    const fn = _svc('runtime.game.save');
-    if(typeof fn === 'function') fn();
   }
 
   function loadArcData() {

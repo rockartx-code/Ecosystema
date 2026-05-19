@@ -4,51 +4,10 @@
 // ════════════════════════════════════════════════════════════════
 
 (function initTacticsPlugin(global) {
-  function _svc(name) {
-    return (typeof ServiceRegistry !== 'undefined' && typeof ServiceRegistry.get === 'function')
-      ? ServiceRegistry.get(name)
-      : null;
-  }
-  function _player() {
-    const fn = _svc('runtime.player.current');
-    return typeof fn === 'function' ? fn() : null;
-  }
-  function _playerPos() {
-    const fn = _svc('runtime.player.position');
-    return typeof fn === 'function' ? fn() : null;
-  }
-  function _playerRemoveItem(itemId) {
-    const fn = _svc('runtime.player.remove_item');
-    return typeof fn === 'function' ? !!fn(itemId) : false;
-  }
-  function _worldNode(nodeId) {
-    const fn = _svc('runtime.world.node');
-    return typeof fn === 'function' ? fn(nodeId) : null;
-  }
-  function _clockTick(delta=1) {
-    const fn = _svc('runtime.clock.tick');
-    return typeof fn === 'function' ? !!fn(delta) : false;
-  }
-  function _line(text, color='t-out', bold=false) {
-    const fn = _svc('runtime.output.line');
-    if(typeof fn === 'function') fn(text, color, bold);
-  }
-  function _sp() {
-    const fn = _svc('runtime.output.sp');
-    if(typeof fn === 'function') fn();
-  }
-  function _sep(ch='─', len=46) {
-    const fn = _svc('runtime.output.sep');
-    if(typeof fn === 'function') fn(ch, len);
-  }
-  function _statusRefresh() {
-    const fn = _svc('runtime.status.refresh');
-    if(typeof fn === 'function') fn();
-  }
-  function _saveGame() {
-    const fn = _svc('runtime.game.save');
-    if(typeof fn === 'function') fn();
-  }
+  // Helpers compartidos via core/plugin-helpers.js (_svc, _player, _playerPos,
+  // _playerRemoveItem, _worldNode, _clockTick, _line, _sp, _sep, _saveGame).
+  // _statusRefresh es alias local de _refreshStatus para mantener compat.
+  const _statusRefresh = _refreshStatus;
 
   function loadTacticsData() {
     const fallback = {

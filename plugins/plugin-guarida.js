@@ -8,11 +8,7 @@ const pluginGuarida = (() => {
   function _clone(v) {
     return JSON.parse(JSON.stringify(v));
   }
-  function _svc(name) {
-    return (typeof ServiceRegistry !== 'undefined' && typeof ServiceRegistry.get === 'function')
-      ? ServiceRegistry.get(name)
-      : null;
-  }
+  // Helpers compartidos via core/plugin-helpers.js (_svc y wrappers).
 
   function _getChest() {
     const getData = _svc('runtime.memory.data.get');
@@ -31,53 +27,9 @@ const pluginGuarida = (() => {
     if(typeof saveMem === 'function') { saveMem(); return; }
   }
 
-  function _player() {
-    const fn = _svc('runtime.player.current');
-    return typeof fn === 'function' ? fn() : null;
-  }
-  function _playerPos() {
-    const fn = _svc('runtime.player.position');
-    return typeof fn === 'function' ? fn() : null;
-  }
-  function _playerAddItem(item) {
-    const fn = _svc('runtime.player.add_item');
-    return typeof fn === 'function' ? !!fn(item) : false;
-  }
-  function _playerRemoveItem(itemId) {
-    const fn = _svc('runtime.player.remove_item');
-    return typeof fn === 'function' ? !!fn(itemId) : false;
-  }
-  function _worldNode(nodeId) {
-    const fn = _svc('runtime.world.node');
-    return typeof fn === 'function' ? fn(nodeId) : null;
-  }
   function _worldMeta() {
     const fn = _svc('runtime.world.read');
     return typeof fn === 'function' ? (fn() || {}) : {};
-  }
-  function _clockTick(delta=1) {
-    const fn = _svc('runtime.clock.tick');
-    return typeof fn === 'function' ? !!fn(delta) : false;
-  }
-  function _line(text, color='t-out', bold=false) {
-    const fn = _svc('runtime.output.line');
-    if(typeof fn === 'function') fn(text, color, bold);
-  }
-  function _sp() {
-    const fn = _svc('runtime.output.sp');
-    if(typeof fn === 'function') fn();
-  }
-  function _sep(ch='─', len=46) {
-    const fn = _svc('runtime.output.sep');
-    if(typeof fn === 'function') fn(ch, len);
-  }
-  function _refreshStatus() {
-    const fn = _svc('runtime.status.refresh');
-    if(typeof fn === 'function') fn();
-  }
-  function _saveGame() {
-    const fn = _svc('runtime.game.save');
-    if(typeof fn === 'function') fn();
   }
 
   function _inRefuge() {

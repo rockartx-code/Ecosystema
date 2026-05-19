@@ -4,15 +4,7 @@
 // ════════════════════════════════════════════════════════════════
 
 (function initForgePlugin(global) {
-  function _svc(name) {
-    return (typeof ServiceRegistry !== 'undefined' && typeof ServiceRegistry.get === 'function')
-      ? ServiceRegistry.get(name)
-      : null;
-  }
-  function _clockCurrent() {
-    const fn = _svc('runtime.clock.current');
-    return typeof fn === 'function' ? (fn() || {}) : {};
-  }
+  // Helpers compartidos via core/plugin-helpers.js (_svc, _clockCurrent).
 
   function createForgeApi() {
     const Imprint = {

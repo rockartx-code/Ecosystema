@@ -4,35 +4,9 @@
 // ════════════════════════════════════════════════════════════════
 
 (function initXPPlugin(global) {
-  function _svc(name) {
-    return (typeof ServiceRegistry !== 'undefined' && typeof ServiceRegistry.get === 'function')
-      ? ServiceRegistry.get(name)
-      : null;
-  }
-  function _player() {
-    const fn = _svc('runtime.player.current');
-    return typeof fn === 'function' ? fn() : null;
-  }
-  function _line(text, color='t-out', bold=false) {
-    const fn = _svc('runtime.output.line');
-    if(typeof fn === 'function') fn(text, color, bold);
-  }
-  function _sp() {
-    const fn = _svc('runtime.output.sp');
-    if(typeof fn === 'function') fn();
-  }
-  function _sep(ch='─', len=46) {
-    const fn = _svc('runtime.output.sep');
-    if(typeof fn === 'function') fn(ch, len);
-  }
-  function _statusRefresh() {
-    const fn = _svc('runtime.status.refresh');
-    if(typeof fn === 'function') fn();
-  }
-  function _saveGame() {
-    const fn = _svc('runtime.game.save');
-    if(typeof fn === 'function') fn();
-  }
+  // Helpers compartidos via core/plugin-helpers.js (_svc, _player, _line, _sp,
+  // _sep, _saveGame). Alias local: _statusRefresh -> _refreshStatus.
+  const _statusRefresh = _refreshStatus;
 
   const EFFECTS = {
     atk_plus_1: (p)=>{ p.atk++; },

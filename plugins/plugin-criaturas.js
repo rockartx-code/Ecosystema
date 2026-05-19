@@ -12,55 +12,11 @@
 //   - Registra comandos: capturar, vincular, liberar, criar, modo, nombrar, criaturas
 // ════════════════════════════════════════════════════════════════
 
-function _svc(name) {
-  return (typeof ServiceRegistry !== 'undefined' && typeof ServiceRegistry.get === 'function')
-    ? ServiceRegistry.get(name)
-    : null;
-}
-function _player() {
-  const fn = _svc('runtime.player.current');
-  return typeof fn === 'function' ? fn() : null;
-}
-function _playerPos() {
-  const fn = _svc('runtime.player.position');
-  return typeof fn === 'function' ? fn() : null;
-}
-function _playerCombatStats() {
-  const fn = _svc('runtime.player.combat_stats');
-  return typeof fn === 'function' ? (fn() || {}) : {};
-}
-function _playerGetSlot(tipo) {
-  const fn = _svc('runtime.player.get_slot');
-  return typeof fn === 'function' ? fn(tipo) : 0;
-}
-function _playerAddItem(item) {
-  const fn = _svc('runtime.player.add_item');
-  return typeof fn === 'function' ? !!fn(item) : false;
-}
-function _playerAddToSlot(tipo, item) {
-  const fn = _svc('runtime.player.add_to_slot');
-  return typeof fn === 'function' ? !!fn(tipo, item) : false;
-}
-function _playerRemoveFromSlot(tipo, itemId) {
-  const fn = _svc('runtime.player.remove_from_slot');
-  return typeof fn === 'function' ? !!fn(tipo, itemId) : false;
-}
-function _playerFindInSlot(tipo, query='') {
-  const fn = _svc('runtime.player.find_in_slot');
-  return typeof fn === 'function' ? fn(tipo, query) : null;
-}
-function _playerRemoveItem(itemId) {
-  const fn = _svc('runtime.player.remove_item');
-  return typeof fn === 'function' ? !!fn(itemId) : false;
-}
-function _worldNode(nodeId) {
-  const fn = _svc('runtime.world.node');
-  return typeof fn === 'function' ? fn(nodeId) : null;
-}
-function _worldExits(nodeId) {
-  const fn = _svc('runtime.world.exits');
-  return typeof fn === 'function' ? (fn(nodeId) || {}) : {};
-}
+// Helpers compartidos via core/plugin-helpers.js (_svc, _player, _playerPos,
+// _playerCombatStats, _playerGetSlot, _playerAddItem, _playerAddToSlot,
+// _playerRemoveFromSlot, _playerFindInSlot, _playerRemoveItem, _worldNode,
+// _worldExits, _line, _sp, _sep, _saveGame, _clockCurrent).
+
 function _worldRemoveCreature(nodeId, creatureId) {
   const fn = _svc('runtime.world.remove_creature');
   return typeof fn === 'function' ? !!fn(nodeId, creatureId) : false;
@@ -69,26 +25,6 @@ function _forgeTension(tags=[]) {
   const fn = _svc('runtime.forge.api');
   const api = typeof fn === 'function' ? fn() : null;
   return api?.Tags?.tension?.(tags) || 0;
-}
-function _line(text, color='t-out', bold=false) {
-  const fn = _svc('runtime.output.line');
-  if(typeof fn === 'function') fn(text, color, bold);
-}
-function _sp() {
-  const fn = _svc('runtime.output.sp');
-  if(typeof fn === 'function') fn();
-}
-function _sep(ch='─', len=46) {
-  const fn = _svc('runtime.output.sep');
-  if(typeof fn === 'function') fn(ch, len);
-}
-function _saveGame() {
-  const fn = _svc('runtime.game.save');
-  if(typeof fn === 'function') fn();
-}
-function _clockCurrent() {
-  const fn = _svc('runtime.clock.current');
-  return typeof fn === 'function' ? (fn() || {}) : {};
 }
 
 // ── Implementación de Creature ────────────────────────────────────

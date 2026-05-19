@@ -33,11 +33,8 @@ function _defaultProfile() {
 }
 
 
-function _svc(name) {
-  return (typeof ServiceRegistry !== 'undefined' && typeof ServiceRegistry.get === 'function')
-    ? ServiceRegistry.get(name)
-    : null;
-}
+// Helpers compartidos via core/plugin-helpers.js (_svc, _player, _gsAliveNPCs).
+// Resto son helpers de dominio (runtime.tactics.*, runtime.combat.enemy.*).
 
 function _tacticsGetSup(nodeId) {
   const fn = _svc('runtime.tactics.get_sup');
@@ -88,15 +85,6 @@ function _enemyMagicExecutor() {
 function _enemyAbilityBuffTicker() {
   return _svc('runtime.combat.enemy.tick_habilidad_buffs');
 }
-function _player() {
-  const fn = _svc('runtime.player.current');
-  return typeof fn === 'function' ? fn() : null;
-}
-function _gsAliveNPCs() {
-  const fn = _svc('runtime.gs.alive_npcs');
-  return typeof fn === 'function' ? (fn() || []) : [];
-}
-
 // ── Asignar perfil según actor ────────────────────────────────────
 function _asignarPerfil(actor) {
   const n    = (actor.name||'').toLowerCase();

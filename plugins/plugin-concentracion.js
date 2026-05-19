@@ -32,31 +32,8 @@ const ConcentracionSystem = (() => {
     return String(txt).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
   }
 
-  function _svc(name) {
-    return (typeof ServiceRegistry !== 'undefined' && typeof ServiceRegistry.get === 'function')
-      ? ServiceRegistry.get(name)
-      : null;
-  }
-  function _player() {
-    const fn = _svc('runtime.player.current');
-    return typeof fn === 'function' ? fn() : null;
-  }
-  function _clockTick(delta=1) {
-    const fn = _svc('runtime.clock.tick');
-    return typeof fn === 'function' ? !!fn(delta) : false;
-  }
-  function _line(text, color='t-out', bold=false) {
-    const fn = _svc('runtime.output.line');
-    if(typeof fn === 'function') fn(text, color, bold);
-  }
-  function _refreshStatus() {
-    const fn = _svc('runtime.status.refresh');
-    if(typeof fn === 'function') fn();
-  }
-  function _saveGame() {
-    const fn = _svc('runtime.game.save');
-    if(typeof fn === 'function') fn();
-  }
+  // Helpers compartidos via core/plugin-helpers.js (_svc, _player,
+  // _clockTick, _line, _refreshStatus, _saveGame).
 
   function parseVariantArg(rawArg) {
     const txt = String(rawArg || '').trim();

@@ -8,19 +8,10 @@
 'use strict';
 
 const pluginDificultad = (() => {
-  function _svc(name) {
-    return (typeof ServiceRegistry !== 'undefined' && typeof ServiceRegistry.get === 'function')
-      ? ServiceRegistry.get(name)
-      : null;
-  }
-  function _combatStats() {
-    const fn = _svc('runtime.player.combat_stats');
-    return typeof fn === 'function' ? (fn() || {}) : {};
-  }
+  // Helpers compartidos via core/plugin-helpers.js (_svc, _playerCombatStats,
+  // _clockCurrent). _cycle() es alias local que extrae el numero.
   function _cycle() {
-    const fn = _svc('runtime.clock.current');
-    const data = typeof fn === 'function' ? (fn() || {}) : {};
-    return Number(data.cycle) || 0;
+    return Number(_clockCurrent().cycle) || 0;
   }
 
   return {
@@ -32,7 +23,7 @@ const pluginDificultad = (() => {
       'world:calc_difficulty': {
         fn(payload) {
           const p = payload.player || {};
-          const { atk = 0, def = 0 } = _combatStats();
+          const { atk = 0, def = 0 } = _playerCombatStats();
           const equipPoder = atk*1.5
                            + def*2
                            + (p.equipped?.arma?.durabilidad || 100)/20

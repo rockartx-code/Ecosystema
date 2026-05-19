@@ -3,63 +3,10 @@
 // Control territorial, servicios por reputación y emboscadas.
 // ════════════════════════════════════════════════════════════════
 const FactionSystem = (() => {
-  function _svc(name) {
-    return (typeof ServiceRegistry !== 'undefined' && typeof ServiceRegistry.get === 'function')
-      ? ServiceRegistry.get(name)
-      : null;
-  }
-  function _player() {
-    const fn = _svc('runtime.player.current');
-    return typeof fn === 'function' ? fn() : null;
-  }
-  function _playerPos() {
-    const fn = _svc('runtime.player.position');
-    return typeof fn === 'function' ? fn() : null;
-  }
-  function _playerCombatStats() {
-    const fn = _svc('runtime.player.combat_stats');
-    return typeof fn === 'function' ? (fn() || {}) : {};
-  }
-  function _playerAddItem(item) {
-    const fn = _svc('runtime.player.add_item');
-    return typeof fn === 'function' ? !!fn(item) : false;
-  }
-  function _worldAll() {
-    const fn = _svc('runtime.world.all');
-    return typeof fn === 'function' ? (fn() || {}) : {};
-  }
-  function _worldNode(nodeId) {
-    const fn = _svc('runtime.world.node');
-    return typeof fn === 'function' ? fn(nodeId) : null;
-  }
-  function _worldCalcDifficulty() {
-    const fn = _svc('runtime.world.calc_difficulty');
-    return typeof fn === 'function' ? Number(fn()) || 1.0 : 1.0;
-  }
-  function _gsNPCEnNodo(nodeId) {
-    const fn = _svc('runtime.gs.npcs_in_node');
-    return typeof fn === 'function' ? (fn(nodeId) || []) : [];
-  }
-  function _gsNpc(npcId) {
-    const fn = _svc('runtime.gs.npc');
-    return typeof fn === 'function' ? fn(npcId) : null;
-  }
-  function _line(text, color='t-out', bold=false) {
-    const fn = _svc('runtime.output.line');
-    if(typeof fn === 'function') fn(text, color, bold);
-  }
-  function _sp() {
-    const fn = _svc('runtime.output.sp');
-    if(typeof fn === 'function') fn();
-  }
-  function _sep(ch='─', len=46) {
-    const fn = _svc('runtime.output.sep');
-    if(typeof fn === 'function') fn(ch, len);
-  }
-  function _refreshStatus() {
-    const fn = _svc('runtime.status.refresh');
-    if(typeof fn === 'function') fn();
-  }
+  // Helpers compartidos via core/plugin-helpers.js (_svc, _player, _playerPos,
+  // _playerCombatStats, _playerAddItem, _worldAll, _worldNode,
+  // _worldCalcDifficulty, _gsNPCEnNodo, _gsNpc, _line, _sp, _sep,
+  // _refreshStatus).
 
   const FACCIONES_BASE = {
     orden_grieta:    { nombre:'Orden de la Grieta', color:'t-sis', tipos_nodo:['ruina','umbral'],             icon:'⟁' },

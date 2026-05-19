@@ -5,19 +5,9 @@
 // ════════════════════════════════════════════════════════════════
 
 const pluginCultos = (() => {
-  function _svc(name) {
-    return (typeof ServiceRegistry !== 'undefined' && typeof ServiceRegistry.get === 'function')
-      ? ServiceRegistry.get(name)
-      : null;
-  }
-  function _player() {
-    const fn = _svc('runtime.player.current');
-    return typeof fn === 'function' ? fn() : null;
-  }
-  function _playerPos() {
-    const fn = _svc('runtime.player.position');
-    return typeof fn === 'function' ? fn() : null;
-  }
+  // Helpers compartidos via core/plugin-helpers.js (_svc, _player, _playerPos,
+  // _playerAddItem, _worldNode, _gsAllNPCs, _gsAddNPC, _gsMision, _gsAddMision,
+  // _gsAllMisiones, _gsNpc, _line, _sp). Variantes locales:
   function _playerCombatStats(p = _player()) {
     const fn = _svc('runtime.player.combat_stats');
     const stats = typeof fn === 'function' ? (fn() || {}) : {};
@@ -25,14 +15,6 @@ const pluginCultos = (() => {
       atk: Math.max(1, Math.floor(stats.atk || p?.atk || 1)),
       def: Math.max(0, Math.floor(stats.def || p?.def || 0)),
     };
-  }
-  function _playerAddItem(item) {
-    const fn = _svc('runtime.player.add_item');
-    return typeof fn === 'function' ? !!fn(item) : false;
-  }
-  function _worldNode(nodeId) {
-    const fn = _svc('runtime.world.node');
-    return typeof fn === 'function' ? fn(nodeId) : null;
   }
   function _worldMeta() {
     const fn = _svc('runtime.world.read');
@@ -42,38 +24,6 @@ const pluginCultos = (() => {
     const fn = _svc('runtime.clock.current');
     const current = typeof fn === 'function' ? fn() : null;
     return current?.cycle ?? 0;
-  }
-  function _gsAllNPCs() {
-    const fn = _svc('runtime.gs.all_npcs');
-    return typeof fn === 'function' ? (fn() || []) : [];
-  }
-  function _gsAddNPC(npc) {
-    const fn = _svc('runtime.gs.add_npc');
-    return typeof fn === 'function' ? !!fn(npc) : false;
-  }
-  function _gsMision(misionId) {
-    const fn = _svc('runtime.gs.mision');
-    return typeof fn === 'function' ? fn(misionId) : null;
-  }
-  function _gsAddMision(mision) {
-    const fn = _svc('runtime.gs.add_mision');
-    return typeof fn === 'function' ? !!fn(mision) : false;
-  }
-  function _gsAllMisiones() {
-    const fn = _svc('runtime.gs.all_misiones');
-    return typeof fn === 'function' ? (fn() || []) : [];
-  }
-  function _gsNpc(npcId) {
-    const fn = _svc('runtime.gs.npc');
-    return typeof fn === 'function' ? fn(npcId) : null;
-  }
-  function _line(text, color='t-out', bold=false) {
-    const fn = _svc('runtime.output.line');
-    if(typeof fn === 'function') fn(text, color, bold);
-  }
-  function _sp() {
-    const fn = _svc('runtime.output.sp');
-    if(typeof fn === 'function') fn();
   }
 
   const PLUGIN_ID = 'plugin:cultos';

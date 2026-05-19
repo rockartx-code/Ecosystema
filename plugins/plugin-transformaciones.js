@@ -11,35 +11,8 @@
 //  - Al transformar se rompe un equipo equipado al azar.
 // ════════════════════════════════════════════════════════════════
 
-function _svc(name) {
-  return (typeof ServiceRegistry !== 'undefined' && typeof ServiceRegistry.get === 'function')
-    ? ServiceRegistry.get(name)
-    : null;
-}
-function _player() {
-  const fn = _svc('runtime.player.current');
-  return typeof fn === 'function' ? fn() : null;
-}
-function _playerCombatStats() {
-  const fn = _svc('runtime.player.combat_stats');
-  return typeof fn === 'function' ? (fn() || {}) : {};
-}
-function _playerRecalcResonances() {
-  const fn = _svc('runtime.player.recalc_resonances');
-  return typeof fn === 'function' ? !!fn() : false;
-}
-function _line(text, color='t-out', bold=false) {
-  const fn = _svc('runtime.output.line');
-  if(typeof fn === 'function') fn(text, color, bold);
-}
-function _sp() {
-  const fn = _svc('runtime.output.sp');
-  if(typeof fn === 'function') fn();
-}
-function _saveGame() {
-  const fn = _svc('runtime.game.save');
-  if(typeof fn === 'function') fn();
-}
+// Helpers compartidos via core/plugin-helpers.js (_svc, _player,
+// _playerCombatStats, _playerRecalcResonances, _line, _sp, _saveGame).
 
 function _txData() {
   const p = _player();

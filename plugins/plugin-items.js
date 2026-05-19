@@ -4,11 +4,9 @@
 // ════════════════════════════════════════════════════════════════
 
 (function initItemsPlugin(global) {
-  function _svc(name) {
-    return (typeof ServiceRegistry !== 'undefined' && typeof ServiceRegistry.get === 'function')
-      ? ServiceRegistry.get(name)
-      : null;
-  }
+  // Helpers compartidos via core/plugin-helpers.js (_svc, _player,
+  // _playerRemoveItem, _line, _refreshStatus). Locales: _elementColor,
+  // _woundMeta (resuelven contra runtime.tactics.*).
   function _elementColor(element) {
     const fn = _svc('runtime.tactics.element_color');
     return typeof fn === 'function' ? (fn(element) || 't-cra') : 't-cra';
@@ -16,22 +14,6 @@
   function _woundMeta(key) {
     const fn = _svc('runtime.tactics.wound_meta');
     return typeof fn === 'function' ? fn(key) : null;
-  }
-  function _player() {
-    const fn = _svc('runtime.player.current');
-    return typeof fn === 'function' ? fn() : null;
-  }
-  function _playerRemoveItem(itemId) {
-    const fn = _svc('runtime.player.remove_item');
-    return typeof fn === 'function' ? !!fn(itemId) : false;
-  }
-  function _line(text, color='t-out', bold=false) {
-    const fn = _svc('runtime.output.line');
-    if(typeof fn === 'function') fn(text, color, bold);
-  }
-  function _refreshStatus() {
-    const fn = _svc('runtime.status.refresh');
-    if(typeof fn === 'function') fn();
   }
 
   function createItemsApi() {

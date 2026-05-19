@@ -3,67 +3,9 @@
 // Monstruos mundiales que se mueven, amenazan y dejan loot mítico.
 // ════════════════════════════════════════════════════════════════
 const BossSystem = (() => {
-  function _svc(name) {
-    return (typeof ServiceRegistry !== 'undefined' && typeof ServiceRegistry.get === 'function')
-      ? ServiceRegistry.get(name)
-      : null;
-  }
-  function _player() {
-    const fn = _svc('runtime.player.current');
-    return typeof fn === 'function' ? fn() : null;
-  }
-  function _playerPos() {
-    const fn = _svc('runtime.player.position');
-    return typeof fn === 'function' ? fn() : null;
-  }
-  function _playerCombatStats() {
-    const fn = _svc('runtime.player.combat_stats');
-    return typeof fn === 'function' ? (fn() || {}) : {};
-  }
-  function _playerAddItem(item) {
-    const fn = _svc('runtime.player.add_item');
-    return typeof fn === 'function' ? !!fn(item) : false;
-  }
-  function _worldAll() {
-    const fn = _svc('runtime.world.all');
-    return typeof fn === 'function' ? (fn() || {}) : {};
-  }
-  function _worldNode(nodeId) {
-    const fn = _svc('runtime.world.node');
-    return typeof fn === 'function' ? fn(nodeId) : null;
-  }
-  function _worldExits(nodeId) {
-    const fn = _svc('runtime.world.exits');
-    return typeof fn === 'function' ? (fn(nodeId) || {}) : {};
-  }
-  function _clockCurrent() {
-    const fn = _svc('runtime.clock.current');
-    return typeof fn === 'function' ? (fn() || {}) : {};
-  }
-  function _clockTick(delta=1) {
-    const fn = _svc('runtime.clock.tick');
-    return typeof fn === 'function' ? !!fn(delta) : false;
-  }
-  function _gsAddTwist(twist) {
-    const fn = _svc('runtime.gs.add_twist');
-    return typeof fn === 'function' ? !!fn(twist) : false;
-  }
-  function _line(text, color='t-out', bold=false) {
-    const fn = _svc('runtime.output.line');
-    if(typeof fn === 'function') fn(text, color, bold);
-  }
-  function _sp() {
-    const fn = _svc('runtime.output.sp');
-    if(typeof fn === 'function') fn();
-  }
-  function _sep(ch='─', len=46) {
-    const fn = _svc('runtime.output.sep');
-    if(typeof fn === 'function') fn(ch, len);
-  }
-  function _saveGame() {
-    const fn = _svc('runtime.game.save');
-    if(typeof fn === 'function') fn();
-  }
+  // Helpers compartidos via core/plugin-helpers.js (_svc, _player, _playerPos,
+  // _playerCombatStats, _playerAddItem, _worldAll, _worldNode, _worldExits,
+  // _clockCurrent, _clockTick, _gsAddTwist, _line, _sp, _sep, _saveGame).
 
   const BOSS_ASCII = [
     '              /\\',

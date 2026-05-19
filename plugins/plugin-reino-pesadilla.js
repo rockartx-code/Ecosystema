@@ -17,19 +17,9 @@ const pluginReinoPesadilla = (() => {
     vencidos: 0,
   };
 
-  function _svc(name) {
-    return (typeof ServiceRegistry !== 'undefined' && typeof ServiceRegistry.get === 'function')
-      ? ServiceRegistry.get(name)
-      : null;
-  }
-  function _player() {
-    const fn = _svc('runtime.player.current');
-    return typeof fn === 'function' ? fn() : null;
-  }
-  function _playerPos() {
-    const fn = _svc('runtime.player.position');
-    return typeof fn === 'function' ? fn() : null;
-  }
+  // Helpers compartidos via core/plugin-helpers.js (_svc, _player, _playerPos,
+  // _worldNode, _worldExits, _worldExpandSection, _worldIsBorder, _clockTick,
+  // _line, _sp, _sep, _saveGame). Locales con variante propia:
   function _playerCombatStats(p = _player()) {
     const fn = _svc('runtime.player.combat_stats');
     const stats = typeof fn === 'function' ? (fn() || {}) : {};
@@ -38,45 +28,9 @@ const pluginReinoPesadilla = (() => {
       def: Math.max(0, Math.floor(stats.def || p?.def || 0)),
     };
   }
-  function _worldNode(nodeId) {
-    const fn = _svc('runtime.world.node');
-    return typeof fn === 'function' ? fn(nodeId) : null;
-  }
-  function _worldExits(nodeId) {
-    const fn = _svc('runtime.world.exits');
-    return typeof fn === 'function' ? (fn(nodeId) || {}) : {};
-  }
-  function _worldExpandSection(fromNodeId, dir) {
-    const fn = _svc('runtime.world.expand_section');
-    return typeof fn === 'function' ? fn(fromNodeId, dir) : null;
-  }
-  function _worldIsBorder(nodeId) {
-    const fn = _svc('runtime.world.is_border');
-    return typeof fn === 'function' ? !!fn(nodeId) : false;
-  }
   function _worldVisit(nodeId) {
     const fn = _svc('runtime.world.visit');
     return typeof fn === 'function' ? !!fn(nodeId) : false;
-  }
-  function _clockTick(delta=1) {
-    const fn = _svc('runtime.clock.tick');
-    return typeof fn === 'function' ? !!fn(delta) : false;
-  }
-  function _line(text, color='t-out', bold=false) {
-    const fn = _svc('runtime.output.line');
-    if(typeof fn === 'function') fn(text, color, bold);
-  }
-  function _sp() {
-    const fn = _svc('runtime.output.sp');
-    if(typeof fn === 'function') fn();
-  }
-  function _sep(ch='─', len=46) {
-    const fn = _svc('runtime.output.sep');
-    if(typeof fn === 'function') fn(ch, len);
-  }
-  function _saveGame() {
-    const fn = _svc('runtime.game.save');
-    if(typeof fn === 'function') fn();
   }
 
   function _currentDifficulty() {

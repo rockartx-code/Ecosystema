@@ -31,40 +31,9 @@ function _habBase(pool_id) {
 }
 
 
-function _svc(name) {
-  return (typeof ServiceRegistry !== 'undefined' && typeof ServiceRegistry.get === 'function')
-    ? ServiceRegistry.get(name)
-    : null;
-}
-function _player() {
-  const fn = _svc('runtime.player.current');
-  return typeof fn === 'function' ? fn() : null;
-}
-function _playerAddToSlot(tipo, item) {
-  const fn = _svc('runtime.player.add_to_slot');
-  return typeof fn === 'function' ? !!fn(tipo, item) : false;
-}
-function _playerGetSlot(tipo) {
-  const fn = _svc('runtime.player.get_slot');
-  return typeof fn === 'function' ? fn(tipo) : 0;
-}
-function _line(text, color='t-out', bold=false) {
-  const fn = _svc('runtime.output.line');
-  if(typeof fn === 'function') fn(text, color, bold);
-}
-function _sp() {
-  const fn = _svc('runtime.output.sp');
-  if(typeof fn === 'function') fn();
-}
-function _saveGame() {
-  const fn = _svc('runtime.game.save');
-  if(typeof fn === 'function') fn();
-}
-function _xpGanar(attr, amount, reason) {
-  const gain = _svc('runtime.xp.gain');
-  if(typeof gain === 'function') return !!gain(attr, amount, reason);
-  return false;
-}
+// Helpers compartidos via core/plugin-helpers.js (_svc, _player,
+// _playerAddToSlot, _playerGetSlot, _line, _sp, _saveGame, _xpGanar).
+
 function _tactCalcWound(dmg, maxHp) {
   const calc = _svc('runtime.tactics.calc_wound');
   if(typeof calc === 'function') return calc(dmg, maxHp);

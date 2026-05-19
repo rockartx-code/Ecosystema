@@ -4,51 +4,10 @@
 // ════════════════════════════════════════════════════════════════
 
 (function initWorldAIPlugin(global) {
-  function _svc(name) {
-    return (typeof ServiceRegistry !== 'undefined' && typeof ServiceRegistry.get === 'function')
-      ? ServiceRegistry.get(name)
-      : null;
-  }
-  function _player() {
-    const fn = _svc('runtime.player.current');
-    return typeof fn === 'function' ? fn() : null;
-  }
-  function _playerPos() {
-    const fn = _svc('runtime.player.position');
-    return typeof fn === 'function' ? fn() : null;
-  }
-  function _worldAll() {
-    const fn = _svc('runtime.world.all');
-    return typeof fn === 'function' ? (fn() || {}) : {};
-  }
-  function _worldNode(nodeId) {
-    const fn = _svc('runtime.world.node');
-    return typeof fn === 'function' ? fn(nodeId) : null;
-  }
-  function _worldExits(nodeId) {
-    const fn = _svc('runtime.world.exits');
-    return typeof fn === 'function' ? (fn(nodeId) || {}) : {};
-  }
-  function _clockCurrent() {
-    const fn = _svc('runtime.clock.current');
-    return typeof fn === 'function' ? (fn() || {}) : {};
-  }
-  function _aliveNPCs() {
-    const fn = _svc('runtime.gs.alive_npcs');
-    return typeof fn === 'function' ? (fn() || []) : [];
-  }
-  function _line(text, color='t-out', bold=false) {
-    const fn = _svc('runtime.output.line');
-    if(typeof fn === 'function') fn(text, color, bold);
-  }
-  function _sp() {
-    const fn = _svc('runtime.output.sp');
-    if(typeof fn === 'function') fn();
-  }
-  function _refreshStatus() {
-    const fn = _svc('runtime.status.refresh');
-    if(typeof fn === 'function') fn();
-  }
+  // Helpers compartidos via core/plugin-helpers.js (_svc, _player, _playerPos,
+  // _worldAll, _worldNode, _worldExits, _clockCurrent, _line, _sp,
+  // _refreshStatus). Alias local: _aliveNPCs -> _gsAliveNPCs.
+  const _aliveNPCs = _gsAliveNPCs;
 
   function loadWorldAIData() {
     const fallback = {

@@ -29,75 +29,14 @@ function _magBase(pool_id) {
 }
 
 
-function _svc(name) {
-  return (typeof ServiceRegistry !== 'undefined' && typeof ServiceRegistry.get === 'function')
-    ? ServiceRegistry.get(name)
-    : null;
-}
-function _player() {
-  const fn = _svc('runtime.player.current');
-  return typeof fn === 'function' ? fn() : null;
-}
-function _playerPos() {
-  const fn = _svc('runtime.player.position');
-  return typeof fn === 'function' ? fn() : null;
-}
-function _playerCombatStats() {
-  const fn = _svc('runtime.player.combat_stats');
-  return typeof fn === 'function' ? (fn() || {}) : {};
-}
-function _playerAddToSlot(tipo, item) {
-  const fn = _svc('runtime.player.add_to_slot');
-  return typeof fn === 'function' ? !!fn(tipo, item) : false;
-}
-function _playerRemoveFromSlot(tipo, itemId) {
-  const fn = _svc('runtime.player.remove_from_slot');
-  return typeof fn === 'function' ? !!fn(tipo, itemId) : false;
-}
-function _playerFindItem(query='') {
-  const fn = _svc('runtime.player.find_item');
-  return typeof fn === 'function' ? fn(query) : null;
-}
-function _playerRemoveItem(itemId) {
-  const fn = _svc('runtime.player.remove_item');
-  return typeof fn === 'function' ? !!fn(itemId) : false;
-}
-function _playerGetSlot(tipo) {
-  const fn = _svc('runtime.player.get_slot');
-  return typeof fn === 'function' ? fn(tipo) : 0;
-}
-function _worldNode(nodeId) {
-  const fn = _svc('runtime.world.node');
-  return typeof fn === 'function' ? fn(nodeId) : null;
-}
-function _worldAll() {
-  const fn = _svc('runtime.world.all');
-  return typeof fn === 'function' ? (fn() || {}) : {};
-}
+// Helpers compartidos via core/plugin-helpers.js (_svc, _player, _playerPos,
+// _playerCombatStats, _playerAddToSlot, _playerRemoveFromSlot, _playerFindItem,
+// _playerRemoveItem, _playerGetSlot, _worldNode, _worldAll, _line, _sp,
+// _refreshStatus, _saveGame, _xpGanar).
+
 function _worldRemoveEnemy(nodeId, enemyId) {
   const fn = _svc('runtime.world.remove_enemy');
   return typeof fn === 'function' ? !!fn(nodeId, enemyId) : false;
-}
-function _line(text, color='t-out', bold=false) {
-  const fn = _svc('runtime.output.line');
-  if(typeof fn === 'function') fn(text, color, bold);
-}
-function _sp() {
-  const fn = _svc('runtime.output.sp');
-  if(typeof fn === 'function') fn();
-}
-function _refreshStatus() {
-  const fn = _svc('runtime.status.refresh');
-  if(typeof fn === 'function') fn();
-}
-function _saveGame() {
-  const fn = _svc('runtime.game.save');
-  if(typeof fn === 'function') fn();
-}
-function _xpGanar(attr, amount, reason) {
-  const gain = _svc('runtime.xp.gain');
-  if(typeof gain === 'function') return !!gain(attr, amount, reason);
-  return false;
 }
 function _tactApplyElement(target, element, battle) {
   const fn = _svc('runtime.tactics.apply_element');
