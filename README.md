@@ -68,6 +68,7 @@ Suite principal:
 - `ownership_matrix_smoke`
 - `battle_engine_functional_smoke` (motor de batalla extraido en C1)
 - `plugin_permissions_smoke` (vista filtrada de CTX por permissions — A5)
+- `commands_migration_smoke` (handlers migrados de commands.js a plugins — C2)
 - `dod_audit_smoke` (genera `docs/dod-audit-report.md`)
 
 Ejecutar:

@@ -140,7 +140,7 @@ Reglas:
 ## Deuda tecnica conocida (a cerrar en fase posterior)
 
 - `core/main.js` mantiene `globalThis.Combat = CombatResolution` como shim de compatibilidad. `systems/commands.js:280` y `systems/net.js:172` aun lo consumen. La maquina de batalla ya esta en `plugin-battle-engine`, pero el flag `Combat.active` sigue siendo global; cuando todos los consumers usen `runtime.battle.current()?.estado === 'activo'`, el shim se elimina.
-- `systems/commands.js` aun contiene handlers de gameplay (`cmdHablar`, `cmdForjar`, `cmdAtacar`, `cmdPreguntar`, `cmdObservar`, `cmdTraicionar`, `cmdNPCs`). En la fase 1.2 se migraron `cmdAceptar/Rechazar/Completar` a `plugin-npcs`. El resto sigue C2 incremental.
+- C2 ya esta cerrado para todos los handlers del audit (ver "Cerrado en fase 1.5"). Quedan en `systems/commands.js` los handlers neutrales (cmdIr, cmdMirar, cmdMapa, cmdInv, cmdEquipar, cmdUsar, cmdReparar, cmdRecoger, cmdSoltar, cmdEstado, cmdAyuda) y los de sistema/debug (cmdPlugins, cmdServicios, cmdEventos, etc.) que pertenecen al adaptador operativo. Tambien sigue ahi el trade multiplayer (`_cmdComerciar`, etc.) que conviene migrar cuando se cree `plugin-trade`.
 - `_zoneThemeFor` en `systems/music.js` consulta `data/module.json.music.zone_themes`; cualquier mapeo zona->tema nuevo debe vivir en data, no en el adapter.
 - ISP en `CTX` (A5 del audit): **infraestructura cerrada en fase 1.4**. Falta migrar los 22 plugins restantes a `permissions: { allow:[...], runtime:[...] }` para activar `setPermissionsPolicy('strict')` por defecto. Hoy 3 plugins (supervivencia, dificultad, enemigos) lo declaran como demostracion; el resto sigue recibiendo ctx completo (politica 'off' default mantiene backward compat).
 - Split fisico de `core/core.js` (M1 del audit): el archivo agrupa 6 namespaces (U, EventBus, ServiceRegistry, ModuleLoader, PluginLoader, CommandRegistry, D). Sin un sistema de modulos ES en navegador, los tests dependen de cargar `core/core.js` como unico fichero (`vm.runInContext`). Split deferido hasta migrar a ESM o test harness con orquestacion multi-fichero.
@@ -152,6 +152,16 @@ Reglas:
 ## Cerrado en fase 1.4 (A5)
 
 - **A5 del audit — ISP en CTX**: `PluginLoader._buildCtxView(def, ctx)` filtra la vista que recibe cada plugin segun `def.permissions = { allow:[...], runtime:[...] }`. Politica configurable via `PluginLoader.setPermissionsPolicy('off' | 'warn' | 'strict')`. Plugins sin `permissions` reciben ctx completo (backward compat). Las claves metadato de `runtime` (`version`, `eventsVersion`, `events`, `modules`, `plugins`, `commands`, `services`) siempre estan disponibles incluso si no se declaran, porque son primitivas de plataforma. Validado por `tests/plugin_permissions_smoke.js` (6 escenarios: backward compat, strict, warn, comandos filtrados, cambio de politica en runtime, metadata siempre visible). Tres plugins (`supervivencia`, `dificultad`, `enemigos`) declaran sus permissions como demostracion; los restantes pueden migrar incrementalmente sin romper nada mientras la politica siga en `'off'`.
+
+## Cerrado en fase 1.5 (C2)
+
+- **C2 del audit — migracion completa de handlers de gameplay**: los handlers narrativos, de forja, de batalla y de criaturas dejaron `systems/commands.js` y se implementan dentro de su plugin de dominio. Cada plugin registra el verbo en `CommandRegistry` via `def.comandos`:
+  - **plugin-npcs** absorbe `hablar`, `preguntar`, `observar`, `traicionar`, `npcs`/`personas`, `misiones`/`mis`, `legados`, `aceptar`, `rechazar`, `completar`. Incluye `_findNpcEnNodo`/`_findNpcMundo`/`_pickNpcByQuery` migrados de los helpers homonimos de commands.js.
+  - **plugin-forja** absorbe `forjar`, `encarnar`, `conjurar`, `fusionar`, `recetas`, `materiales`. Consume servicios `runtime.player.damage`/`add_hab`/`add_mag`/`remove_hab`/`remove_mag`/`find_hab`/`find_mag` que `systems/commands.js` ahora registra como parte del runtime de player.
+  - **plugin-battle-engine** absorbe `atacar`/`a` y `examinar`/`ex` ademas de la maquina de batalla que ya cerro C1.
+  - **plugin-criaturas** absorbe `capturar`, `vincular`, `liberar`, `modo`, `nombrar`, `criar`, `criaturas`/`comp`, `anclas`. Las implementaciones locales del plugin (ya existian en parte) ahora estan completas — `cmdAnclas` dejo de delegar al global.
+- Validacion: `tests/commands_migration_smoke.js` (16 escenarios sobre los handlers migrados, cubriendo registro en CommandRegistry y comportamiento observable: mutaciones de estado, output, eventos). Corre en `npm test` y se cuenta como guardrail en `dod_audit_smoke`.
+- `systems/commands.js` paso de ~1560 lineas a ~1340 (-220) y quedo enfocado en dispatch, movimiento, inventario base, status, ayuda, audio y debug.
 
 ## Invariantes para Fase 2
 

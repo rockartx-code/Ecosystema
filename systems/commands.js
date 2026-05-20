@@ -494,142 +494,14 @@ function cmdMirar() {
   }
 }
 
-// ── NPC ───────────────────────────────────────────────────────
-function cmdHablar(target) {
-  const npc = findNPC(target); if(!npc) { npcNoAqui(target); return; }
-  Out.sp(); Out.sep('─');
-  Out.line(_npcDialogue(npc), 't-npc', true);
-  const res = _npcInteract(npc);
-  if(res) { Out.sp(); Out.line(res.texto, res.tipo==='secreto'?'t-cor':'t-twi', true); }
-  _npcCheckTwists(npc).forEach(t => { GS.addTwist(t); if(typeof XPRef().ganar === 'function') XPRef().ganar('narrativa',60,'plot twist'); Out.sp(); Out.sep('═'); Out.line(`⟁ REVELACIÓN — ${t.titulo}`,'t-twi',true); Out.line(t.texto,'t-out'); Out.sep('═'); });
-  const misNPC = GS.allMisiones().filter(m=>m.npc_id===npc.id&&!m.completada&&!m.fallida);
-  if(!misNPC.length && U.chance(.55)) {
-    const m = _npcGenMission(npc);
-    if(m) { GS.addMision(m); Out.sp(); Out.line(`◈ MISIÓN — "${m.titulo}"`, 't-mis', true); Out.line(m.desc,'t-out'); Out.line(`Recompensa: ${m.recompensa}`,'t-dim'); Out.line('"aceptar" o "rechazar"','t-dim'); }
-  } else if(misNPC.length) Out.line(`◈ Misión activa: "${misNPC[0].titulo}"`, 't-mis');
-  _arcTryGenerate(npc);
-  Out.sep('─'); Out.sp(); save();
-}
+// cmdHablar/cmdPreguntar/cmdObservar/cmdTraicionar/cmdNPCs/cmdMisiones/
+// cmdLegados/cmdAceptar/cmdRechazar/cmdCompletar migrados a
+// plugins/plugin-npcs.js (C2 del audit SOLID). El wiring vive en
+// plugin-npcs.comandos y CommandRegistry los resuelve por nombre.
 
-function cmdPreguntar(tQ, tema) {
-  const npc = findNPC(tQ); if(!npc) { npcNoAqui(tQ); return; }
-  Out.sp(); Out.sep('─');
-  const t = (tema||'').toLowerCase();
-  const rng = U.rng(npc.id + tema + Clock.cycle);
-  if(t.includes('secreto')||t.includes('verdad'))      { if(npc.lealtad>50){Out.line(`${npc.nombre}: "${npc.secreto}"`, 't-npc', true);npc.secreto_expuesto=true;}else Out.line(`${npc.nombre} desvía la mirada.`,'t-dim'); }
-  else if(t.includes('miedo'))                          { if(npc.lealtad>40){Out.line(`${npc.nombre}: "${npc.miedo}."`, 't-npc', true);npc.fragmentos.push('miedo');}else Out.line('No responde eso.','t-dim'); }
-  else if(t.includes('deseo')||t.includes('quiere'))    { Out.line(`${npc.nombre}: "${npc.deseo}."`, 't-npc', true); npc.fragmentos.push('deseo'); }
-  else if(t.includes('pasado')||t.includes('trauma'))   { if(npc.lealtad>60){Out.line(`${npc.nombre}: "${npc.trauma}."`, 't-npc', true);npc.fragmentos.push('trauma');}else Out.line('Sacude la cabeza.','t-dim'); }
-  else if(t.includes('anterior')||t.includes('ciclo'))  { const ecos=typeof RunMem!=='undefined'?RunMem.ecos():[]; if(ecos.length&&npc.eco_run_id){const e=ecos.find(x=>x.run_id===npc.eco_run_id)||ecos[0]; Out.line(`${npc.nombre}: "Hubo alguien. ${e.nombre}. No sobrevivió."`, 't-npc', true);}else Out.line(`${npc.nombre}: "Antes que tú, solo siluetas."`, 't-npc'); }
-  else if(t.includes('vínculo')||t.includes('relación')){ if(npc.vinculos.length) Out.line(`${npc.nombre}: "${npc.vinculos[0].historia}"`, 't-npc', true); else Out.line(`${npc.nombre}: "No hay nadie más en esta historia."`, 't-npc'); }
-  else { Out.line(`${npc.nombre}: "No tengo respuesta simple."`, 't-npc', true); }
-  Out.sep('─'); Out.sp(); save();
-}
-
-function cmdObservar(target) { const npc=findNPC(target); if(!npc){npcNoAqui(target);return;} Out.sp(); Out.line(`— OBSERVACIÓN: ${npc.nombre} —`,'t-acc'); _npcObserve(npc).forEach((o,i)=>Out.line(o,i===0?'t-npc':npc.arq_ocu_expuesto&&i>3?'t-twi':'t-dim')); Out.sp(); }
-function cmdTraicionar(target) { const npc=findNPC(target); if(!npc){npcNoAqui(target);return;} Out.sp(); Out.sep('═'); Out.line(`TRAICIÓN — ${npc.nombre}`,'t-twi',true); npc.lealtad=0; npc.desesperacion=U.clamp(npc.desesperacion+30,0,100); if((D.npcs?.arquetipos_hostiles||[]).includes(npc.arq_ocu)||npc.desesperacion>80){npc.estado='hostil';Out.line(`${npc.nombre}: "Lo recordaré."`, 't-npc');GS.allMisiones().filter(m=>m.npc_id===npc.id&&!m.completada).forEach(m=>m.fallida=true);}else Out.line(`${npc.nombre} no dice nada. Eso es peor.`,'t-npc'); if(typeof FactionSystem!=='undefined') FactionSystemRef().onTraicion(npc); Out.sep('═'); Out.sp(); save(); }
-function cmdNPCs() { Out.sp(); Out.line('— PERSONAS DEL MUNDO —','t-acc'); const todos=Object.values(GS.npcs); if(!todos.length){Out.line('Nadie encontrado.','t-dim');return;} const vivos=todos.filter(n=>['vivo','sometido','hostil'].includes(n.estado)); vivos.forEach(npc=>{const aqui=npc.nodeId===Player.pos(); Out.line(`  ${npc.nombre}  #${targetHash(npc)||'—'}  [${npc.arq_vis}]${npc.estado!=='vivo'?' ['+npc.estado.toUpperCase()+']':''}  ${aqui?'← AQUÍ':World.node(npc.nodeId)?.name||'?'}  Leal:${npc.lealtad}`,aqui?'t-npc':'t-dim');if(npc.arq_ocu_expuesto)Out.line(`       Real: ${npc.arq_ocu.toUpperCase()}`,'t-twi');}); const perdidos=todos.filter(n=>!['vivo','sometido','hostil'].includes(n.estado)); if(perdidos.length){Out.sp();Out.line('Perdidos:','t-pel');perdidos.forEach(n=>Out.line(`  ✝ ${n.nombre} #${targetHash(n)||'—'} [${n.arq_vis}] ${n.estado.toUpperCase()}`,'t-pel'));} Out.sp(); }
-
-// ── MISIONES ──────────────────────────────────────────────────
-function cmdMisiones() { Out.sp(); Out.line('— MISIONES —','t-acc'); const act=GS.activas(); const ok=GS.allMisiones().filter(m=>m.completada); const fail=GS.allMisiones().filter(m=>m.fallida); if(act.length){Out.line('ACTIVAS:','t-mis');act.forEach(m=>{Out.line(`  ◈ ${m.id}  "${m.titulo}"  [${m.tipo}]${m.aceptada?' ✓':''}${m.es_imposible?' [IMP]':''}${m.es_trampa?' [?]':''}`,'t-mis');Out.line(`    ${m.desc}`,'t-dim');Out.line(`    → ${m.consecuencia_fallo}`,'t-dim');});} if(ok.length) Out.line(`Completadas: ${ok.map(m=>'"'+m.titulo+'"').join(', ')}`,'t-cra'); if(fail.length) Out.line(`Fallidas: ${fail.map(m=>'"'+m.titulo+'"').join(', ')}`,'t-pel'); if(!act.length&&!ok.length) Out.line('Sin misiones. Habla con los NPCs.','t-dim'); Out.sp(); }
-// cmdAceptar/cmdRechazar/cmdCompletar migrados a plugins/plugin-npcs.js
-// como _cmdAceptarMision/_cmdRechazarMision/_cmdCompletarMision (C2 del
-// audit SOLID). El wiring vive en plugin-npcs.comandos y CommandRegistry
-// los resuelve por nombre, sin que commands.js conozca su body.
-
-// ── FORJA ─────────────────────────────────────────────────────
-function cmdForjar(args, modo) {
-  if(!args.length) { Out.line('forjar [mat1] [mat2] ...','t-dim'); Out.line('encarnar — sesga a habilidades  ·  conjurar — sesga a magias','t-dim'); return; }
-  const used=[], ids=[];
-  for(const q of args) {
-    const item = Player.get().inventory.find(i=>!used.includes(i.id)&&(i.blueprint?.toLowerCase().includes(q.toLowerCase())||i.nombre?.toLowerCase().includes(q.toLowerCase())));
-    if(!item){Out.line(`No tienes "${q}".`,'t-dim');return;}
-    if(!['material','ancla'].includes(item.tipo)&&item.categoria!=='ancla'){Out.line(`"${item.nombre||item.blueprint}" no es material forjable.`,'t-dim');return;}
-    used.push(item.id); ids.push(item.blueprint);
-  }
-  if(ids.length < 2){Out.line('Necesitas al menos 2 materiales.','t-dim');return;}
-  if(modo==='corporal'){const tagsCorp=['tendón','nervio','hueso','sangre','tejido','médula'];if(!ids.some(id=>D.matTags(id).some(t=>tagsCorp.includes(t)))){Out.line('Encarnar requiere material corporal.','t-pel');return;}}
-  if(modo==='mágico'){const tagsMag=['resonante','corrupto','cristal','susurro','llama','vacío'];if(!ids.some(id=>D.matTags(id).some(t=>tagsMag.includes(t)))){Out.line('Conjurar requiere material mágico.','t-pel');return;}}
-  const ctx={nodeId:Player.pos(),cycle:Clock.cycle,pid:Player.get().id,modo};
-  const res=_forgeRun(ids,ctx,World.node(Player.pos())?.estado,Clock.get().name,modo);
-  if(res.cancelled){Out.line('La forja fue cancelada.','t-dim');return;}
-  Clock.tick(2); EventBus.emit('player:tick',{player:Player.get()});
-  if(res.colapso){Out.sp();Out.line('⚠ COLAPSO DE FORJA','t-pel',true);Out.line(`Tensión: ${(res.tension*100).toFixed(0)}%`,'t-cor');const d=Player.damage(U.rand(5,15));Out.line(`−${d} HP`,'t-pel');used.forEach(id=>Player.rmItem(id));refreshStatus();save();return;}
-  const item=res.item; used.forEach(id=>Player.rmItem(id));
-  Out.sp();
-  const col=item.tipo==='habilidad'?'t-hab':item.tipo==='magia'?'t-mag':item.tipo==='mítico'?'t-cor':item.categoria==='ancla'?'t-cri':'t-cra';
-  Out.line(`FORJA — ${res.rType.toUpperCase()}`, 't-acc', true);
-  Out.line(`${item.nombre}  [${item.tipo}]`, col);
-  if(item.atk)   Out.line(`ATK +${item.atk}`,'t-pel');
-  if(item.def)   Out.line(`DEF +${item.def}`,'t-sis');
-  if(item.hp)    Out.line(`Cura ${item.hp}HP`,'t-cra');
-  if(item.poder) Out.line(`Poder: ${item.poder}`,'t-mag');
-  if(item.desc)  Out.line(item.desc,'t-dim');
-  Out.line(`Tags: ${res.domTags.join(', ')}  #${item.imprint?.hash||'—'}`, 't-dim');
-  Player.get().stats.crafted++;
-  if(typeof XPRef().ganar === 'function'){const xpForja={arma:15,armadura:12,consumible:8,habilidad:30,magia:35,mítico:80,reliquia:20,ancla:12,colapso:5};XPRef().ganar('forja',xpForja[res.rType]||10,`forja: ${res.rType}`);}
-  if(item.tipo==='habilidad'){if(!Player.addHab?.(item)){Out.line('Slots llenos. En inventario.','t-dim');Player.addItem(item);}else Out.line('Habilidad encarnada.','t-hab');}
-  else if(item.tipo==='magia'){if(!Player.addMag?.(item)){Out.line('Slots llenos. En inventario.','t-dim');Player.addItem(item);}else Out.line('Magia conjurada.','t-mag');}
-  else Player.addItem(item);
-  Out.sp(); refreshStatus(); save();
-}
-
-function cmdFusionar(args) {
-  if(args.length<2){Out.line('fusionar [id1] [id2] ...','t-dim');return;}
-  const items=args.map(q=>Player.findItem(q)||Player.findHab?.(q)||Player.findMag?.(q)).filter(Boolean);
-  if(items.length<2){Out.line(`Solo encontré ${items.length} ítem(s).`,'t-dim');return;}
-  const allTags=items.flatMap(i=>i.tags||[]);
-  const tension=ForgeRef().Tags?.tension?.(allTags) || 0;
-  Out.sp(); Out.line('CONVERGENCIA — FUSIÓN','t-cor',true);
-  Out.line(`Tensión: ${(tension*100).toFixed(0)}%`,tension>.6?'t-pel':'t-dim');
-  if(tension>.8){
-    Out.line('Tensión demasiado alta. Colapso.','t-pel');
-    items.forEach(i=>{Player.rmItem(i.id);Player.rmHab?.(i.id);Player.rmMag?.(i.id);});
-    const d=Player.damage(U.rand(10,25));Out.line(`−${d} HP`,'t-pel');refreshStatus();save();return;
-  }
-  const rng=U.rng(Date.now());
-  const pena=1-tension*0.3;
-  const totalAtk=Math.floor(items.reduce((s,i)=>s+(i.atk||0)+(i.valor||0)*0.5,0)*pena);
-  const totalDef=Math.floor(items.reduce((s,i)=>s+(i.def||0),0)*pena);
-  const totalPoder=Math.floor(items.reduce((s,i)=>s+(i.poder||0),0)*pena);
-  const muts=D.narrative?.mutaciones||[];
-  const tier=tension>.55?'inestable':items.length>=4?'sublime':'estable';
-  const adj=tier==='inestable'?['Inestable','Corrupta','Fragmentada']:tier==='sublime'?['Ascendida','Soberana','Arcana']:['Convergente','Primordial','Eterna'];
-  const nombre=`${U.pick(adj,rng)} ${muts.length?U.pick(muts,rng):'Reliquia'}`;
-  const imp=ForgeRef().Imprint?.gen?.('reliquia_viva',allTags,{nodeId:Player.pos(),cycle:Clock.cycle,pid:Player.get().id},tension) || null;
-  const tieneHab=items.some(i=>i.tipo==='habilidad');
-  const tieneMag=items.some(i=>i.tipo==='magia');
-  const tipoResultado = (items.some(i=>['casco','guantes','peto','botas','accesorio'].includes(i.tipo)) && U.chance(0.45)) ? 'accesorio' : 'mítico';
-  const rel={
-    id:U.uid(),blueprint:'reliquia_viva',nombre,tipo:tipoResultado,tags:allTags.slice(0,6),imprint:imp,estado:'convergente',es_mitico:tipoResultado==='mítico',
-    atk:totalAtk,def:totalDef,poder:totalPoder,efecto_pasivo:tieneHab&&tieneMag?'+1_slot_magia':tieneHab?'atk_bonus':tieneMag?'mana_max':null,
-    encantamientos: U.pickN(['filo espectral','piel de eco','núcleo vacío','chispa ancestral','trama umbral'], 1 + (items.length>=4?1:0), rng),
-    encarnaciones: U.pickN(['eco del guardián','voz fractal','instinto antiguo','sombra binaria'], tension>.45?2:1, rng),
-    desc:`Convergencia ${tier}. Tensión:${(tension*100).toFixed(0)}%.`,
-  };
-  if(rel.tipo==='accesorio'){
-    rel.raridad = tension>.5 ? 'legendario' : (items.length>=4 ? 'épico' : 'raro');
-    const pool = [
-      { stat:'atk', valor:2 }, { stat:'def', valor:2 }, { stat:'crit', valor:5 }, { stat:'evasion', valor:5 },
-      { stat:'mana_max', valor:8 }, { stat:'stamina_max', valor:10 },
-    ];
-    rel.efecto_accesorio = U.pick(pool, rng);
-  }
-  items.forEach(i=>{Player.rmItem(i.id);Player.rmHab?.(i.id);Player.rmMag?.(i.id);});
-  Player.addItem(rel);
-  if(typeof XPRef().ganar === 'function'){XPRef().ganar('forja',60+items.length*10,'fusión ontológica');XPRef().ganar('mente',30,'convergencia');}
-  Out.line(`${rel.nombre}  [${rel.tipo.toUpperCase()}]`,'t-cor',true);
-  if(rel.atk)Out.line(`ATK +${rel.atk}`,'t-pel');
-  if(rel.def)Out.line(`DEF +${rel.def}`,'t-sis');
-  if(rel.efecto_pasivo)Out.line(`Efecto pasivo: ${rel.efecto_pasivo}`,'t-cor');
-  if(rel.efecto_accesorio)Out.line(`Accesorio: +${rel.efecto_accesorio.valor} ${rel.efecto_accesorio.stat}`,'t-mag');
-  Out.line(`Encantamientos: ${rel.encantamientos.join(', ')}`,'t-mag');
-  Out.line(`Encarnaciones: ${rel.encarnaciones.join(', ')}`,'t-hab');
-  Out.sp(); refreshStatus(); save();
-}
-
-function cmdRecetas() { Out.sp(); Out.line('— GUÍA DE AFINIDADES —','t-acc'); Object.entries(D.tagAff||{}).forEach(([k,v])=>Out.line(`  ${k.padEnd(28)} → ${v.resultado}  (${v.fuerza})`,'t-dim')); Out.sp(); Out.line('Tags opuestos:','t-out'); (D.tagOpp||[]).forEach(([a,b])=>Out.line(`  ${a} ↔ ${b}`,'t-dim')); Out.sp(); }
-function cmdMateriales() { Out.sp(); Out.line('— MATERIALES —','t-acc'); const cats={}; Object.entries(D.mats||{}).forEach(([id,m])=>{const c=m.categoria||'físico';if(!cats[c])cats[c]=[];cats[c].push(id);}); Object.entries(cats).forEach(([cat,ids])=>{Out.line(cat,'t-acc');ids.forEach(id=>{const m=D.mat(id);Out.line(`  ${id.padEnd(24)} [${m?.tags?.join(',')||'—'}]`,'t-dim');});}); Out.sp(); }
+// ── FORJA (migrada a plugins/plugin-forja.js en C2) ──────────
+// Las globales cmdForjar/cmdFusionar/cmdRecetas/cmdMateriales viven
+// ahora en plugin-forja con la misma API publica via CommandRegistry.
 
 // ── INVENTARIO Y OBJETOS ──────────────────────────────────────
 function cmdInv() { Out.sp(); Out.line('— INVENTARIO —','t-acc'); const p=Player.get(); const inv=p.inventory; if(!inv.length){Out.line('Vacío.','t-dim');Out.sp();return;} const grupos={}; inv.forEach(i=>{const g=i.tipo||'misc';if(!grupos[g])grupos[g]=[];grupos[g].push(i);}); Object.entries(grupos).forEach(([g,items])=>{const col=g==='arma'?'t-pel':g==='armadura'||['casco','guantes','peto','botas'].includes(g)?'t-sis':g==='magia'?'t-mag':g==='habilidad'?'t-hab':g==='mítico'?'t-cor':g==='reliquia'||g==='accesorio'?'t-cor':g==='material'?'t-cra':'t-out'; Out.line(`${g.toUpperCase()} (${items.length}):`,col); items.forEach(i=>Out.line(`  ${i.nombre||i.blueprint}${i.imprint?' #'+i.imprint.hash.slice(0,4):''}${i.atk?' ATK+'+i.atk:''}${i.def?' DEF+'+i.def:''}${i.durabilidad!=null&&i.tipo==='arma'?' Dur:'+i.durabilidad+'%':''}${i.efecto_accesorio?`  +${i.efecto_accesorio.valor} ${i.efecto_accesorio.stat}`:''}`,col));}); if(p.equipped){Out.sp();Out.line('Equipado:','t-acc'); const eq=p.equipped; const slots=[['Casco','casco'],['Guantes','guantes'],['Peto','peto'],['Botas','botas'],['Mano I','mano_izquierda'],['Mano D','mano_derecha'],['Accesorio 1','accesorio_1'],['Accesorio 2','accesorio_2']]; slots.forEach(([label,key])=>{if(eq[key])Out.line(`  ${label}: ${eq[key].nombre||eq[key].blueprint}`,'t-dim');}); if(eq.mitico)Out.line(`  Mítico: ${eq.mitico.nombre||eq.mitico.blueprint}`,'t-cor'); if((p._resonance?.habilidades||[]).length){Out.line('Resonancias ocultas:','t-mag'); p._resonance.habilidades.forEach(h=>Out.line(`  ✦ ${h}`,'t-mag'));}} Out.sp(); }
@@ -654,122 +526,7 @@ function cmdEquipar(q) {
 function cmdUsar(q) { const item=Player.findItem(q); if(!item){Out.line(`No tienes "${q}".`,'t-dim');return;} if(_itemsCatalog()[item.blueprint]){_itemsApply(item,null);save();return;} if(item.tipo==='material'&&(item.hunger||item.hp)){if(item.hunger)Player.feed(item.hunger);if(item.hp)Player.heal(item.hp);Player.rmItem(item.id);Out.line(`Usas ${item.nombre||item.blueprint}.`,'t-cra');refreshStatus();save();return;} Out.line(`No puedes usar "${item.nombre||item.blueprint}" directamente.`,'t-dim'); }
 function cmdReparar(args) { const q=(args||[])[0]; const kit=q?Player.findItem(q):Player.get().inventory.find(i=>['kit_reparacion','kit_maestro','lima_afilado'].includes(i.blueprint)); if(!kit){Out.line('No tienes kit de reparación.','t-dim');return;} if(_itemsApply(kit,null))save(); }
 
-function cmdAtacar(q) {
-  const n = World.node(Player.pos()); if(!n){return;}
-  const qn = (q||'').toLowerCase().replace(/_/g,' ').trim();
-  const npc = findNPC(qn);
-  if(npc) {
-    const stats = _npcCombatStats(npc);
-    const p = Player.get();
-    NetRef().startBattle(n.id, [
-      { tipo:'player', id:p.id, name:p.name, hp:p.hp, maxHp:p.maxHp, atk:Player.getAtk(), def:Player.getDef(), nodeId:n.id, playerId:p.id, vivo:true },
-      { tipo:'npc', id:npc.id, name:npc.nombre, hp:stats.hp, maxHp:stats.hp, atk:stats.atk, def:stats.def, nodeId:n.id, vivo:true, npc_ref:npc },
-    ]);
-    return;
-  }
-  const enemy = pickTarget(qn, n.enemies || [], {
-    name: e => e?.nombre,
-    id:   e => e?.id,
-    hash: e => e?.imprint?.hash || e?.hash,
-  }) || n.enemies?.[0];
-  if(enemy) {
-    const p = Player.get();
-    NetRef().startBattle(n.id, [
-      { tipo:'player', id:p.id, name:p.name, hp:p.hp, maxHp:p.maxHp, atk:Player.getAtk(), def:Player.getDef(), nodeId:n.id, playerId:p.id, vivo:true },
-      { tipo:'enemy', id:enemy.id, name:enemy.nombre, hp:enemy.hp_current||enemy.hp, maxHp:enemy.hp, atk:enemy.atk, def:enemy.def||0, nodeId:n.id, tags:enemy.tags||[], vivo:true, imprint:enemy.imprint||null, hash:enemy.hash||null },
-    ]);
-    return;
-  }
-
-  const creature = pickTarget(qn, n.creatures || [], {
-    name: c => c?.nombre,
-    id:   c => c?.id,
-    hash: c => c?.imprint?.hash || c?.hash,
-  }) || n.creatures?.[0];
-  if(!creature) { Out.line(q?`No hay "${q}" aquí.`:'No hay enemigos o criaturas aquí.', 't-dim'); return; }
-  const p = Player.get();
-  NetRef().startBattle(n.id, [
-    { tipo:'player', id:p.id, name:p.name, hp:p.hp, maxHp:p.maxHp, atk:Player.getAtk(), def:Player.getDef(), nodeId:n.id, playerId:p.id, vivo:true },
-    { tipo:'creature', id:creature.id, name:creature.nombre, hp:creature.hp_current||creature.hp, maxHp:creature.maxHp||creature.hp, atk:creature.atk||4, def:creature.def||0, nodeId:n.id, tags:creature.tags||[], vivo:true, _cre_ref:creature, imprint:creature.imprint||null, hash:creature.hash||null },
-  ]);
-}
-
-
-function cmdExaminar(q) {
-  if(!q) { cmdEstado(); return; }
-  const npc = findNPC(q);
-  if(npc) { cmdObservar(q); return; }
-  const item = Player.findItem(q);
-  if(item) {
-    const nombre = item.nombre || item.blueprint || 'objeto';
-    const tipo = item.tipo || item.categoria || 'desconocido';
-    const pares = [
-      ['Blueprint', item.blueprint],
-      ['ID', item.id],
-      ['Tipo', tipo],
-      ['Categoría', item.categoria],
-      ['Estado', item.estado],
-      ['Raridad', item.raridad],
-      ['Slot', item.slot || item.slot_preferido],
-      ['ATK', item.atk],
-      ['DEF', item.def],
-      ['Poder', item.poder],
-      ['Crit', item.crit],
-      ['Evasión', item.evasion],
-      ['Valor', item.valor],
-      ['Efecto', item.efecto],
-      ['Elemento', item.elemento],
-      ['Duración', item.dur],
-      ['Durabilidad', item.durabilidad != null ? `${item.durabilidad}%` : null],
-      ['Cargas', (item.cargas != null || item.cargas_max != null) ? `${item.cargas ?? '?'} / ${item.cargas_max ?? '?'}` : null],
-      ['Fragilidad', item.fragilidad != null ? `${item.fragilidad}%` : null],
-      ['NPC origen', item.npc_origen],
-      ['Forjado', item.forjado ? 'sí' : null],
-    ].filter(([, v]) => v != null && String(v).trim() !== '');
-
-    Out.sp();
-    Out.line(`— EXAMINAR OBJETO: ${nombre} —`, 't-out', true);
-    if(item.desc) Out.line(item.desc, 't-dim');
-    else Out.line('Sin descripción.', 't-dim');
-
-    pares.forEach(([k, v]) => Out.line(`  ${k}: ${v}`, 't-out'));
-
-    if(Array.isArray(item.tags) && item.tags.length) {
-      Out.line(`  Tags: ${item.tags.join(', ')}`, 't-cra');
-    }
-
-    if(item.efecto_accesorio?.stat || item.efecto_accesorio?.valor != null) {
-      const ea = item.efecto_accesorio;
-      Out.line(`  Efecto accesorio: ${ea.stat || '—'}${ea.valor != null ? ` +${ea.valor}` : ''}`, 't-mag');
-    }
-
-    if(item._elemento_temporal) {
-      const durEl = item._elemento_dur != null ? ` (${item._elemento_dur} uso${item._elemento_dur===1?'':'s'})` : '';
-      Out.line(`  Infusión temporal: ${item._elemento_temporal}${durEl}`, 't-mag');
-    }
-
-    if(item.imprint) {
-      Out.line(`  Impronta: #${item.imprint.hash || '—'}`, 't-dim');
-      if(item.imprint.tension != null) Out.line(`  Tensión de impronta: ${((item.imprint.tension||0)*100).toFixed(0)}%`, 't-dim');
-      if(item.imprint.seed != null) Out.line(`  Seed: ${item.imprint.seed}`, 't-dim');
-      if(item.imprint.mutations?.length) Out.line(`  Mutaciones: ${item.imprint.mutations.join(', ')}`, 't-dim');
-      else Out.line('  Mutaciones: —', 't-dim');
-    }
-
-    const extras = Object.keys(item)
-      .filter(k => ![
-        'id','blueprint','nombre','tipo','categoria','estado','raridad','slot','slot_preferido',
-        'atk','def','poder','crit','evasion','valor','efecto','elemento','dur','durabilidad',
-        'cargas','cargas_max','fragilidad','npc_origen','forjado','desc','tags','efecto_accesorio',
-        '_elemento_temporal','_elemento_dur','imprint'
-      ].includes(k))
-      .sort();
-    if(extras.length) Out.line(`  Extras: ${extras.join(', ')}`, 't-dim');
-    Out.sp();
-    return;
-  }
-  Out.line(`No encuentras "${q}".`,'t-dim');
-}
+// cmdAtacar/cmdExaminar migrados a plugins/plugin-battle-engine.js (C2)
 
 function cmdEstado() {
   const p = Player.get(); const c = Clock.get(); const n = World.node(Player.pos());
@@ -845,48 +602,11 @@ function cmdLegados() {
   Out.sp();
 }
 
-// ── CRIATURAS ─────────────────────────────────────────────────
-function cmdCompañeros() {
-  const comps = Player.get().ext?.compañeros || Player.get().compañeros || [];
-  const max   = Player.getSlot?.('compañeros') || Player.maxComp?.() || 1;
-  Out.sp(); Out.line(`— COMPAÑEROS (${comps.length}/${max}) —`, 't-cri');
-  if(!comps.length){Out.line('Sin compañeros vinculados.','t-dim');Out.sp();return;}
-  comps.forEach(c=>{Out.line(`  ${c.nombre}  [${c.arquetipo}]  HP:${c.hp}/${c.maxHp}  ATK:${c.atk}  modo:${c.modo||'activo'}`, 't-cri');Out.line(`    Tags: ${c.tags?.join(', ')||'—'}  Afinidad:${c.afinidad||0}%`,'t-dim');});
-  Out.sp();
-}
+// ── CRIATURAS migradas a plugins/plugin-criaturas.js (C2) ────
+// Las globales cmdCompañeros/Capturar/Liberar/Modo/NombrarComp/Criar/
+// Anclas/Vincular viven ahora en plugin-criaturas con la misma API
+// publica via CommandRegistry.
 
-function cmdCapturar(q) {
-  const n = World.node(Player.pos()); if(!n) return;
-  const creature = pickTarget(q, n.creatures || [], {
-    name: c => `${c?.nombre||''} ${c?.arquetipo||''}`.trim(),
-    id:   c => c?.id,
-    hash: c => c?.imprint?.hash || c?.hash,
-  }) || n.creatures?.[0];
-  if(!creature) { Out.line(q?`No hay criatura "${q}" aquí.`:'No hay criaturas aquí.','t-dim'); return; }
-  const p = Player.get();
-  const comps = p.ext?.compañeros || p.compañeros || [];
-  const maxComp = Player.getSlot?.('compañeros') || Player.maxComp?.() || 1;
-  if(comps.length >= maxComp) { Out.line(`Slots de compañeros llenos (${comps.length}/${maxComp}).`,'t-dim'); return; }
-  Out.sp();
-  Out.line(`Intentas capturar a ${creature.nombre}  [${creature.arquetipo}]`, 't-cri', true);
-  Out.line(`Voluntad: ${creature.voluntad||50}  HP: ${creature.hp}/${creature.maxHp}`, 't-dim');
-  const anclasDef = D.creatures[creature.arquetipo]?.anclas || [];
-  const ancla     = p.inventory.find(i=>anclasDef.includes(i.blueprint)&&(i.categoria==='ancla'||D.mat(i.blueprint)?.categoria==='ancla'));
-  if(!ancla && anclasDef.length) Out.line(`Necesitas un ancla compatible: ${anclasDef.join(', ')}`,'t-dim');
-  Out.line('Debilítala a < 30% HP y usa "vincular [ancla]".', 't-dim');
-  const battleCreature = { ...creature, hp_current: creature.hp_current || creature.hp || creature.maxHp };
-  NetRef().startBattle(n.id, [
-    { tipo:'player', id:p.id, name:p.name, hp:p.hp, maxHp:p.maxHp, atk:Player.getAtk(), def:Player.getDef(), nodeId:n.id, playerId:p.id, vivo:true },
-    { tipo:'creature', id:battleCreature.id, name:battleCreature.nombre, hp:battleCreature.hp_current, maxHp:battleCreature.maxHp||battleCreature.hp, atk:battleCreature.atk||4, def:battleCreature.def||0, nodeId:n.id, tags:battleCreature.tags||[], vivo:true, _cre_ref:creature, imprint:battleCreature.imprint||null, hash:battleCreature.hash||null },
-  ]);
-}
-
-function cmdLiberar(q) { const comps=Player.get().ext?.compañeros||Player.get().compañeros||[]; const c=comps.find(x=>x.nombre.toLowerCase().includes((q||'').toLowerCase())); if(!c){Out.line('Compañero no encontrado.','t-dim');return;} if(Player.get().ext?.compañeros)Player.get().ext.compañeros=Player.get().ext.compañeros.filter(x=>x!==c); else if(Player.get().compañeros)Player.get().compañeros=Player.get().compañeros.filter(x=>x!==c); c.estado='libre'; const n=World.node(Player.pos()); if(n){n.creatures=n.creatures||[];n.creatures.push(c);} Out.line(`${c.nombre} vuelve a ser libre.`,'t-cri'); refreshStatus();save(); }
-function cmdModo(cQ, modo) { const comps=Player.get().ext?.compañeros||Player.get().compañeros||[]; const c=comps.find(x=>x.nombre.toLowerCase().includes((cQ||'').toLowerCase())); if(!c){Out.line('Compañero no encontrado.','t-dim');return;} const modos=['activo','caza','defensivo','autónomo','latente']; if(!modos.includes(modo)){Out.line(`Modos: ${modos.join(', ')}`,'t-dim');return;} c.modo=modo; Out.line(`${c.nombre} → modo ${modo}`,'t-cri'); save(); }
-function cmdNombrarComp(cQ, nuevoNombre) { const comps=Player.get().ext?.compañeros||Player.get().compañeros||[]; const c=comps.find(x=>x.nombre.toLowerCase().includes((cQ||'').toLowerCase())); if(!c||!nuevoNombre){Out.line('nombrar [comp] [nombre]','t-dim');return;} c.nombre=nuevoNombre.trim().slice(0,24); Out.line(`${c.nombre} nombrado.`,'t-cri'); save(); }
-function cmdCriar(aQ, bQ) { const comps=Player.get().ext?.compañeros||Player.get().compañeros||[]; const cA=comps.find(x=>x.nombre.toLowerCase().includes((aQ||'').toLowerCase())); const cB=comps.find(x=>x!==cA&&x.nombre.toLowerCase().includes((bQ||'').toLowerCase())); if(!cA||!cB){Out.line('Necesitas dos compañeros diferentes.','t-dim');return;} Out.sp(); Out.line(`Crianza: ${cA.nombre} + ${cB.nombre}`,'t-cri',true); EventBus.emit('creature:breed_result',{parentA:cA,parentB:cB,player:Player.get()}); save(); }
-function cmdAnclas() { Out.sp(); Out.line('— ANCLAS —','t-cri'); const anclas=Player.get().inventory.filter(i=>i.categoria==='ancla'||D.mat(i.blueprint)?.categoria==='ancla'); anclas.forEach(a=>Out.line(`  ${a.nombre||a.blueprint}  Tags:${a.tags?.join(',')||D.matTags(a.blueprint).join(',')}`, 't-cri')); if(!anclas.length)Out.line('Sin anclas. Búscalas en el mapa o fórjalas.','t-dim'); Out.sp(); const n=World.node(Player.pos()); if(n?.creatures?.length){Out.line('Criaturas aquí:','t-cri');n.creatures.forEach(c=>{const reqs=D.creatures[c.arquetipo]?.anclas||[];Out.line(`  ${c.nombre}  [${c.arquetipo}]  requiere: ${reqs.join(', ')||'ninguna'}  HP:${c.hp}/${c.maxHp}`,'t-cri');});}Out.sp(); }
-function cmdVincular(q, battle) { if(battle){const cre=battle.cola.find(c=>c.tipo==='creature'&&c.vivo&&(!q||c.name.toLowerCase().includes((q||'').toLowerCase())));if(!cre){Out.line('No hay criatura capturble aquí.','t-dim');return;}if(cre.hp/cre.maxHp>0.3){Out.line(`${cre.name} tiene mucha vitalidad (${Math.round(cre.hp/cre.maxHp*100)}%). Debilítala bajo 30%.`,'t-dim');return;}cmdCapturar(cre.name);}else{cmdCapturar(q);} }
 
 // ── MAGIA / HABILIDADES (fallback si plugins no cargados) ─────
 function _cmdHabilidadesBasic() { const h=Player.get().habilidades||[]; const max=Player.maxHab?.()|| 3; Out.sp(); Out.line(`— HABILIDADES (${h.length}/${max}) —`,'t-hab'); if(!h.length){Out.line('Ninguna.','t-dim');Out.sp();return;} h.forEach(x=>{Out.line(`  ${x.nombre||x.id}  [${x.efecto}]  val:${x.valor||'—'}`,'t-hab');if(x.desc)Out.line(`    ${x.desc}`,'t-dim');}); Out.sp(); }
@@ -1229,6 +949,34 @@ if(typeof ServiceRegistry !== 'undefined') {
     if(typeof Player === 'undefined' || typeof Player._recalcResonancias !== 'function') return false;
     Player._recalcResonancias();
     return true;
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.player.damage', (amount=0, source=null) => {
+    if(typeof Player === 'undefined' || typeof Player.damage !== 'function') return 0;
+    return Number(Player.damage(amount, source)) || 0;
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.player.add_hab', (hab) => {
+    if(typeof Player === 'undefined') return false;
+    return typeof Player.addHab === 'function' ? !!Player.addHab(hab) : false;
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.player.add_mag', (mag) => {
+    if(typeof Player === 'undefined') return false;
+    return typeof Player.addMag === 'function' ? !!Player.addMag(mag) : false;
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.player.remove_hab', (id) => {
+    if(typeof Player === 'undefined') return false;
+    return typeof Player.rmHab === 'function' ? !!Player.rmHab(id) : false;
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.player.remove_mag', (id) => {
+    if(typeof Player === 'undefined') return false;
+    return typeof Player.rmMag === 'function' ? !!Player.rmMag(id) : false;
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.player.find_hab', (q='') => {
+    if(typeof Player === 'undefined') return null;
+    return typeof Player.findHab === 'function' ? Player.findHab(q) : null;
+  }, { pluginId:'core', version:'0.1.0' });
+  ServiceRegistry.register('runtime.player.find_mag', (q='') => {
+    if(typeof Player === 'undefined') return null;
+    return typeof Player.findMag === 'function' ? Player.findMag(q) : null;
   }, { pluginId:'core', version:'0.1.0' });
   ServiceRegistry.register('runtime.world.all', () => {
     if(typeof World === 'undefined' || typeof World.all !== 'function') return {};

@@ -63,6 +63,34 @@ function _playerRecalcResonances() {
   const fn = _svc('runtime.player.recalc_resonances');
   if(typeof fn === 'function') fn();
 }
+function _playerDamage(amount=0, source=null) {
+  const fn = _svc('runtime.player.damage');
+  return typeof fn === 'function' ? (Number(fn(amount, source)) || 0) : 0;
+}
+function _playerAddHab(hab) {
+  const fn = _svc('runtime.player.add_hab');
+  return typeof fn === 'function' ? !!fn(hab) : false;
+}
+function _playerAddMag(mag) {
+  const fn = _svc('runtime.player.add_mag');
+  return typeof fn === 'function' ? !!fn(mag) : false;
+}
+function _playerRemoveHab(id) {
+  const fn = _svc('runtime.player.remove_hab');
+  return typeof fn === 'function' ? !!fn(id) : false;
+}
+function _playerRemoveMag(id) {
+  const fn = _svc('runtime.player.remove_mag');
+  return typeof fn === 'function' ? !!fn(id) : false;
+}
+function _playerFindHab(q='') {
+  const fn = _svc('runtime.player.find_hab');
+  return typeof fn === 'function' ? fn(q) : null;
+}
+function _playerFindMag(q='') {
+  const fn = _svc('runtime.player.find_mag');
+  return typeof fn === 'function' ? fn(q) : null;
+}
 
 // ── World ─────────────────────────────────────────────────────────
 function _worldAll() {

@@ -270,6 +270,218 @@
     _saveGame();
   }
 
+  // ── Selector de NPC (extraido de systems/commands.js findNPC/pickTarget) ──
+  function _normTarget(q) {
+    return String(q || '').toLowerCase().replace(/_/g, ' ').trim();
+  }
+  function _targetHash(o) {
+    const raw = String(o?.imprint?.hash || o?.hash || o?.id || '').trim();
+    return raw ? raw.slice(0, 6).toUpperCase() : '';
+  }
+  function _pickNpcByQuery(q, list) {
+    const query = _normTarget(q);
+    if(!list?.length) return null;
+    if(!query) return list[0] || null;
+    const scored = list.map(t => {
+      const name = String(t?.nombre || '').toLowerCase();
+      const id   = String(t?.id || '').toLowerCase();
+      const hash = String(t?.imprint?.hash || t?.hash || '').toLowerCase();
+      const qh   = query.replace(/^#/, '');
+      const short = hash ? hash.slice(0, 6) : '';
+      let score = 0;
+      if(id && id === query) score = 1000;
+      else if(hash && hash === qh) score = 900;
+      else if(short && short === qh) score = 875;
+      else if(name === query) score = 850;
+      else if(id && id.startsWith(query)) score = 760;
+      else if(name.startsWith(query)) score = 700;
+      else if(name.includes(query)) score = 600 - Math.max(0, name.indexOf(query));
+      return { t, score };
+    }).filter(x => x.score > 0);
+    if(!scored.length) return null;
+    scored.sort((a, b) => b.score - a.score);
+    return scored[0].t;
+  }
+  function _findNpcEnNodo(q) {
+    if(!q) return null;
+    return _pickNpcByQuery(q, _gsNPCEnNodo(_playerPos())) || null;
+  }
+  function _findNpcMundo(q) {
+    if(!q) return null;
+    return _pickNpcByQuery(q, _aliveNPCs()) || null;
+  }
+  function _npcNoAqui(q) {
+    const en = _findNpcMundo(q);
+    if(en) {
+      const nodo = _worldNode(en.nodeId);
+      _line(`${en.nombre} no está aquí.${nodo ? ' Está en ' + nodo.name + ' [' + nodo.tipo + '].' : ''}`, 't-dim');
+    } else {
+      _line(`No hay nadie llamado "${q}" en este nodo.`, 't-dim');
+      const aqui = _gsNPCEnNodo(_playerPos());
+      if(aqui.length) _line(`Aquí: ${aqui.map(n => n.nombre).join(', ')}`, 't-dim');
+    }
+  }
+
+  // ── Handlers narrativos (migrados de systems/commands.js en C2) ──
+  function _cmdHablar(q) {
+    const npc = _findNpcEnNodo(q);
+    if(!npc) { _npcNoAqui(q); return; }
+    _sp(); _sep('─');
+    const dialogo = (_svc('runtime.npc.dialogue')?.(npc, []) ?? '');
+    _line(dialogo, 't-npc', true);
+    const res = _svc('runtime.npc.interact')?.(npc);
+    if(res) { _sp(); _line(res.texto, res.tipo === 'secreto' ? 't-cor' : 't-twi', true); }
+    _npcCheckTwistsLocal(npc).forEach(t => {
+      _gsAddTwist(t);
+      _xpGanar('narrativa', 60, 'plot twist');
+      _sp(); _sep('═');
+      _line(`⟁ REVELACIÓN — ${t.titulo}`, 't-twi', true);
+      _line(t.texto, 't-out');
+      _sep('═');
+    });
+    const misNPC = _allMisiones().filter(m => m.npc_id === npc.id && !m.completada && !m.fallida);
+    if(!misNPC.length && U.chance(0.55)) {
+      const m = _svc('runtime.npc.gen_mission')?.(npc, _aliveNPCs(), _memoryEcos());
+      if(m) {
+        _gsAddMision(m);
+        _sp();
+        _line(`◈ MISIÓN — "${m.titulo}"`, 't-mis', true);
+        _line(m.desc, 't-out');
+        _line(`Recompensa: ${m.recompensa}`, 't-dim');
+        _line('"aceptar" o "rechazar"', 't-dim');
+      }
+    } else if(misNPC.length) {
+      _line(`◈ Misión activa: "${misNPC[0].titulo}"`, 't-mis');
+    }
+    const arcTry = _svc('runtime.arc.try_generate');
+    if(typeof arcTry === 'function') arcTry(npc);
+    _sep('─'); _sp(); _saveGame();
+  }
+
+  function _cmdPreguntar(npcQ, tema) {
+    const npc = _findNpcEnNodo(npcQ);
+    if(!npc) { _npcNoAqui(npcQ); return; }
+    _sp(); _sep('─');
+    const t = String(tema || '').toLowerCase();
+    if(t.includes('secreto') || t.includes('verdad')) {
+      if(npc.lealtad > 50) { _line(`${npc.nombre}: "${npc.secreto}"`, 't-npc', true); npc.secreto_expuesto = true; }
+      else _line(`${npc.nombre} desvía la mirada.`, 't-dim');
+    } else if(t.includes('miedo')) {
+      if(npc.lealtad > 40) { _line(`${npc.nombre}: "${npc.miedo}."`, 't-npc', true); npc.fragmentos.push('miedo'); }
+      else _line('No responde eso.', 't-dim');
+    } else if(t.includes('deseo') || t.includes('quiere')) {
+      _line(`${npc.nombre}: "${npc.deseo}."`, 't-npc', true);
+      npc.fragmentos.push('deseo');
+    } else if(t.includes('pasado') || t.includes('trauma')) {
+      if(npc.lealtad > 60) { _line(`${npc.nombre}: "${npc.trauma}."`, 't-npc', true); npc.fragmentos.push('trauma'); }
+      else _line('Sacude la cabeza.', 't-dim');
+    } else if(t.includes('anterior') || t.includes('ciclo')) {
+      const ecos = _memoryEcos();
+      if(ecos.length && npc.eco_run_id) {
+        const e = ecos.find(x => x.run_id === npc.eco_run_id) || ecos[0];
+        _line(`${npc.nombre}: "Hubo alguien. ${e.nombre}. No sobrevivió."`, 't-npc', true);
+      } else {
+        _line(`${npc.nombre}: "Antes que tú, solo siluetas."`, 't-npc');
+      }
+    } else if(t.includes('vínculo') || t.includes('relación')) {
+      if(npc.vinculos.length) _line(`${npc.nombre}: "${npc.vinculos[0].historia}"`, 't-npc', true);
+      else _line(`${npc.nombre}: "No hay nadie más en esta historia."`, 't-npc');
+    } else {
+      _line(`${npc.nombre}: "No tengo respuesta simple."`, 't-npc', true);
+    }
+    _sep('─'); _sp(); _saveGame();
+  }
+
+  function _cmdObservar(q) {
+    const npc = _findNpcEnNodo(q);
+    if(!npc) { _npcNoAqui(q); return; }
+    _sp();
+    _line(`— OBSERVACIÓN: ${npc.nombre} —`, 't-acc');
+    const obs = _svc('runtime.npc.observe')?.(npc) || [];
+    obs.forEach((o, i) => {
+      const col = i === 0 ? 't-npc' : (npc.arq_ocu_expuesto && i > 3 ? 't-twi' : 't-dim');
+      _line(o, col);
+    });
+    _sp();
+  }
+
+  function _cmdTraicionar(q) {
+    const npc = _findNpcEnNodo(q);
+    if(!npc) { _npcNoAqui(q); return; }
+    _sp(); _sep('═');
+    _line(`TRAICIÓN — ${npc.nombre}`, 't-twi', true);
+    npc.lealtad = 0;
+    npc.desesperacion = U.clamp(npc.desesperacion + 30, 0, 100);
+    const hostiles = D.npcs?.arquetipos_hostiles || [];
+    if(hostiles.includes(npc.arq_ocu) || npc.desesperacion > 80) {
+      npc.estado = 'hostil';
+      _line(`${npc.nombre}: "Lo recordaré."`, 't-npc');
+      _allMisiones().filter(m => m.npc_id === npc.id && !m.completada).forEach(m => { m.fallida = true; });
+    } else {
+      _line(`${npc.nombre} no dice nada. Eso es peor.`, 't-npc');
+    }
+    const facHook = _svc('runtime.faction.on_traicion');
+    if(typeof facHook === 'function') facHook(npc);
+    else if(typeof FactionSystem !== 'undefined' && typeof FactionSystem.onTraicion === 'function') FactionSystem.onTraicion(npc);
+    _sep('═'); _sp(); _saveGame();
+  }
+
+  function _cmdNPCs() {
+    _sp(); _line('— PERSONAS DEL MUNDO —', 't-acc');
+    const todos = _gsAllNPCs();
+    if(!todos.length) { _line('Nadie encontrado.', 't-dim'); return; }
+    const pos = _playerPos();
+    const vivos = todos.filter(n => ['vivo', 'sometido', 'hostil'].includes(n.estado));
+    vivos.forEach(npc => {
+      const aqui = npc.nodeId === pos;
+      const nodo = _worldNode(npc.nodeId);
+      _line(`  ${npc.nombre}  #${_targetHash(npc) || '—'}  [${npc.arq_vis}]${npc.estado !== 'vivo' ? ' [' + npc.estado.toUpperCase() + ']' : ''}  ${aqui ? '← AQUÍ' : (nodo?.name || '?')}  Leal:${npc.lealtad}`, aqui ? 't-npc' : 't-dim');
+      if(npc.arq_ocu_expuesto) _line(`       Real: ${npc.arq_ocu.toUpperCase()}`, 't-twi');
+    });
+    const perdidos = todos.filter(n => !['vivo', 'sometido', 'hostil'].includes(n.estado));
+    if(perdidos.length) {
+      _sp();
+      _line('Perdidos:', 't-pel');
+      perdidos.forEach(n => _line(`  ✝ ${n.nombre} #${_targetHash(n) || '—'} [${n.arq_vis}] ${n.estado.toUpperCase()}`, 't-pel'));
+    }
+    _sp();
+  }
+
+  function _cmdMisiones() {
+    _sp(); _line('— MISIONES —', 't-acc');
+    const all = _allMisiones();
+    const act = all.filter(m => !m.completada && !m.fallida);
+    const ok  = all.filter(m => m.completada);
+    const fail = all.filter(m => m.fallida);
+    if(act.length) {
+      _line('ACTIVAS:', 't-mis');
+      act.forEach(m => {
+        _line(`  ◈ ${m.id}  "${m.titulo}"  [${m.tipo}]${m.aceptada ? ' ✓' : ''}${m.es_imposible ? ' [IMP]' : ''}${m.es_trampa ? ' [?]' : ''}`, 't-mis');
+        _line(`    ${m.desc}`, 't-dim');
+        _line(`    → ${m.consecuencia_fallo}`, 't-dim');
+      });
+    }
+    if(ok.length)   _line(`Completadas: ${ok.map(m => '"' + m.titulo + '"').join(', ')}`, 't-cra');
+    if(fail.length) _line(`Fallidas: ${fail.map(m => '"' + m.titulo + '"').join(', ')}`, 't-pel');
+    if(!act.length && !ok.length) _line('Sin misiones. Habla con los NPCs.', 't-dim');
+    _sp();
+  }
+
+  function _cmdLegados() {
+    _sp(); _line('— ECOS DE RUNS ANTERIORES —', 't-eco');
+    const ecos = _memoryEcos();
+    if(!ecos.length) {
+      _line('Primera run. El mundo no recuerda nada todavía.', 't-dim');
+      _sp();
+      return;
+    }
+    ecos.forEach(e => {
+      _line(`  ${e.nombre}  ·  ${e.ciclos} ciclos  ·  ${e.muerte?.causa || '—'}  [${e.muerte?.phase || '—'}]`, 't-eco');
+      if(e.legados?.length) e.legados.forEach(l => _line(`    · ${l.desc}`, 't-dim'));
+    });
+    _sp();
+  }
+
   function _cmdCompletarMision(q) {
     const m = _findMisionLocal(q);
     if(!m) { _line(`"${q}" no encontrada.`, 't-dim'); return; }
@@ -332,17 +544,18 @@
       'runtime.npc.despair': (npc) => api().consecuenciaDesperación(npc),
     },
     comandos: {
-      'npcs':      { fn: ()    =>{ if(typeof cmdNPCs==='function')      cmdNPCs(); },                           meta:{ titulo:'npcs',                  color:'t-npc', desc:'Ver todas las personas del mundo con estado y localización.' } },
-      'personas':  { fn: ()    =>{ if(typeof cmdNPCs==='function')      cmdNPCs(); },                           meta:{ titulo:'personas (alias npcs)', color:'t-npc', desc:'Ver personas del mundo.' } },
-      'hablar':    { fn: (args)=>{ if(typeof cmdHablar==='function')    cmdHablar(args.join(' ')); },           meta:{ titulo:'hablar [npc]',           color:'t-npc', desc:'Iniciar diálogo con un NPC del nodo.' } },
-      'preguntar': { fn: (args)=>{ if(typeof cmdPreguntar==='function') cmdPreguntar(args[0], args.slice(1).join(' ')); }, meta:{ titulo:'preguntar [npc] [tema]', color:'t-npc', desc:'Preguntar a un NPC sobre un tema (secreto, miedo, deseo...).' } },
-      'observar':  { fn: (args)=>{ if(typeof cmdObservar==='function')  cmdObservar(args.join(' ')); },         meta:{ titulo:'observar [npc]',         color:'t-npc', desc:'Observar el arquetipo y rasgos ocultos de un NPC.' } },
-      'traicionar':{ fn: (args)=>{ if(typeof cmdTraicionar==='function') cmdTraicionar(args.join(' ')); },      meta:{ titulo:'traicionar [npc]',       color:'t-twi', desc:'Traicionar a un NPC, perdiendo su lealtad.' } },
-      'misiones':  { fn: ()    =>{ if(typeof cmdMisiones==='function')  cmdMisiones(); },                       meta:{ titulo:'misiones',               color:'t-mis', desc:'Ver misiones activas, completadas y fallidas.' } },
-      'mis':       { fn: ()    =>{ if(typeof cmdMisiones==='function')  cmdMisiones(); },                       meta:{ titulo:'mis (alias misiones)',   color:'t-mis', desc:'Ver misiones.' } },
-      'aceptar':   { fn: (args)=>_cmdAceptarMision(args.join(' ')),    meta:{ titulo:'aceptar [id]',   color:'t-mis', desc:'Aceptar una misión pendiente.' } },
-      'rechazar':  { fn: (args)=>_cmdRechazarMision(args.join(' ')),   meta:{ titulo:'rechazar [id]',  color:'t-pel', desc:'Rechazar una misión (consecuencias narrativas).' } },
-      'completar': { fn: (args)=>_cmdCompletarMision(args.join(' ')),  meta:{ titulo:'completar [id]', color:'t-cra', desc:'Marcar una misión como completada y recibir recompensas.' } },
+      'npcs':      { fn: ()    =>_cmdNPCs(),                            meta:{ titulo:'npcs',                  color:'t-npc', desc:'Ver todas las personas del mundo con estado y localización.' } },
+      'personas':  { fn: ()    =>_cmdNPCs(),                            meta:{ titulo:'personas (alias npcs)', color:'t-npc', desc:'Ver personas del mundo.' } },
+      'hablar':    { fn: (args)=>_cmdHablar(args.join(' ')),            meta:{ titulo:'hablar [npc]',          color:'t-npc', desc:'Iniciar diálogo con un NPC del nodo.' } },
+      'preguntar': { fn: (args)=>_cmdPreguntar(args[0], args.slice(1).join(' ')), meta:{ titulo:'preguntar [npc] [tema]', color:'t-npc', desc:'Preguntar a un NPC sobre un tema (secreto, miedo, deseo...).' } },
+      'observar':  { fn: (args)=>_cmdObservar(args.join(' ')),          meta:{ titulo:'observar [npc]',        color:'t-npc', desc:'Observar el arquetipo y rasgos ocultos de un NPC.' } },
+      'traicionar':{ fn: (args)=>_cmdTraicionar(args.join(' ')),        meta:{ titulo:'traicionar [npc]',      color:'t-twi', desc:'Traicionar a un NPC, perdiendo su lealtad.' } },
+      'misiones':  { fn: ()    =>_cmdMisiones(),                        meta:{ titulo:'misiones',              color:'t-mis', desc:'Ver misiones activas, completadas y fallidas.' } },
+      'mis':       { fn: ()    =>_cmdMisiones(),                        meta:{ titulo:'mis (alias misiones)',  color:'t-mis', desc:'Ver misiones.' } },
+      'legados':   { fn: ()    =>_cmdLegados(),                         meta:{ titulo:'legados',               color:'t-eco', desc:'Ver ecos de runs anteriores.' } },
+      'aceptar':   { fn: (args)=>_cmdAceptarMision(args.join(' ')),     meta:{ titulo:'aceptar [id]',          color:'t-mis', desc:'Aceptar una misión pendiente.' } },
+      'rechazar':  { fn: (args)=>_cmdRechazarMision(args.join(' ')),    meta:{ titulo:'rechazar [id]',         color:'t-pel', desc:'Rechazar una misión (consecuencias narrativas).' } },
+      'completar': { fn: (args)=>_cmdCompletarMision(args.join(' ')),   meta:{ titulo:'completar [id]',        color:'t-cra', desc:'Marcar una misión como completada y recibir recompensas.' } },
     },
   };
 })(globalThis);

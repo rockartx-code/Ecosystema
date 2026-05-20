@@ -399,12 +399,161 @@ const pluginBattleEngine = (() => {
     _refreshStatus();
   }
 
+  // ── Selector de target (extraido de systems/commands.js pickTarget) ──
+  function _normTarget(q) { return String(q || '').toLowerCase().replace(/_/g, ' ').trim(); }
+  function _pickByQuery(q, list, getName, getId, getHash) {
+    const query = _normTarget(q);
+    if(!list?.length) return null;
+    if(!query) return list[0] || null;
+    const scored = list.map(t => {
+      const name  = String(getName?.(t) ?? t?.nombre ?? t?.name ?? '').toLowerCase();
+      const id    = String(getId?.(t) ?? t?.id ?? '').toLowerCase();
+      const hash  = String(getHash?.(t) ?? t?.imprint?.hash ?? t?.hash ?? '').toLowerCase();
+      const qh    = query.replace(/^#/, '');
+      const short = hash ? hash.slice(0, 6) : '';
+      let score = 0;
+      if(id && id === query) score = 1000;
+      else if(hash && hash === qh) score = 900;
+      else if(short && short === qh) score = 875;
+      else if(name === query) score = 850;
+      else if(id && id.startsWith(query)) score = 760;
+      else if(name.startsWith(query)) score = 700;
+      else if(name.includes(query)) score = 600 - Math.max(0, name.indexOf(query));
+      return { t, score };
+    }).filter(x => x.score > 0);
+    if(!scored.length) return null;
+    scored.sort((a, b) => b.score - a.score);
+    return scored[0].t;
+  }
+  function _npcCombatStatsLocal(npc) {
+    const fn = _svc('runtime.npc.combat_stats');
+    return typeof fn === 'function' ? (fn(npc) || { hp:20, atk:5, def:1 }) : { hp:20, atk:5, def:1 };
+  }
+  function _findNpcEnNodoLocal(q, nodeId) {
+    const fn = _svc('runtime.gs.npcs_in_node');
+    const list = typeof fn === 'function' ? (fn(nodeId) || []) : [];
+    return _pickByQuery(q, list, (n)=>n?.nombre, (n)=>n?.id, (n)=>n?.imprint?.hash || n?.hash);
+  }
+
+  // ── cmdAtacar (migrado de systems/commands.js en C2) ─────────
+  function _cmdAtacar(q) {
+    const p = _player();
+    if(!p) return;
+    const nodeId = _playerPos();
+    const n = _worldNode(nodeId);
+    if(!n) return;
+    const qn = _normTarget(q);
+    const { atk, def } = _playerCombatStats();
+
+    // 1) NPC
+    const npc = _findNpcEnNodoLocal(qn, nodeId);
+    if(npc) {
+      const stats = _npcCombatStatsLocal(npc);
+      startBattle(n.id, [
+        { tipo:'player', id:p.id, name:p.name, hp:p.hp, maxHp:p.maxHp, atk, def, nodeId:n.id, playerId:p.id, vivo:true },
+        { tipo:'npc',    id:npc.id, name:npc.nombre, hp:stats.hp, maxHp:stats.hp, atk:stats.atk, def:stats.def, nodeId:n.id, vivo:true, npc_ref:npc },
+      ]);
+      return;
+    }
+
+    // 2) Enemigo
+    const enemy = _pickByQuery(qn, n.enemies || [], (e)=>e?.nombre, (e)=>e?.id, (e)=>e?.imprint?.hash || e?.hash) || (n.enemies?.[0]);
+    if(enemy) {
+      startBattle(n.id, [
+        { tipo:'player', id:p.id, name:p.name, hp:p.hp, maxHp:p.maxHp, atk, def, nodeId:n.id, playerId:p.id, vivo:true },
+        { tipo:'enemy',  id:enemy.id, name:enemy.nombre, hp:enemy.hp_current||enemy.hp, maxHp:enemy.hp, atk:enemy.atk, def:enemy.def||0, nodeId:n.id, tags:enemy.tags||[], vivo:true, imprint:enemy.imprint||null, hash:enemy.hash||null },
+      ]);
+      return;
+    }
+
+    // 3) Criatura
+    const creature = _pickByQuery(qn, n.creatures || [], (c)=>c?.nombre, (c)=>c?.id, (c)=>c?.imprint?.hash || c?.hash) || (n.creatures?.[0]);
+    if(!creature) {
+      _line(q ? `No hay "${q}" aquí.` : 'No hay enemigos o criaturas aquí.', 't-dim');
+      return;
+    }
+    startBattle(n.id, [
+      { tipo:'player',   id:p.id, name:p.name, hp:p.hp, maxHp:p.maxHp, atk, def, nodeId:n.id, playerId:p.id, vivo:true },
+      { tipo:'creature', id:creature.id, name:creature.nombre, hp:creature.hp_current||creature.hp, maxHp:creature.maxHp||creature.hp, atk:creature.atk||4, def:creature.def||0, nodeId:n.id, tags:creature.tags||[], vivo:true, _cre_ref:creature, imprint:creature.imprint||null, hash:creature.hash||null },
+    ]);
+  }
+
+  // ── cmdExaminar (migrado, ruta fuera-de-combate; la in-combat la
+  //    maneja el dispatch en commands.js) ────────────────────────
+  function _cmdExaminar(q) {
+    if(!q) {
+      // Sin arg: delega al runtime.player.show_status si existe; si no,
+      // commands.js ya tiene un cmdEstado global como fallback.
+      const fn = _svc('runtime.player.show_status');
+      if(typeof fn === 'function') { fn(); return; }
+      return;
+    }
+    const npc = _findNpcEnNodoLocal(q, _playerPos());
+    if(npc) {
+      // Delega a la mismo handler de "observar" del plugin-npcs.
+      const obs = _svc('runtime.npc.observe')?.(npc) || [];
+      _sp(); _line(`— OBSERVACIÓN: ${npc.nombre} —`, 't-acc');
+      obs.forEach((o, i) => _line(o, i === 0 ? 't-npc' : (npc.arq_ocu_expuesto && i > 3 ? 't-twi' : 't-dim')));
+      _sp();
+      return;
+    }
+    const item = _playerFindItem(q);
+    if(!item) { _line(`No encuentras "${q}".`, 't-dim'); return; }
+    const nombre = item.nombre || item.blueprint || 'objeto';
+    const tipo   = item.tipo || item.categoria || 'desconocido';
+    const pares = [
+      ['Blueprint', item.blueprint], ['ID', item.id], ['Tipo', tipo],
+      ['Categoría', item.categoria], ['Estado', item.estado], ['Raridad', item.raridad],
+      ['Slot', item.slot || item.slot_preferido],
+      ['ATK', item.atk], ['DEF', item.def], ['Poder', item.poder],
+      ['Crit', item.crit], ['Evasión', item.evasion], ['Valor', item.valor],
+      ['Efecto', item.efecto], ['Elemento', item.elemento], ['Duración', item.dur],
+      ['Durabilidad', item.durabilidad != null ? `${item.durabilidad}%` : null],
+      ['Cargas', (item.cargas != null || item.cargas_max != null) ? `${item.cargas ?? '?'} / ${item.cargas_max ?? '?'}` : null],
+      ['Fragilidad', item.fragilidad != null ? `${item.fragilidad}%` : null],
+      ['NPC origen', item.npc_origen], ['Forjado', item.forjado ? 'sí' : null],
+    ].filter(([, v]) => v != null && String(v).trim() !== '');
+    _sp(); _line(`— EXAMINAR OBJETO: ${nombre} —`, 't-out', true);
+    _line(item.desc || 'Sin descripción.', 't-dim');
+    pares.forEach(([k, v]) => _line(`  ${k}: ${v}`, 't-out'));
+    if(Array.isArray(item.tags) && item.tags.length) _line(`  Tags: ${item.tags.join(', ')}`, 't-cra');
+    if(item.efecto_accesorio?.stat || item.efecto_accesorio?.valor != null) {
+      const ea = item.efecto_accesorio;
+      _line(`  Efecto accesorio: ${ea.stat || '—'}${ea.valor != null ? ` +${ea.valor}` : ''}`, 't-mag');
+    }
+    if(item._elemento_temporal) {
+      const durEl = item._elemento_dur != null ? ` (${item._elemento_dur} uso${item._elemento_dur === 1 ? '' : 's'})` : '';
+      _line(`  Infusión temporal: ${item._elemento_temporal}${durEl}`, 't-mag');
+    }
+    if(item.imprint) {
+      _line(`  Impronta: #${item.imprint.hash || '—'}`, 't-dim');
+      if(item.imprint.tension != null) _line(`  Tensión de impronta: ${((item.imprint.tension || 0) * 100).toFixed(0)}%`, 't-dim');
+      if(item.imprint.seed != null) _line(`  Seed: ${item.imprint.seed}`, 't-dim');
+      if(item.imprint.mutations?.length) _line(`  Mutaciones: ${item.imprint.mutations.join(', ')}`, 't-dim');
+      else _line('  Mutaciones: —', 't-dim');
+    }
+    const extras = Object.keys(item).filter(k => ![
+      'id','blueprint','nombre','tipo','categoria','estado','raridad','slot','slot_preferido',
+      'atk','def','poder','crit','evasion','valor','efecto','elemento','dur','durabilidad',
+      'cargas','cargas_max','fragilidad','npc_origen','forjado','desc','tags','efecto_accesorio',
+      '_elemento_temporal','_elemento_dur','imprint',
+    ].includes(k)).sort();
+    if(extras.length) _line(`  Extras: ${extras.join(', ')}`, 't-dim');
+    _sp();
+  }
+
   // ── API publica del plugin (servicios runtime.battle.* y aliases) ─
   return {
     id: 'plugin:battle-engine',
     nombre: 'Motor de Batalla',
     version: '1.0.0',
     descripcion: 'Maquina tactica extraida de net.js. Provee runtime.battle.* y gameplay.battle.*.',
+    comandos: {
+      'atacar':   { fn: (args)=>_cmdAtacar(args.join(' ')),   meta:{ titulo:'atacar [target]',   color:'t-pel', desc:'Inicia batalla contra NPC, enemigo o criatura del nodo.' } },
+      'a':        { fn: (args)=>_cmdAtacar(args.join(' ')),   meta:{ titulo:'a (alias atacar)',  color:'t-pel', desc:'Alias de atacar.' } },
+      'examinar': { fn: (args)=>_cmdExaminar(args.join(' ')), meta:{ titulo:'examinar [target]', color:'t-out', desc:'Examinar NPC, item o estado del jugador.' } },
+      'ex':       { fn: (args)=>_cmdExaminar(args.join(' ')), meta:{ titulo:'ex (alias examinar)', color:'t-out', desc:'Alias de examinar.' } },
+    },
     services: {
       // Contratos runtime.* (facade estable)
       'runtime.battle.start':   (nodeId, combatants=[]) => startBattle(nodeId, combatants),

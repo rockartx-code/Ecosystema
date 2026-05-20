@@ -186,6 +186,194 @@
     return global.__forgePluginApi;
   }
 
+  // ── Handlers de forja (migrados de systems/commands.js en C2) ────
+  // _player() viene de plugin-helpers.js; el inventario y equipo se
+  // mutan via referencia al objeto del jugador.
+  function _cmdForjar(args, modo) {
+    if(!args.length) {
+      _line('forjar [mat1] [mat2] ...', 't-dim');
+      _line('encarnar — sesga a habilidades  ·  conjurar — sesga a magias', 't-dim');
+      return;
+    }
+    const p = _player();
+    if(!p) return;
+    const used = [], ids = [];
+    for(const q of args) {
+      const item = (p.inventory || []).find(i => !used.includes(i.id) && (
+        i.blueprint?.toLowerCase().includes(q.toLowerCase()) ||
+        i.nombre?.toLowerCase().includes(q.toLowerCase())
+      ));
+      if(!item) { _line(`No tienes "${q}".`, 't-dim'); return; }
+      if(!['material', 'ancla'].includes(item.tipo) && item.categoria !== 'ancla') {
+        _line(`"${item.nombre || item.blueprint}" no es material forjable.`, 't-dim');
+        return;
+      }
+      used.push(item.id);
+      ids.push(item.blueprint);
+    }
+    if(ids.length < 2) { _line('Necesitas al menos 2 materiales.', 't-dim'); return; }
+    if(modo === 'corporal') {
+      const tagsCorp = ['tendón', 'nervio', 'hueso', 'sangre', 'tejido', 'médula'];
+      if(!ids.some(id => D.matTags(id).some(t => tagsCorp.includes(t)))) {
+        _line('Encarnar requiere material corporal.', 't-pel');
+        return;
+      }
+    }
+    if(modo === 'mágico') {
+      const tagsMag = ['resonante', 'corrupto', 'cristal', 'susurro', 'llama', 'vacío'];
+      if(!ids.some(id => D.matTags(id).some(t => tagsMag.includes(t)))) {
+        _line('Conjurar requiere material mágico.', 't-pel');
+        return;
+      }
+    }
+    const ctx = {
+      nodeId: _playerPos(),
+      cycle:  Number(_clockCurrent().cycle) || 0,
+      pid:    p.id,
+      modo,
+    };
+    const nodeEstado = _worldNode(ctx.nodeId)?.estado;
+    const phaseName  = _clockCurrent().name || '';
+    const res = api().Forge.forjar(ids, ctx, nodeEstado, phaseName, modo);
+    if(res?.cancelled) { _line('La forja fue cancelada.', 't-dim'); return; }
+    _clockTick(2);
+    EventBus.emit('player:tick', { player: p });
+    if(res?.colapso) {
+      _sp(); _line('⚠ COLAPSO DE FORJA', 't-pel', true);
+      _line(`Tensión: ${(res.tension * 100).toFixed(0)}%`, 't-cor');
+      const d = _playerDamage(U.rand(5, 15));
+      _line(`−${d} HP`, 't-pel');
+      used.forEach(id => _playerRemoveItem(id));
+      _refreshStatus(); _saveGame();
+      return;
+    }
+    const item = res.item;
+    used.forEach(id => _playerRemoveItem(id));
+    _sp();
+    const col = item.tipo === 'habilidad' ? 't-hab'
+              : item.tipo === 'magia'     ? 't-mag'
+              : item.tipo === 'mítico'    ? 't-cor'
+              : item.categoria === 'ancla' ? 't-cri' : 't-cra';
+    _line(`FORJA — ${res.rType.toUpperCase()}`, 't-acc', true);
+    _line(`${item.nombre}  [${item.tipo}]`, col);
+    if(item.atk)   _line(`ATK +${item.atk}`, 't-pel');
+    if(item.def)   _line(`DEF +${item.def}`, 't-sis');
+    if(item.hp)    _line(`Cura ${item.hp}HP`, 't-cra');
+    if(item.poder) _line(`Poder: ${item.poder}`, 't-mag');
+    if(item.desc)  _line(item.desc, 't-dim');
+    _line(`Tags: ${res.domTags.join(', ')}  #${item.imprint?.hash || '—'}`, 't-dim');
+    if(p.stats) p.stats.crafted = (p.stats.crafted || 0) + 1;
+    const xpForja = { arma:15, armadura:12, consumible:8, habilidad:30, magia:35, 'mítico':80, reliquia:20, ancla:12, colapso:5 };
+    _xpGanar('forja', xpForja[res.rType] || 10, `forja: ${res.rType}`);
+    if(item.tipo === 'habilidad') {
+      if(!_playerAddHab(item)) { _line('Slots llenos. En inventario.', 't-dim'); _playerAddItem(item); }
+      else _line('Habilidad encarnada.', 't-hab');
+    } else if(item.tipo === 'magia') {
+      if(!_playerAddMag(item)) { _line('Slots llenos. En inventario.', 't-dim'); _playerAddItem(item); }
+      else _line('Magia conjurada.', 't-mag');
+    } else {
+      _playerAddItem(item);
+    }
+    _sp(); _refreshStatus(); _saveGame();
+  }
+
+  function _cmdFusionar(args) {
+    if(args.length < 2) { _line('fusionar [id1] [id2] ...', 't-dim'); return; }
+    const p = _player();
+    if(!p) return;
+    const items = args.map(q => _playerFindItem(q) || _playerFindHab(q) || _playerFindMag(q)).filter(Boolean);
+    if(items.length < 2) { _line(`Solo encontré ${items.length} ítem(s).`, 't-dim'); return; }
+    const allTags = items.flatMap(i => i.tags || []);
+    const tension = api().Tags?.tension?.(allTags) || 0;
+    _sp(); _line('CONVERGENCIA — FUSIÓN', 't-cor', true);
+    _line(`Tensión: ${(tension * 100).toFixed(0)}%`, tension > 0.6 ? 't-pel' : 't-dim');
+    if(tension > 0.8) {
+      _line('Tensión demasiado alta. Colapso.', 't-pel');
+      items.forEach(i => { _playerRemoveItem(i.id); _playerRemoveHab(i.id); _playerRemoveMag(i.id); });
+      const d = _playerDamage(U.rand(10, 25));
+      _line(`−${d} HP`, 't-pel');
+      _refreshStatus(); _saveGame();
+      return;
+    }
+    const rng = U.rng(Date.now());
+    const pena = 1 - tension * 0.3;
+    const totalAtk   = Math.floor(items.reduce((s, i) => s + (i.atk || 0) + (i.valor || 0) * 0.5, 0) * pena);
+    const totalDef   = Math.floor(items.reduce((s, i) => s + (i.def || 0), 0) * pena);
+    const totalPoder = Math.floor(items.reduce((s, i) => s + (i.poder || 0), 0) * pena);
+    const muts = D.narrative?.mutaciones || [];
+    const tier = tension > 0.55 ? 'inestable' : (items.length >= 4 ? 'sublime' : 'estable');
+    const adj  = tier === 'inestable' ? ['Inestable', 'Corrupta', 'Fragmentada']
+               : tier === 'sublime'   ? ['Ascendida', 'Soberana', 'Arcana']
+               :                        ['Convergente', 'Primordial', 'Eterna'];
+    const nombre = `${U.pick(adj, rng)} ${muts.length ? U.pick(muts, rng) : 'Reliquia'}`;
+    const imp = api().Imprint?.gen?.('reliquia_viva', allTags, { nodeId: _playerPos(), cycle: Number(_clockCurrent().cycle) || 0, pid: p.id }, tension) || null;
+    const tieneHab = items.some(i => i.tipo === 'habilidad');
+    const tieneMag = items.some(i => i.tipo === 'magia');
+    const tipoResultado = (items.some(i => ['casco', 'guantes', 'peto', 'botas', 'accesorio'].includes(i.tipo)) && U.chance(0.45)) ? 'accesorio' : 'mítico';
+    const rel = {
+      id: U.uid(), blueprint: 'reliquia_viva', nombre,
+      tipo: tipoResultado, tags: allTags.slice(0, 6), imprint: imp,
+      estado: 'convergente', es_mitico: tipoResultado === 'mítico',
+      atk: totalAtk, def: totalDef, poder: totalPoder,
+      efecto_pasivo: tieneHab && tieneMag ? '+1_slot_magia'
+                   : tieneHab             ? 'atk_bonus'
+                   : tieneMag             ? 'mana_max'
+                   : null,
+      encantamientos: U.pickN(['filo espectral', 'piel de eco', 'núcleo vacío', 'chispa ancestral', 'trama umbral'], 1 + (items.length >= 4 ? 1 : 0), rng),
+      encarnaciones:  U.pickN(['eco del guardián', 'voz fractal', 'instinto antiguo', 'sombra binaria'], tension > 0.45 ? 2 : 1, rng),
+      desc: `Convergencia ${tier}. Tensión:${(tension * 100).toFixed(0)}%.`,
+    };
+    if(rel.tipo === 'accesorio') {
+      rel.raridad = tension > 0.5 ? 'legendario' : (items.length >= 4 ? 'épico' : 'raro');
+      const pool = [
+        { stat: 'atk', valor: 2 }, { stat: 'def', valor: 2 },
+        { stat: 'crit', valor: 5 }, { stat: 'evasion', valor: 5 },
+        { stat: 'mana_max', valor: 8 }, { stat: 'stamina_max', valor: 10 },
+      ];
+      rel.efecto_accesorio = U.pick(pool, rng);
+    }
+    items.forEach(i => { _playerRemoveItem(i.id); _playerRemoveHab(i.id); _playerRemoveMag(i.id); });
+    _playerAddItem(rel);
+    _xpGanar('forja', 60 + items.length * 10, 'fusión ontológica');
+    _xpGanar('mente', 30, 'convergencia');
+    _line(`${rel.nombre}  [${rel.tipo.toUpperCase()}]`, 't-cor', true);
+    if(rel.atk) _line(`ATK +${rel.atk}`, 't-pel');
+    if(rel.def) _line(`DEF +${rel.def}`, 't-sis');
+    if(rel.efecto_pasivo)    _line(`Efecto pasivo: ${rel.efecto_pasivo}`, 't-cor');
+    if(rel.efecto_accesorio) _line(`Accesorio: +${rel.efecto_accesorio.valor} ${rel.efecto_accesorio.stat}`, 't-mag');
+    _line(`Encantamientos: ${rel.encantamientos.join(', ')}`, 't-mag');
+    _line(`Encarnaciones: ${rel.encarnaciones.join(', ')}`, 't-hab');
+    _sp(); _refreshStatus(); _saveGame();
+  }
+
+  function _cmdRecetas() {
+    _sp(); _line('— GUÍA DE AFINIDADES —', 't-acc');
+    Object.entries(D.tagAff || {}).forEach(([k, v]) => {
+      _line(`  ${k.padEnd(28)} → ${v.resultado}  (${v.fuerza})`, 't-dim');
+    });
+    _sp(); _line('Tags opuestos:', 't-out');
+    (D.tagOpp || []).forEach(([a, b]) => _line(`  ${a} ↔ ${b}`, 't-dim'));
+    _sp();
+  }
+
+  function _cmdMateriales() {
+    _sp(); _line('— MATERIALES —', 't-acc');
+    const cats = {};
+    Object.entries(D.mats || {}).forEach(([id, m]) => {
+      const c = m.categoria || 'físico';
+      if(!cats[c]) cats[c] = [];
+      cats[c].push(id);
+    });
+    Object.entries(cats).forEach(([cat, ids]) => {
+      _line(cat, 't-acc');
+      ids.forEach(id => {
+        const m = D.mat(id);
+        _line(`  ${id.padEnd(24)} [${m?.tags?.join(',') || '—'}]`, 't-dim');
+      });
+    });
+    _sp();
+  }
+
   global.pluginForja = {
     id: 'plugin:forja',
     nombre: 'Sistema de Forja',
@@ -200,12 +388,12 @@
       'runtime.imprint.gen': (blueprint, materials = [], ctx = {}, tension = 0) => api().Imprint.gen(blueprint, materials, ctx, tension),
     },
     comandos: {
-      'forjar':     { fn: (args)=>{ if(typeof cmdForjar==='function')    cmdForjar(args); },           meta:{ titulo:'forjar [mat] [mat]',      color:'t-hab', desc:'Forja ítems combinando materiales.' } },
-      'encarnar':   { fn: (args)=>{ if(typeof cmdForjar==='function')    cmdForjar(args,'corporal'); }, meta:{ titulo:'encarnar [mat] [mat]',    color:'t-hab', desc:'Forja sesgada a habilidades corporales.' } },
-      'conjurar':   { fn: (args)=>{ if(typeof cmdForjar==='function')    cmdForjar(args,'mágico'); },   meta:{ titulo:'conjurar [mat] [mat]',    color:'t-mag', desc:'Forja sesgada a magias.' } },
-      'fusionar':   { fn: (args)=>{ if(typeof cmdFusionar==='function')  cmdFusionar(args); },          meta:{ titulo:'fusionar [id] [id]',      color:'t-cor', desc:'Fusiona ítems en una reliquia viva.' } },
-      'recetas':    { fn: ()    =>{ if(typeof cmdRecetas==='function')   cmdRecetas(); },               meta:{ titulo:'recetas',                 color:'t-dim', desc:'Ver guía de afinidades de tags.' } },
-      'materiales': { fn: ()    =>{ if(typeof cmdMateriales==='function') cmdMateriales(); },           meta:{ titulo:'materiales',              color:'t-dim', desc:'Ver catálogo de materiales por categoría.' } },
+      'forjar':     { fn: (args)=>_cmdForjar(args),               meta:{ titulo:'forjar [mat] [mat]',   color:'t-hab', desc:'Forja ítems combinando materiales.' } },
+      'encarnar':   { fn: (args)=>_cmdForjar(args, 'corporal'),   meta:{ titulo:'encarnar [mat] [mat]', color:'t-hab', desc:'Forja sesgada a habilidades corporales.' } },
+      'conjurar':   { fn: (args)=>_cmdForjar(args, 'mágico'),     meta:{ titulo:'conjurar [mat] [mat]', color:'t-mag', desc:'Forja sesgada a magias.' } },
+      'fusionar':   { fn: (args)=>_cmdFusionar(args),             meta:{ titulo:'fusionar [id] [id]',   color:'t-cor', desc:'Fusiona ítems en una reliquia viva.' } },
+      'recetas':    { fn: ()    =>_cmdRecetas(),                  meta:{ titulo:'recetas',              color:'t-dim', desc:'Ver guía de afinidades de tags.' } },
+      'materiales': { fn: ()    =>_cmdMateriales(),               meta:{ titulo:'materiales',           color:'t-dim', desc:'Ver catálogo de materiales por categoría.' } },
     },
   };
 })(globalThis);

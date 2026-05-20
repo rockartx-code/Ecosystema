@@ -575,6 +575,33 @@ const pluginCreaturas = {
     'criaturas': { fn: ()=>cmdCompañeros(), meta: { titulo:'criaturas', color:'t-cri', desc:'Lista compañeros vinculados con sus stats y modo actual.' } },
     'comp':      { fn: ()=>cmdCompañeros(), meta: { titulo:'comp (alias criaturas)', color:'t-cri', desc:'Lista compañeros.' } },
     'criar':     { fn: cmdCriar,      meta: { titulo:'criar [a] [b]',      color:'t-cri', desc:'Cría dos compañeros compatibles con afinidad ≥ 60. Produce un huevo.' } },
-    'anclas':    { fn: ()=>{ if(typeof cmdAnclas==='function') cmdAnclas(); }, meta: { titulo:'anclas', color:'t-cri', desc:'Ver anclas en inventario y criaturas del nodo.' } },
+    'anclas':    { fn: ()=>cmdAnclas(), meta: { titulo:'anclas', color:'t-cri', desc:'Ver anclas en inventario y criaturas del nodo.' } },
   },
 };
+
+// Exponer al manifest declarativo en core/boot.js. En scripts clasicos
+// los `const` top-level NO se enganchan a globalThis automaticamente.
+globalThis.pluginCreaturas = pluginCreaturas;
+
+// ── cmdAnclas (migrado de systems/commands.js en C2) ─────────
+function cmdAnclas() {
+  const p = _player();
+  if(!p) return;
+  _sp(); _line('— ANCLAS —', 't-cri');
+  const anclas = (p.inventory || []).filter(i => i.categoria === 'ancla' || D.mat(i.blueprint)?.categoria === 'ancla');
+  anclas.forEach(a => {
+    const tags = a.tags?.join(',') || D.matTags(a.blueprint).join(',') || '—';
+    _line(`  ${a.nombre || a.blueprint}  Tags:${tags}`, 't-cri');
+  });
+  if(!anclas.length) _line('Sin anclas. Búscalas en el mapa o fórjalas.', 't-dim');
+  _sp();
+  const n = _worldNode(_playerPos());
+  if(n?.creatures?.length) {
+    _line('Criaturas aquí:', 't-cri');
+    n.creatures.forEach(c => {
+      const reqs = D.creatures?.[c.arquetipo]?.anclas || [];
+      _line(`  ${c.nombre}  [${c.arquetipo}]  requiere: ${reqs.join(', ') || 'ninguna'}  HP:${c.hp}/${c.maxHp}`, 't-cri');
+    });
+  }
+  _sp();
+}
