@@ -67,11 +67,12 @@ function validatePluginEventRequires(pluginDef, eventsVersion) {
 })();
 
 (function testPluginLoaderRequiresEventsCompatibility() {
-  const coreSrc = fs.readFileSync('core/core.js', 'utf8') + '\n;globalThis.__core = { PluginLoader, EventBus };';
+  const { readCoreSource } = require('./helpers/load-core');
+  const coreSrc = readCoreSource() + '\n;globalThis.__core = { PluginLoader, EventBus };';
   const sandbox = { console, CTX:{ runtime:{ eventsVersion:'0.1.0' } }, globalThis:null };
   sandbox.globalThis = sandbox;
   vm.createContext(sandbox);
-  vm.runInContext(coreSrc, sandbox, { filename:'core/core.js' });
+  vm.runInContext(coreSrc, sandbox, { filename:'core/*.js' });
   const { PluginLoader, EventBus } = sandbox.__core;
 
   EventBus.defineEvent('combat:resolve_habilidad', { kind:'query' });

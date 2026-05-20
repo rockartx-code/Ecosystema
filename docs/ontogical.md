@@ -142,7 +142,6 @@ Reglas:
 - C2 ya esta cerrado para todos los handlers del audit (ver "Cerrado en fase 1.5"). Quedan en `systems/commands.js` los handlers neutrales (cmdIr, cmdMirar, cmdMapa, cmdInv, cmdEquipar, cmdUsar, cmdReparar, cmdRecoger, cmdSoltar, cmdEstado, cmdAyuda) y los de sistema/debug (cmdPlugins, cmdServicios, cmdEventos, etc.) que pertenecen al adaptador operativo. Tambien sigue ahi el trade multiplayer (`_cmdComerciar`, etc.) que conviene migrar cuando se cree `plugin-trade`.
 - `_zoneThemeFor` en `systems/music.js` consulta `data/module.json.music.zone_themes`; cualquier mapeo zona->tema nuevo debe vivir en data, no en el adapter.
 - ISP en `CTX` (A5 del audit): **infraestructura cerrada en fase 1.4**. Falta migrar los 22 plugins restantes a `permissions: { allow:[...], runtime:[...] }` para activar `setPermissionsPolicy('strict')` por defecto. Hoy 3 plugins (supervivencia, dificultad, enemigos) lo declaran como demostracion; el resto sigue recibiendo ctx completo (politica 'off' default mantiene backward compat).
-- Split fisico de `core/core.js` (M1 del audit): el archivo agrupa 6 namespaces (U, EventBus, ServiceRegistry, ModuleLoader, PluginLoader, CommandRegistry, D). Sin un sistema de modulos ES en navegador, los tests dependen de cargar `core/core.js` como unico fichero (`vm.runInContext`). Split deferido hasta migrar a ESM o test harness con orquestacion multi-fichero.
 
 ## Cerrado en fase 1.3 (C1)
 
@@ -151,6 +150,21 @@ Reglas:
 ## Cerrado en fase 1.4 (A5)
 
 - **A5 del audit — ISP en CTX**: `PluginLoader._buildCtxView(def, ctx)` filtra la vista que recibe cada plugin segun `def.permissions = { allow:[...], runtime:[...] }`. Politica configurable via `PluginLoader.setPermissionsPolicy('off' | 'warn' | 'strict')`. Plugins sin `permissions` reciben ctx completo (backward compat). Las claves metadato de `runtime` (`version`, `eventsVersion`, `events`, `modules`, `plugins`, `commands`, `services`) siempre estan disponibles incluso si no se declaran, porque son primitivas de plataforma. Validado por `tests/plugin_permissions_smoke.js` (6 escenarios: backward compat, strict, warn, comandos filtrados, cambio de politica en runtime, metadata siempre visible). Tres plugins (`supervivencia`, `dificultad`, `enemigos`) declaran sus permissions como demostracion; los restantes pueden migrar incrementalmente sin romper nada mientras la politica siga en `'off'`.
+
+## Cerrado en fase 1.7 (M1)
+
+- **M1 del audit — split fisico de `core/core.js`**: el monolito de 833 lineas se reemplaza por siete modulos cohesivos en `core/`:
+  - `utils.js` (U + helpers semver, 90 lineas)
+  - `event-bus.js` (EventBus, 183)
+  - `service-registry.js` (ServiceRegistry, 37)
+  - `module-loader.js` (ModuleLoader, 51)
+  - `command-registry.js` (CommandRegistry, 112)
+  - `plugin-loader.js` (PluginLoader + ctx-view de A5, 390)
+  - `data-accessor.js` (D, 38)
+- Cada fichero termina con `globalThis.X = X` para que los `const` top-level (que en scripts clasicos no se enganchan al global object) sean visibles cross-script. El orden de carga en `index.html` respeta las dependencias topologicas.
+- Desbloqueo del harness de tests: `tests/helpers/load-core.js` expone `readCoreSource()` que concatena los siete ficheros en orden de dependencia. Los seis tests que cargaban `core/core.js` via `fs.readFileSync` ahora usan el helper, sin cambiar su semantica.
+- `core/core.js` eliminado del repositorio.
+- Los 16 smoke tests (incluidos los funcionales de battle/permissions/migration) verdes despues del split.
 
 ## Cerrado en fase 1.6 (M6)
 

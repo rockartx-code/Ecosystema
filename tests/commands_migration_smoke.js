@@ -17,8 +17,9 @@
 //   - Criaturas:     compañeros, capturar, liberar, modo, nombrar,
 //                    criar, anclas, vincular
 //
-// El sandbox carga core/core.js + plugin-helpers.js + los plugins
-// reales del repo. Stub minimo de Player/World/GS/Out.
+// El sandbox carga los modulos de core (utils/event-bus/.../data-accessor)
+// + plugin-helpers.js + los plugins reales del repo. Stub minimo de
+// Player/World/GS/Out.
 // ════════════════════════════════════════════════════════════════
 
 const fs = require('fs');
@@ -146,11 +147,10 @@ function loadSandbox() {
   sandbox.RunMem = { registrar:()=>{}, ecos:()=>[], runs:()=>[], load:()=>{}, save:()=>{} };
   sandbox.localStorage = { removeItem:()=>{}, getItem:()=>null, setItem:()=>{} };
 
-  // Cargar core/core.js
-  const coreSrc = fs.readFileSync('core/core.js', 'utf8') +
-    '\n;globalThis.EventBus = EventBus; globalThis.ServiceRegistry = ServiceRegistry; globalThis.PluginLoader = PluginLoader; globalThis.CommandRegistry = CommandRegistry; globalThis.ModuleLoader = ModuleLoader;';
+  // Tras M1, core esta dividido en 7 ficheros que se cargan en orden.
+  const { readCoreSource } = require('./helpers/load-core');
   vm.createContext(sandbox);
-  vm.runInContext(coreSrc, sandbox, { filename:'core/core.js' });
+  vm.runInContext(readCoreSource(), sandbox, { filename:'core/*.js' });
   vm.runInContext(`
     U.chance = (p) => true;
     U.pick   = (arr) => arr[0];

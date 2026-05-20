@@ -17,10 +17,12 @@
 const fs = require('fs');
 const vm = require('vm');
 const assert = require('assert');
+const { readCoreSource } = require('./helpers/load-core');
 
 function loadCore() {
-  const src = fs.readFileSync('core/core.js', 'utf8') +
-    '\n;globalThis.EventBus = EventBus; globalThis.ServiceRegistry = ServiceRegistry; globalThis.PluginLoader = PluginLoader; globalThis.CommandRegistry = CommandRegistry; globalThis.ModuleLoader = ModuleLoader;';
+  // Tras M1, cada fragmento de core/* expone su namespace a globalThis
+  // al final. Concatenar es suficiente.
+  const src = readCoreSource();
   const sandbox = {
     console, document: { getElementById: ()=>null, createElement: ()=>({ className:'', id:'', innerHTML:'', appendChild(){}, querySelector(){return null;}, remove(){} }) },
     CTX: {}, Player: { get: ()=>({}) },
@@ -28,7 +30,7 @@ function loadCore() {
   };
   sandbox.globalThis = sandbox;
   vm.createContext(sandbox);
-  vm.runInContext(src, sandbox, { filename:'core/core.js' });
+  vm.runInContext(src, sandbox, { filename:'core/*.js' });
   return sandbox;
 }
 

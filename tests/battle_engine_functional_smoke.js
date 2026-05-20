@@ -157,15 +157,14 @@ function loadSandbox() {
   sandbox.CommandRegistry = { register:()=>true, run:()=>true, has:()=>false, resolve:()=>null };
   sandbox.ConcentracionSystem = undefined;
 
-  // Cargar core/core.js: provee EventBus y ServiceRegistry reales.
-  // Las consts de core no se enganchan a globalThis automaticamente —
-  // exportamos manualmente al final, igual que runtime_smoke.js.
-  const coreSrc = fs.readFileSync('core/core.js', 'utf8') +
-    '\n;globalThis.EventBus = EventBus; globalThis.ServiceRegistry = ServiceRegistry;';
+  // Tras M1, core esta dividido en 7 ficheros. Cada uno expone su
+  // namespace a globalThis al final, asi que sandbox.EventBus etc.
+  // estan disponibles sin appends adicionales. Concatenamos en orden.
+  const { readCoreSource } = require('./helpers/load-core');
+  const coreSrc = readCoreSource();
   vm.createContext(sandbox);
-  vm.runInContext(coreSrc, sandbox, { filename:'core/core.js' });
+  vm.runInContext(coreSrc, sandbox, { filename:'core/*.js' });
 
-  // core/core.js declara U/D al top-level y los crea en la sandbox scope.
   // Reescribimos chance/pick/rand para determinismo en tests.
   vm.runInContext(`
     U.chance = (p) => true;

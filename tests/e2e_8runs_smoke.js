@@ -4,9 +4,10 @@
 const fs = require('fs');
 const vm = require('vm');
 const assert = require('assert');
+const { readCoreSource } = require('./helpers/load-core');
 
 function loadCore() {
-  const src = fs.readFileSync('core/core.js', 'utf8') + '\n;globalThis.__core = { EventBus, ServiceRegistry, PluginLoader, CommandRegistry };';
+  const src = readCoreSource() + '\n;globalThis.__core = { EventBus, ServiceRegistry, PluginLoader, CommandRegistry };';
   const sandbox = {
     console,
     CTX: {},
@@ -19,7 +20,7 @@ function loadCore() {
   };
   sandbox.globalThis = sandbox;
   vm.createContext(sandbox);
-  vm.runInContext(src, sandbox, { filename:'core/core.js' });
+  vm.runInContext(src, sandbox, { filename:'core/*.js' });
   return sandbox.__core;
 }
 

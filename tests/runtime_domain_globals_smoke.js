@@ -4,9 +4,10 @@
 const fs = require('fs');
 const vm = require('vm');
 const assert = require('assert');
+const { readCoreSource } = require('./helpers/load-core');
 
 (function testRuntimeDomainServicesRegistered() {
-  const coreSrc = fs.readFileSync('core/core.js', 'utf8') + '\n;globalThis.__core = { ServiceRegistry };';
+  const coreSrc = readCoreSource() + '\n;globalThis.__core = { ServiceRegistry };';
   const commandsSrc = fs.readFileSync('systems/commands.js', 'utf8');
 
   const sandbox = {
@@ -58,7 +59,7 @@ const assert = require('assert');
   sandbox.globalThis = sandbox;
   sandbox.window = sandbox;
   vm.createContext(sandbox);
-  vm.runInContext(coreSrc, sandbox, { filename:'core/core.js' });
+  vm.runInContext(coreSrc, sandbox, { filename:'core/*.js' });
   vm.runInContext(commandsSrc, sandbox, { filename:'systems/commands.js' });
 
   const { ServiceRegistry } = sandbox.__core;
