@@ -56,6 +56,7 @@ const guardFiles = [
   'tests/ownership_matrix_smoke.js',
   'tests/plugins_strict_zero_smoke.js',
   'tests/battle_engine_functional_smoke.js',
+  'tests/plugin_permissions_smoke.js',
 ];
 const dod3Ok = guardFiles.every((f) => fs.existsSync(path.join(ROOT, f)));
 

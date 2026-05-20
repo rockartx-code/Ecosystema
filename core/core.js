@@ -594,16 +594,76 @@ const PluginLoader = {
   },
 
   _buildHandler(def, hookDef) {
-    if(hookDef._compiled) return (payload,ctx)=>hookDef._compiled(payload,ctx);
-    if(typeof hookDef.fn==='function') return hookDef.fn;
-    if(typeof hookDef==='function') return hookDef;
-    return null;
+    const inner = hookDef._compiled
+      ? (payload, ctx)=>hookDef._compiled(payload, ctx)
+      : (typeof hookDef.fn === 'function' ? hookDef.fn
+      :  typeof hookDef === 'function'    ? hookDef
+      :  null);
+    if(typeof inner !== 'function') return null;
+    if(!def.permissions) return inner;
+    const self = this;
+    return (payload, ctx) => inner(payload, self._buildCtxView(def, ctx));
   },
   _buildCmdHandler(def, cmdDef) {
-    if(cmdDef._compiled) return (args,ctx)=>cmdDef._compiled(args,ctx);
-    if(typeof cmdDef.fn==='function') return cmdDef.fn;
-    if(typeof cmdDef==='function') return cmdDef;
-    return null;
+    const inner = cmdDef._compiled
+      ? (args, ctx)=>cmdDef._compiled(args, ctx)
+      : (typeof cmdDef.fn === 'function' ? cmdDef.fn
+      :  typeof cmdDef === 'function'    ? cmdDef
+      :  null);
+    if(typeof inner !== 'function') return null;
+    if(!def.permissions) return inner;
+    const self = this;
+    return (args, ctx) => inner(args, self._buildCtxView(def, ctx));
+  },
+  _permissionsPolicy: 'off',
+  setPermissionsPolicy(policy='off') {
+    const p = String(policy || '').toLowerCase();
+    this._permissionsPolicy = ['off', 'warn', 'strict'].includes(p) ? p : 'off';
+  },
+  permissionsPolicy() { return this._permissionsPolicy; },
+  // Construye una vista filtrada de CTX segun def.permissions (ISP del audit).
+  // permissions: { allow: ['U','EventBus','D',...], runtime: ['player','world',...] }
+  // - Sin permissions: el handler ya devuelve ctx sin tocar (en _buildHandler).
+  // - Policy 'off':    devuelve ctx tal cual (proxy desactivado).
+  // - Policy 'warn':   proxy que loggea cualquier acceso no declarado y deja pasar.
+  // - Policy 'strict': proxy que devuelve undefined para accesos no declarados.
+  // Las claves metadatos de runtime (version, eventsVersion, events, modules,
+  // plugins, commands, services) quedan siempre disponibles porque son
+  // primitivas de plataforma, no de dominio.
+  _buildCtxView(def, ctx) {
+    if(!ctx) return ctx;
+    const policy = this._permissionsPolicy;
+    if(policy === 'off') return ctx;
+    const perms = def.permissions || {};
+    const allow        = new Set(perms.allow || []);
+    const runtimeAllow = new Set(perms.runtime || []);
+    const RUNTIME_META = new Set(['version','eventsVersion','events','modules','plugins','commands','services']);
+    const warn = (key) => {
+      if(policy === 'warn') console.warn(`[PluginLoader] ${def.id}: acceso a ctx.${key} no declarado en permissions`);
+    };
+
+    let runtimeView = null;
+    const ctxRuntime = ctx.runtime;
+    if(ctxRuntime && typeof ctxRuntime === 'object') {
+      runtimeView = new Proxy(ctxRuntime, {
+        get(target, key) {
+          if(typeof key !== 'string') return target[key];
+          if(RUNTIME_META.has(key) || runtimeAllow.has(key)) return target[key];
+          warn(`runtime.${key}`);
+          return policy === 'strict' ? undefined : target[key];
+        },
+      });
+    }
+
+    return new Proxy(ctx, {
+      get(target, key) {
+        if(typeof key !== 'string') return target[key];
+        if(key === 'runtime') return runtimeView ?? target.runtime;
+        if(allow.has(key)) return target[key];
+        warn(key);
+        return policy === 'strict' ? undefined : target[key];
+      },
+    });
   },
   _mountStatusBar(def) {
     const container = document.getElementById('plugin-stats'); if(!container) return;

@@ -14,6 +14,10 @@ const pluginEnemigos = {
   nombre: 'Sistema de Enemigos',
   version: '2.0.0',
   descripcion: 'Fábrica de entidad enemy y spawn por sección.',
+  // ISP (A5 audit): el plugin consume D (catalogo enemies), U (random),
+  // Entity y EntityRegistry directamente desde globales. No accede a
+  // ctx.* en sus handlers, asi que permissions queda vacio.
+  permissions: { allow: [], runtime: [] },
 
   onLoad() {
     EntityRegistry.register('enemy', (data) => new Entity({ ...data, tipo:'enemy' }));

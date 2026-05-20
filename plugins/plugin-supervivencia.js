@@ -12,6 +12,13 @@ const pluginSupervivencia = {
   nombre: 'Supervivencia',
   version: '2.0.0',
   descripcion: 'Hambre y heridas persistentes fuera de combate.',
+  // ISP (A5 audit): este plugin solo consume ModuleLoader (config de
+  // hambre) y D (playerDef.hunger_base) desde ctx. Toda la dependencia
+  // del jugador y mundo entra por los helpers de plugin-helpers.js.
+  permissions: {
+    allow: ['ModuleLoader', 'D'],
+    runtime: [],
+  },
   hooks: {
     'player:create': {
       fn(payload) {

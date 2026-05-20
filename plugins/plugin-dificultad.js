@@ -19,6 +19,11 @@ const pluginDificultad = (() => {
     nombre: 'Escalado de Dificultad',
     version: '2.0.0',
     descripcion: 'Calcula la dificultad del mundo en base a progresion.',
+    // ISP (A5 audit): este plugin no usa ctx directamente. Toda
+    // dependencia (player.combat_stats, clock.current) se resuelve via
+    // helpers globales de core/plugin-helpers.js. Permissions vacias
+    // documentan el contrato minimo.
+    permissions: { allow: [], runtime: [] },
     hooks: {
       'world:calc_difficulty': {
         fn(payload) {

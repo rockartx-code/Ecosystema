@@ -142,12 +142,16 @@ Reglas:
 - `core/main.js` mantiene `globalThis.Combat = CombatResolution` como shim de compatibilidad. `systems/commands.js:280` y `systems/net.js:172` aun lo consumen. La maquina de batalla ya esta en `plugin-battle-engine`, pero el flag `Combat.active` sigue siendo global; cuando todos los consumers usen `runtime.battle.current()?.estado === 'activo'`, el shim se elimina.
 - `systems/commands.js` aun contiene handlers de gameplay (`cmdHablar`, `cmdForjar`, `cmdAtacar`, `cmdPreguntar`, `cmdObservar`, `cmdTraicionar`, `cmdNPCs`). En la fase 1.2 se migraron `cmdAceptar/Rechazar/Completar` a `plugin-npcs`. El resto sigue C2 incremental.
 - `_zoneThemeFor` en `systems/music.js` consulta `data/module.json.music.zone_themes`; cualquier mapeo zona->tema nuevo debe vivir en data, no en el adapter.
-- ISP en `CTX` (A5 del audit): el segundo argumento de los hooks expone ~30 namespaces a todos los plugins. Una version futura podria filtrar segun `def.permissions` declaradas. Cambio cross-plugin, requiere su propia fase.
+- ISP en `CTX` (A5 del audit): **infraestructura cerrada en fase 1.4**. Falta migrar los 22 plugins restantes a `permissions: { allow:[...], runtime:[...] }` para activar `setPermissionsPolicy('strict')` por defecto. Hoy 3 plugins (supervivencia, dificultad, enemigos) lo declaran como demostracion; el resto sigue recibiendo ctx completo (politica 'off' default mantiene backward compat).
 - Split fisico de `core/core.js` (M1 del audit): el archivo agrupa 6 namespaces (U, EventBus, ServiceRegistry, ModuleLoader, PluginLoader, CommandRegistry, D). Sin un sistema de modulos ES en navegador, los tests dependen de cargar `core/core.js` como unico fichero (`vm.runInContext`). Split deferido hasta migrar a ESM o test harness con orquestacion multi-fichero.
 
 ## Cerrado en fase 1.3 (C1)
 
 - **C1 del audit — `systems/net.js` maquina de batalla**: extraida a `plugins/plugin-battle-engine.js` (`runtime.battle.*` + `gameplay.battle.*` services). `net.js` queda como adaptador de red puro con wrappers de compat sobre el plugin. Validado por `tests/battle_engine_functional_smoke.js` (start, atacar, defender, IA fallback, victoria, huir, render, getMyBattle/Actor). El test corre en cada `npm test`.
+
+## Cerrado en fase 1.4 (A5)
+
+- **A5 del audit — ISP en CTX**: `PluginLoader._buildCtxView(def, ctx)` filtra la vista que recibe cada plugin segun `def.permissions = { allow:[...], runtime:[...] }`. Politica configurable via `PluginLoader.setPermissionsPolicy('off' | 'warn' | 'strict')`. Plugins sin `permissions` reciben ctx completo (backward compat). Las claves metadato de `runtime` (`version`, `eventsVersion`, `events`, `modules`, `plugins`, `commands`, `services`) siempre estan disponibles incluso si no se declaran, porque son primitivas de plataforma. Validado por `tests/plugin_permissions_smoke.js` (6 escenarios: backward compat, strict, warn, comandos filtrados, cambio de politica en runtime, metadata siempre visible). Tres plugins (`supervivencia`, `dificultad`, `enemigos`) declaran sus permissions como demostracion; los restantes pueden migrar incrementalmente sin romper nada mientras la politica siga en `'off'`.
 
 ## Invariantes para Fase 2
 

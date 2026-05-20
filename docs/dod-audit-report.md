@@ -1,6 +1,6 @@
 # Reporte automático DoD
 
-Fecha: 2026-05-19T21:17:14.667Z
+Fecha: 2026-05-20T05:02:48.312Z
 
 ## Resultado por criterio
 - DoD.1 commands.js sin globals directos: ❌
@@ -11,5 +11,5 @@ Fecha: 2026-05-19T21:17:14.667Z
 ## Evidencia
 - systems/commands.js tokens DoD.1: {"Net":1}
 - plugins críticos tokens DoD.2: {}
-- guardrails verificados por presencia: 11
+- guardrails verificados por presencia: 12
 - baseline: /home/user/Ecosystema/tests/fixtures/architecture_guard_baseline.json
