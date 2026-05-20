@@ -3,7 +3,10 @@
 // ════════════════════════════════════════════════════════════════
 (function initNetLogic(global) {
   function create({ data, deps }) {
-    const { U, Out, EventBus, World, GS, Clock, Player, Combat, CombatResolution, refreshStatus, save, ConcentracionSystem, ModuleLoader } = deps;
+    // Tras C1 + M6, net.js no consume Combat/CombatResolution/ConcentracionSystem
+    // (la maquina vive en plugin-battle-engine). Quedan los deps que aun usan
+    // los handlers de red, snapshot y trade.
+    const { U, Out, EventBus, World, GS, Clock, Player, refreshStatus, save, ModuleLoader } = deps;
 
   function _svc(name) {
     return (typeof global.ServiceRegistry !== 'undefined' && typeof global.ServiceRegistry.get === 'function')
@@ -316,11 +319,8 @@ const Net = (() => {
       GS,
       Clock,
       Player,
-      Combat: typeof globalThis.Combat !== 'undefined' ? globalThis.Combat : undefined,
-      CombatResolution: typeof globalThis.CombatResolution !== 'undefined' ? globalThis.CombatResolution : undefined,
       refreshStatus,
       save: typeof globalThis.save === 'function' ? globalThis.save : () => {},
-      ConcentracionSystem: typeof globalThis.ConcentracionSystem !== 'undefined' ? globalThis.ConcentracionSystem : undefined,
       ModuleLoader,
     },
   });

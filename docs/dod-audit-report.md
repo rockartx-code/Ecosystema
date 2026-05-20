@@ -1,6 +1,6 @@
 # Reporte automático DoD
 
-Fecha: 2026-05-20T05:19:34.470Z
+Fecha: 2026-05-20T05:29:09.424Z
 
 ## Resultado por criterio
 - DoD.1 commands.js sin globals directos: ❌

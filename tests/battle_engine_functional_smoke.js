@@ -5,12 +5,12 @@
 // FUNCIONAL — Maquina de batalla (C1 audit)
 //
 // Verifica comportamiento end-to-end de la maquina tactica:
-//   - startBattle inicializa cola por iniciativa, marca Combat.active
+//   - startBattle inicializa cola por iniciativa, deja battle.estado='activo'
 //   - sendBattleAction('atacar') reduce HP y emite combat:* events
 //   - sendBattleAction('defender') marca defendiendo
 //   - _execSimpleAI (fallback) golpea al jugador en turno enemigo
 //   - _checkBattleEnd dispara loot + XP + combat:enemy_defeat al ganar
-//   - Combat.active vuelve a false al terminar
+//   - battle.estado pasa a 'fin' al terminar (M6 cerro el flag legacy)
 //
 // El mismo archivo se ejecuta antes y despues de migrar la maquina
 // a plugin-battle-engine.js. Si los asserts pasan en ambos casos, el
@@ -138,8 +138,10 @@ function loadSandbox() {
     ser:  () => ({ cycle: sandbox.Clock.cycle }),
     load: (d) => { if(d?.cycle != null) sandbox.Clock.cycle = d.cycle; },
   };
-  sandbox.CombatResolution = { active: false };
-  sandbox.Combat = sandbox.CombatResolution;
+  // M6 cerrado: no hay flag global Combat.active. battle.estado es la
+  // unica fuente de verdad. Dejamos CombatResolution como objeto vacio
+  // por si otro modulo de core lo requiere (no consumimos active).
+  sandbox.CombatResolution = {};
   sandbox._sonEnemigos = () => false;
   sandbox.refreshStatus = () => { battleStore.refreshed += 1; };
   sandbox.save = () => { battleStore.saved += 1; };
@@ -241,7 +243,7 @@ function loadCurrentBattleEngine(sandbox) {
   assert.strictEqual(battle.ronda, 1);
   assert.strictEqual(battle.cola.length, 2);
   assert.strictEqual(battle.cola[0].name, 'Tester', 'iniciativa mayor primero');
-  assert.strictEqual(ctx.sandbox.Combat.active, true, 'Combat.active queda en true');
+  assert.strictEqual(Net.getMyBattle()?.estado, 'activo', 'runtime.battle.current refleja batalla activa');
   assert.ok(ctx.events.some(e => e.ev === 'combat:start'), 'combat:start emitido');
 })();
 
@@ -304,7 +306,7 @@ function loadCurrentBattleEngine(sandbox) {
   assert.strictEqual(battle.estado, 'fin', 'battle debe terminar al matar al unico enemigo');
   assert.ok(ctx.events.some(e => e.ev === 'combat:enemy_defeat'), 'combat:enemy_defeat emitido');
   assert.ok(ctx.events.some(e => e.ev === 'combat:post_resolve'),  'combat:post_resolve emitido');
-  assert.strictEqual(ctx.sandbox.Combat.active, false, 'Combat.active vuelve a false al terminar');
+  assert.strictEqual(Net.getMyBattle(), null, 'runtime.battle.current vuelve a null al terminar');
   assert.ok(ctx.battleStore.saved >= 1, 'save() llamado al terminar batalla');
   assert.ok(ctx.battleStore.enemiesRemoved.some(r => r.eid === 'lobo'), 'enemigo removido del mundo');
   assert.ok(ctx.battleStore.xpGains.some(g => g.branch === 'combate' && g.reason?.includes('kill')), 'XP de kill otorgada');

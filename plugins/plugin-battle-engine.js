@@ -28,10 +28,9 @@ const pluginBattleEngine = (() => {
     const fn = _svc('runtime.items.api');
     return typeof fn === 'function' ? (fn() || null) : null;
   }
-  function _setCombatActive(value) {
-    if(typeof Combat !== 'undefined') { Combat.active = value; return; }
-    if(typeof CombatResolution !== 'undefined') CombatResolution.active = value;
-  }
+  // Nota: el flag legacy globalThis.Combat.active se elimino en fase 1.6
+  // (M6 del audit). El estado de batalla vive en el objeto battle.estado
+  // y se consulta via runtime.battle.current().
   function _concentracionParseVariant(arg) {
     if(typeof ConcentracionSystem !== 'undefined' && ConcentracionSystem.parseVariantArg) {
       return ConcentracionSystem.parseVariantArg(arg);
@@ -147,7 +146,6 @@ const pluginBattleEngine = (() => {
 
     if(battle.estado === 'fin') {
       if(myBattleId === battle.id) myBattleId = null;
-      _setCombatActive(false);
       _saveGame();
     }
   }
@@ -197,7 +195,6 @@ const pluginBattleEngine = (() => {
     _tactics()?.initBattle?.(battle);
     battles[id]  = battle;
     myBattleId   = id;
-    _setCombatActive(true);
 
     _sp();
     _line('⚔ BATALLA INICIADA', 't-pel', true);

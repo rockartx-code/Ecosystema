@@ -93,7 +93,6 @@ function loadCommandsSandbox() {
     init: async ()=>{},
     exportarPartida: ()=>{},
     importarPartida: ()=>{},
-    Combat: { active:false },
     XP: {
       ganar: ()=>{},
       cmdAsignar: ()=>{ probe.xpAssign += 1; },

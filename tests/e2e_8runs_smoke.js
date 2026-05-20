@@ -94,7 +94,6 @@ function buildRuntimeSandbox() {
     exportarPartida: ()=>{},
     importarPartida: ()=>{},
 
-    Combat: { active:false },
     D: {},
 
     Net: {

@@ -269,7 +269,7 @@ async function dispatch(cmd) {
     if(verb==='estado'||verb==='stats') { cmdEstado(); return; }
     if(verb==='ayuda'||verb==='help'||verb==='?') { cmdAyuda(args.join(' ')); return; }
     if(verb==='tactica'||verb==='táctica') { _playerTactic(); return; }
-    if(verb==='huir'||verb==='h') { _battleAction(battle.id,Player.get().id,'huir',null); Combat.active=false; return; }
+    if(verb==='huir'||verb==='h') { _battleAction(battle.id,Player.get().id,'huir',null); return; }
 
     if(!esMiTurno) {
       if(battle._aiThinking) { Out.line(`⏳ ${actor?.name||'IA'} está actuando...`, 't-dim'); return; }

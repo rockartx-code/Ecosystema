@@ -139,7 +139,6 @@ Reglas:
 
 ## Deuda tecnica conocida (a cerrar en fase posterior)
 
-- `core/main.js` mantiene `globalThis.Combat = CombatResolution` como shim de compatibilidad. `systems/commands.js:280` y `systems/net.js:172` aun lo consumen. La maquina de batalla ya esta en `plugin-battle-engine`, pero el flag `Combat.active` sigue siendo global; cuando todos los consumers usen `runtime.battle.current()?.estado === 'activo'`, el shim se elimina.
 - C2 ya esta cerrado para todos los handlers del audit (ver "Cerrado en fase 1.5"). Quedan en `systems/commands.js` los handlers neutrales (cmdIr, cmdMirar, cmdMapa, cmdInv, cmdEquipar, cmdUsar, cmdReparar, cmdRecoger, cmdSoltar, cmdEstado, cmdAyuda) y los de sistema/debug (cmdPlugins, cmdServicios, cmdEventos, etc.) que pertenecen al adaptador operativo. Tambien sigue ahi el trade multiplayer (`_cmdComerciar`, etc.) que conviene migrar cuando se cree `plugin-trade`.
 - `_zoneThemeFor` en `systems/music.js` consulta `data/module.json.music.zone_themes`; cualquier mapeo zona->tema nuevo debe vivir en data, no en el adapter.
 - ISP en `CTX` (A5 del audit): **infraestructura cerrada en fase 1.4**. Falta migrar los 22 plugins restantes a `permissions: { allow:[...], runtime:[...] }` para activar `setPermissionsPolicy('strict')` por defecto. Hoy 3 plugins (supervivencia, dificultad, enemigos) lo declaran como demostracion; el resto sigue recibiendo ctx completo (politica 'off' default mantiene backward compat).
@@ -152,6 +151,16 @@ Reglas:
 ## Cerrado en fase 1.4 (A5)
 
 - **A5 del audit — ISP en CTX**: `PluginLoader._buildCtxView(def, ctx)` filtra la vista que recibe cada plugin segun `def.permissions = { allow:[...], runtime:[...] }`. Politica configurable via `PluginLoader.setPermissionsPolicy('off' | 'warn' | 'strict')`. Plugins sin `permissions` reciben ctx completo (backward compat). Las claves metadato de `runtime` (`version`, `eventsVersion`, `events`, `modules`, `plugins`, `commands`, `services`) siempre estan disponibles incluso si no se declaran, porque son primitivas de plataforma. Validado por `tests/plugin_permissions_smoke.js` (6 escenarios: backward compat, strict, warn, comandos filtrados, cambio de politica en runtime, metadata siempre visible). Tres plugins (`supervivencia`, `dificultad`, `enemigos`) declaran sus permissions como demostracion; los restantes pueden migrar incrementalmente sin romper nada mientras la politica siga en `'off'`.
+
+## Cerrado en fase 1.6 (M6)
+
+- **M6 del audit — shim legacy `globalThis.Combat.active`**: confirmado por inspeccion exhaustiva que ningun consumer leia el flag (`grep` produce solo escrituras: en `_setCombatActive` del plugin, en `commands.js:272` despues de huir, y en el shim mismo). Acciones:
+  - `plugin-battle-engine` elimino `_setCombatActive` y sus dos call sites en `startBattle`/`_checkBattleEnd`.
+  - `systems/commands.js:272` quita la asignacion `Combat.active=false` despues de huir (la maquina ya lo gestiona internamente via `battle.estado`).
+  - `core/main.js` elimina el shim completo (`globalThis.Combat = CombatResolution` + `globalThis.Combat.active = false`) y el alias `CTX.Combat`.
+  - `systems/net.js` elimina `Combat`/`CombatResolution`/`ConcentracionSystem` de los deps que pasa a `NetLogic.create` (dead code post-C1).
+  - Tests actualizados: `battle_engine_functional_smoke.js` ahora valida via `Net.getMyBattle()?.estado` en vez de `Combat.active`; `runtime_smoke.js` y `e2e_8runs_smoke.js` ya no inyectan stubs muertos.
+- El estado de batalla queda unicamente en `battle.estado` ('activo'|'fin'). Consultable desde commands/plugins via `runtime.battle.current()?.estado === 'activo'`.
 
 ## Cerrado en fase 1.5 (C2)
 

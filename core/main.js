@@ -6,7 +6,6 @@
 //   2. CTX — contexto compartido entre plugins
 //   3. CTX.runtime — fachada estable de servicios (con eventsVersion)
 //   4. defineRuntimeEvents() — contrato versionado de eventos
-//   5. Shim legacy globalThis.Combat (documentado en ontogical.md)
 //
 // La secuencia de arranque (bootSeq/init) vive en core/boot.js para
 // preservar SRP. core/events.js define los specs de eventos.
@@ -39,7 +38,7 @@ const CTX = {
   Player, World, GS, Clock,
 
   // Sistemas de combate
-  CombatResolution, Combat: CombatResolution, battleLog, _sonEnemigos,
+  CombatResolution, battleLog, _sonEnemigos,
 
   // I/O — el motor y los plugins usan Out.* para escribir output.
   Out, R: RCompat,
@@ -122,12 +121,7 @@ PluginLoader.setEventsVersion?.(CTX.runtime.eventsVersion);
 // Definicion versionada de eventos. Implementacion en core/events.js.
 defineRuntimeEvents(EventBus);
 
-// Shim legacy: systems/commands.js:280 y systems/net.js:172 escriben
-// Combat.active. Ver docs/ontogical.md "Deuda tecnica conocida": la
-// limpieza llega al extraer la batalla de net.js a un plugin.
-if(typeof globalThis.Combat === 'undefined') {
-  globalThis.Combat = CombatResolution;
-}
-if(typeof globalThis.Combat.active === 'undefined') {
-  globalThis.Combat.active = false;
-}
+// M6 del audit cerrado en fase 1.6: el shim globalThis.Combat.active
+// se elimino al confirmar que ningun consumer leia el flag. El estado
+// de batalla vive en battle.estado y se consulta via
+// runtime.battle.current()?.estado === 'activo'.
