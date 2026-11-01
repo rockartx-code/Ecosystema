@@ -639,5 +639,6 @@ const pluginCreaturas = {
     'criaturas': { fn: ()=>cmdCompañeros(), meta: { titulo:'criaturas', color:'t-cri', desc:'Lista compañeros vinculados con sus stats y modo actual.' } },
     'comp':      { fn: ()=>cmdCompañeros(), meta: { titulo:'comp (alias criaturas)', color:'t-cri', desc:'Lista compañeros.' } },
     'criar':     { fn: cmdCriar,      meta: { titulo:'criar [a] [b]',      color:'t-cri', desc:'Cría dos compañeros compatibles con afinidad ≥ 60. Produce un huevo.' } },
+    'anclas':    { fn: ()=>{ if(typeof cmdAnclas==='function') cmdAnclas(); }, meta: { titulo:'anclas', color:'t-cri', desc:'Ver anclas en inventario y criaturas del nodo.' } },
   },
 };

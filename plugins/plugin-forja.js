@@ -207,5 +207,13 @@
       'runtime.forge.build_stats': (arcId, s, t, rng) => api().Forge.buildStats(arcId, s, t, rng),
       'runtime.imprint.gen': (blueprint, materials = [], ctx = {}, tension = 0) => api().Imprint.gen(blueprint, materials, ctx, tension),
     },
+    comandos: {
+      'forjar':     { fn: (args)=>{ if(typeof cmdForjar==='function')    cmdForjar(args); },           meta:{ titulo:'forjar [mat] [mat]',      color:'t-hab', desc:'Forja ítems combinando materiales.' } },
+      'encarnar':   { fn: (args)=>{ if(typeof cmdForjar==='function')    cmdForjar(args,'corporal'); }, meta:{ titulo:'encarnar [mat] [mat]',    color:'t-hab', desc:'Forja sesgada a habilidades corporales.' } },
+      'conjurar':   { fn: (args)=>{ if(typeof cmdForjar==='function')    cmdForjar(args,'mágico'); },   meta:{ titulo:'conjurar [mat] [mat]',    color:'t-mag', desc:'Forja sesgada a magias.' } },
+      'fusionar':   { fn: (args)=>{ if(typeof cmdFusionar==='function')  cmdFusionar(args); },          meta:{ titulo:'fusionar [id] [id]',      color:'t-cor', desc:'Fusiona ítems en una reliquia viva.' } },
+      'recetas':    { fn: ()    =>{ if(typeof cmdRecetas==='function')   cmdRecetas(); },               meta:{ titulo:'recetas',                 color:'t-dim', desc:'Ver guía de afinidades de tags.' } },
+      'materiales': { fn: ()    =>{ if(typeof cmdMateriales==='function') cmdMateriales(); },           meta:{ titulo:'materiales',              color:'t-dim', desc:'Ver catálogo de materiales por categoría.' } },
+    },
   };
 })(globalThis);

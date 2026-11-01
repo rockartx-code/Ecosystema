@@ -269,5 +269,20 @@
       'runtime.xp.load': (data) => { api().load(data); return true; },
       'runtime.xp.state': () => api().ser(),
     },
+    comandos: {
+      'experiencia': { fn: ()    => api().cmdExperiencia(),          meta:{ titulo:'experiencia', color:'t-mem', desc:'Ver progresión de ramas de experiencia y niveles.' } },
+      'xp':          { fn: ()    => api().cmdExperiencia(),          meta:{ titulo:'xp (alias)',  color:'t-mem', desc:'Ver experiencia.' } },
+      'exp':         { fn: ()    => api().cmdExperiencia(),          meta:{ titulo:'exp (alias)', color:'t-mem', desc:'Ver experiencia.' } },
+      'atributos':   { fn: ()    => api().cmdAtributos(),            meta:{ titulo:'atributos',   color:'t-acc', desc:'Ver atributos y puntos disponibles para asignar.' } },
+      'attrs':       { fn: ()    => api().cmdAtributos(),            meta:{ titulo:'attrs (alias atributos)', color:'t-acc', desc:'Ver atributos.' } },
+      'asignar':     { fn: (args)=> api().cmdAsignar(args.join(' ')),meta:{ titulo:'asignar [atributo]', color:'t-acc', desc:'Invertir un punto en un atributo.' } },
+      'assign':      { fn: (args)=> api().cmdAsignar(args.join(' ')),meta:{ titulo:'assign (alias asignar)', color:'t-acc', desc:'Invertir punto en atributo.' } },
+      'descansar':   { fn: async ()=>{ const rest=typeof ServiceRegistry!=='undefined'?ServiceRegistry.get('runtime.player.rest'):null; if(typeof rest==='function') await rest(); }, meta:{ titulo:'descansar', color:'t-mem', desc:'Descansar para recuperar HP y stamina.' } },
+      'rest':        { fn: async ()=>{ const rest=typeof ServiceRegistry!=='undefined'?ServiceRegistry.get('runtime.player.rest'):null; if(typeof rest==='function') await rest(); }, meta:{ titulo:'rest (alias descansar)', color:'t-mem', desc:'Descansar.' } },
+      'dormir':      { fn: async ()=>{ const rest=typeof ServiceRegistry!=='undefined'?ServiceRegistry.get('runtime.player.rest'):null; if(typeof rest==='function') await rest(); }, meta:{ titulo:'dormir (alias descansar)', color:'t-mem', desc:'Descansar.' } },
+      'tactica':     { fn: ()=>{ const t=typeof ServiceRegistry!=='undefined'?ServiceRegistry.get('runtime.player.tactic'):null; if(typeof t==='function') t(); }, meta:{ titulo:'tactica',   color:'t-sis', desc:'Ver tácticas y configuración de combate.' } },
+      'táctica':     { fn: ()=>{ const t=typeof ServiceRegistry!=='undefined'?ServiceRegistry.get('runtime.player.tactic'):null; if(typeof t==='function') t(); }, meta:{ titulo:'táctica (alias)', color:'t-sis', desc:'Ver tácticas.' } },
+      'tac':         { fn: ()=>{ const t=typeof ServiceRegistry!=='undefined'?ServiceRegistry.get('runtime.player.tactic'):null; if(typeof t==='function') t(); }, meta:{ titulo:'tac (alias tactica)', color:'t-sis', desc:'Ver tácticas.' } },
+    },
   };
 })(globalThis);

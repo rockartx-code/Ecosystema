@@ -325,7 +325,9 @@ const pluginFacciones = {
     },
   },
   comandos: {
-    'facciones':   { fn: ()     => FactionSystem.cmdFacciones(), meta:{ titulo:'facciones', color:'t-sis', desc:'Ver facciones, reputación y territorios.' } },
-    'reputacion':  { fn: ()     => FactionSystem.cmdFacciones(), meta:{ titulo:'reputacion (alias)', color:'t-sis', desc:'Ver reputación.' } },
+    'facciones':  { fn: () => FactionSystem.cmdFacciones(), meta:{ titulo:'facciones',  color:'t-sis', desc:'Ver facciones, reputación y territorios.' } },
+    'faccion':    { fn: () => FactionSystem.cmdFacciones(), meta:{ titulo:'faccion (alias)',  color:'t-sis', desc:'Ver facciones.' } },
+    'reputacion': { fn: () => FactionSystem.cmdFacciones(), meta:{ titulo:'reputacion (alias)', color:'t-sis', desc:'Ver reputación.' } },
+    'rep':        { fn: () => FactionSystem.cmdFacciones(), meta:{ titulo:'rep (alias)', color:'t-sis', desc:'Ver reputación.' } },
   },
 };
